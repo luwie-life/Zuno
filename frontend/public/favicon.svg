@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">Zuno shopping bag</title>
+  <path d="M13 23h38l3 34H10l3-34Z" fill="none" stroke="#0B6B4F" stroke-linecap="round" stroke-linejoin="round" stroke-width="4"/>
+  <path d="M22 24v-6a10 10 0 0 1 20 0v6" fill="none" stroke="#0B6B4F" stroke-linecap="round" stroke-width="4"/>
+  <path d="M22 31h21L29 47h15v5H20l14-16H22z" fill="#0B6B4F"/>
+</svg>

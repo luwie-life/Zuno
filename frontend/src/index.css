@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { -webkit-text-size-adjust: 100%; }
+  body { @apply bg-paper text-ink font-sans antialiased; }
+  h1, h2, h3, h4 { @apply font-display tracking-tight; }
+  :focus-visible { @apply outline-2 outline-offset-2 outline-forest-500; }
+  @media (prefers-reduced-motion: reduce) { * { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+}
+@layer components {
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]; }
+  .btn-primary { @apply btn bg-forest text-white hover:bg-forest-600; }
+  .btn-secondary { @apply btn bg-white text-ink border border-line hover:bg-forest-50; }
+  .btn-danger { @apply btn bg-danger text-white hover:opacity-90; }
+  .btn-ghost { @apply btn text-forest hover:bg-forest-50; }
+  .input { @apply w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm min-h-[44px] placeholder:text-muted/70 focus:border-forest-500 focus:outline-none focus:ring-2 focus:ring-forest-100; }
+  .label { @apply mb-1 block text-sm font-medium text-ink; }
+  .card { @apply rounded-xl2 border border-line bg-white; }
+}
+@media print {
+  body * { visibility: hidden; }
+  .print-area, .print-area * { visibility: visible; }
+  .print-area { position: absolute; inset: 0; width: 80mm; margin: 0 auto; }
+}
