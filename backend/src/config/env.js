@@ -21,7 +21,9 @@ export const env = {
   backendUrl: process.env.BACKEND_URL || 'http://localhost:4000',
   jwtSecret: process.env.JWT_SECRET || '',
   sessionHours: Number(process.env.SESSION_HOURS || 12),
-  platformPaystackSecret: process.env.PLATFORM_PAYSTACK_SECRET_KEY || '',
+  // PAYSTACK_SECRET_KEY is a legacy alias for Zuno-owned billing only.
+  // Merchant sales resolve credentials exclusively from MerchantGateway.
+  platformPaystackSecret: process.env.PLATFORM_PAYSTACK_SECRET_KEY || process.env.PAYSTACK_SECRET_KEY || '',
   gatewayEncryptionKey: process.env.GATEWAY_ENCRYPTION_KEY || '',
   paystackBase: process.env.PAYSTACK_BASE_URL || 'https://api.paystack.co',
   smtp: {
@@ -52,6 +54,7 @@ export function assertEnv() {
   }
   if (!env.jwtSecret || env.jwtSecret.length < 32) missing.push('JWT_SECRET (min 32 chars)');
   if (env.nodeEnv === 'production') {
+    if (!env.platformPaystackSecret) missing.push('PLATFORM_PAYSTACK_SECRET_KEY (Zuno subscriptions and setup fees)');
     if (!process.env.FRONTEND_URL) missing.push('FRONTEND_URL');
     if (env.allowNoTxn) missing.push('ALLOW_NO_TXN must not be true in production');
   }
