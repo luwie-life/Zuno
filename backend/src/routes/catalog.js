@@ -2,11 +2,12 @@ import { Router } from 'express';
 import { Category, Product, StockMovement } from '../models/index.js';
 import { asyncH, bad, notFound, conflict } from '../lib/errors.js';
 import { parse, z, objectId, kobo, escapeRegex, pageParams } from '../lib/validate.js';
-import { requireAuth, requireBusiness, requireFeature, assertLimit } from '../middleware/auth.js';
+import { requireAuth, requireBusiness, requireFeature, requireModule, assertLimit } from '../middleware/auth.js';
 import { audit } from '../services/audit.js';
 
 const r = Router();
 r.use(requireAuth);
+r.use(requireBusiness(null), requireModule('commerce'));
 
 r.get('/categories', requireBusiness('products.read'), asyncH(async (req, res) => {
   res.json({ categories: await Category.find({ business: req.business._id }).sort('name') });

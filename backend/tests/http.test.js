@@ -22,6 +22,12 @@ test('health endpoint works and security headers are set', async () => {
   assert.equal(r.headers.get('x-powered-by'), null);
 });
 
+test('readiness endpoint reflects MongoDB connection state', async () => {
+  const r = await call('/api/ready');
+  assert.equal(r.status, mongoose.connection.readyState === 1 ? 200 : 503);
+  assert.equal((await r.json()).ok, mongoose.connection.readyState === 1);
+});
+
 test('protected merchant routes reject unauthenticated requests', async () => {
   for (const p of ['/api/catalog/products', '/api/orders', '/api/pos/sales', '/api/inventory', '/api/reports/summary', '/api/customers', '/api/support', '/api/mobile-apps', '/api/auth/me', '/api/businesses/current']) {
     assert.equal((await call(p)).status, 401, p);
@@ -69,4 +75,17 @@ test('unknown routes return JSON 404 and CORS does not allow arbitrary origins',
   assert.equal(c.headers.get('access-control-allow-origin'), null);
   const ok = await fetch(`${base}/api/health`, { headers: { origin: 'http://localhost:5173' } });
   assert.equal(ok.headers.get('access-control-allow-origin'), 'http://localhost:5173');
+});
+
+test('CORS preflight allows storefront PUT requests from configured origins', async () => {
+  const r = await fetch(`${base}/api/businesses/current/storefront`, {
+    method: 'OPTIONS',
+    headers: {
+      origin: 'http://localhost:5173',
+      'access-control-request-method': 'PUT',
+      'access-control-request-headers': 'content-type,authorization,x-business-id',
+    },
+  });
+  assert.equal(r.status, 204);
+  assert.match(r.headers.get('access-control-allow-methods') || '', /PUT/);
 });

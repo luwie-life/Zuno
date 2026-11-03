@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, Smartphone, LifeBuoy } from 'lucide-react';
 import { api } from '../../lib/api.js';
@@ -78,18 +78,118 @@ export function Team() {
 }
 
 export function SettingsPage() {
-  const { ctx, refresh } = useAuth(); const b = ctx.business; const toast = useToast();
-  const [f, setF] = useState({ name: b.name, category: b.category || '', description: b.description || '', phone: b.phone || '', email: b.email || '', line: b.address?.line || '', city: b.address?.city || '', state: b.address?.state || '', logoUrl: b.logoUrl || '', brandColor: b.brandColor || '#0B3D2E', deliveryFee: String((b.deliveryFee || 0) / 100) });
+  const { ctx, user, refresh } = useAuth();
+  const b = ctx?.business;
+  const toast = useToast();
+  const [f, setF] = useState({ name: b?.name || '', category: b?.category || '', description: b?.description || '', phone: b?.phone || '', email: b?.email || '', line: b?.address?.line || '', city: b?.address?.city || '', state: b?.address?.state || '', logoUrl: b?.logoUrl || '', brandColor: b?.brandColor || '#0B3D2E', deliveryFee: String((b?.deliveryFee || 0) / 100) });
   const [err, setErr] = useState(null); const [busy, setBusy] = useState(false);
+  const [profile, setProfile] = useState({ name: user?.name || '', phone: user?.phone || '', email: user?.email || '' });
+  const [profileErr, setProfileErr] = useState(null); const [profileBusy, setProfileBusy] = useState(false);
+  const [pass, setPass] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [passErr, setPassErr] = useState(null); const [passBusy, setPassBusy] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  useEffect(() => {
+    if (!b) return;
+    setF({ name: b.name || '', category: b.category || '', description: b.description || '', phone: b.phone || '', email: b.email || '', line: b.address?.line || '', city: b.address?.city || '', state: b.address?.state || '', logoUrl: b.logoUrl || '', brandColor: b.brandColor || '#0B3D2E', deliveryFee: String((b.deliveryFee || 0) / 100) });
+  }, [b]);
+
+  useEffect(() => {
+    setProfile({ name: user?.name || '', phone: user?.phone || '', email: user?.email || '' });
+  }, [user]);
+
   const save = async (e) => { e.preventDefault(); setErr(null); setBusy(true); try { await api('/businesses/current', { method: 'PATCH', biz: true, body: { name: f.name, category: f.category, description: f.description, phone: f.phone, email: f.email, address: { line: f.line, city: f.city, state: f.state }, logoUrl: f.logoUrl, brandColor: f.brandColor, deliveryFee: Math.round(Number(f.deliveryFee || 0) * 100) } }); await refresh(); toast('Saved'); } catch (x) { setErr(x); } finally { setBusy(false); } };
   const on = (k) => (e) => setF({ ...f, [k]: e.target.value });
-  return (<><PageHeader title="Business settings" /><form onSubmit={save} className="card max-w-2xl space-y-4 p-5"><ErrorNote error={err} />
-    <Input id="bn" label="Business name" required value={f.name} onChange={on('name')} />
-    <div className="grid gap-4 sm:grid-cols-2"><Input id="bc" label="Category" value={f.category} onChange={on('category')} /><Input id="bp" label="Phone" type="tel" value={f.phone} onChange={on('phone')} /></div>
-    <Input id="be" label="Business email" type="email" value={f.email} onChange={on('email')} />
-    <Textarea id="bd" label="Short description (shown on your store)" rows={3} value={f.description} onChange={on('description')} />
-    <Input id="ba" label="Street address" value={f.line} onChange={on('line')} /><div className="grid gap-4 sm:grid-cols-2"><Input id="bci" label="City" value={f.city} onChange={on('city')} /><Input id="bs" label="State" value={f.state} onChange={on('state')} /></div>
-    <Input id="bl" label="Logo link (https)" value={f.logoUrl} onChange={on('logoUrl')} />
-    <div className="grid gap-4 sm:grid-cols-2"><div><label className="label" htmlFor="bcol">Brand colour</label><input id="bcol" type="color" className="h-11 w-full rounded-lg border border-line bg-white p-1" value={f.brandColor} onChange={on('brandColor')} /></div><Input id="bdf" label="Delivery fee (₦)" inputMode="decimal" value={f.deliveryFee} onChange={on('deliveryFee')} /></div>
-    <p className="text-xs text-muted">Store address: /store/{b.slug}</p><button className="btn-primary" disabled={busy}>Save changes</button></form></>);
+
+  const saveProfile = async (e) => {
+    e.preventDefault(); setProfileErr(null); setProfileBusy(true);
+    try {
+      await api('/auth/me', { method: 'PATCH', body: { name: profile.name, phone: profile.phone } });
+      await refresh();
+      toast('Account details saved');
+    } catch (x) { setProfileErr(x); }
+    finally { setProfileBusy(false); }
+  };
+
+  const changePassword = async (e) => {
+    e.preventDefault(); setPassErr(null);
+    if (pass.newPassword !== pass.confirmPassword) { setPassErr(new Error('New passwords do not match.')); return; }
+    if (pass.newPassword.length < 10) { setPassErr(new Error('Choose a password with at least 10 characters.')); return; }
+    setPassBusy(true);
+    try {
+      await api('/auth/change-password', { method: 'POST', body: { currentPassword: pass.currentPassword, newPassword: pass.newPassword } });
+      setPass({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      toast('Password updated');
+    } catch (x) { setPassErr(x); }
+    finally { setPassBusy(false); }
+  };
+
+  const resendVerification = async () => {
+    try {
+      await api('/auth/resend-verification', { method: 'POST' });
+      setSent(true);
+      toast('Verification email sent');
+    } catch (x) {
+      setProfileErr(x);
+    }
+  };
+
+  return (<>
+    <PageHeader title="Business settings" actions={<Link className="btn-secondary" to="/app/settings/payments">Payment settings</Link>} />
+    <div className="grid gap-5 xl:grid-cols-[1.3fr_0.7fr]">
+      <form onSubmit={save} className="card space-y-4 p-5">
+        <ErrorNote error={err} />
+        <Input id="bn" label="Business name" required value={f.name} onChange={on('name')} />
+        <div className="grid gap-4 sm:grid-cols-2"><Input id="bc" label="Category" value={f.category} onChange={on('category')} /><Input id="bp" label="Phone" type="tel" value={f.phone} onChange={on('phone')} /></div>
+        <Input id="be" label="Business email" type="email" value={f.email} onChange={on('email')} />
+        <Textarea id="bd" label="Short description (shown on your store)" rows={3} value={f.description} onChange={on('description')} />
+        <Input id="ba" label="Street address" value={f.line} onChange={on('line')} /><div className="grid gap-4 sm:grid-cols-2"><Input id="bci" label="City" value={f.city} onChange={on('city')} /><Input id="bs" label="State" value={f.state} onChange={on('state')} /></div>
+        <Input id="bl" label="Logo link (https)" value={f.logoUrl} onChange={on('logoUrl')} />
+        <div className="grid gap-4 sm:grid-cols-2"><div><label className="label" htmlFor="bcol">Brand colour</label><input id="bcol" type="color" className="h-11 w-full rounded-lg border border-line bg-white p-1" value={f.brandColor} onChange={on('brandColor')} /></div><Input id="bdf" label="Delivery fee (₦)" inputMode="decimal" value={f.deliveryFee} onChange={on('deliveryFee')} /></div>
+        <p className="text-xs text-muted">Store address: /store/{b?.slug || 'your-store'}</p><button className="btn-primary" disabled={busy}>Save changes</button>
+      </form>
+
+      <div className="space-y-5">
+        <Card className="p-5">
+          <h2 className="font-semibold">Account</h2>
+          <div className="mt-3 space-y-3">
+            <div className="flex items-center justify-between gap-2 rounded-lg border border-line bg-paper p-3">
+              <div className="min-w-0">
+                <p className="truncate font-medium">{user?.name || 'Account owner'}</p>
+                <p className="truncate text-xs text-muted">{profile.email || 'No email set'}</p>
+              </div>
+              <Badge tone={user?.emailVerified ? 'ok' : 'warn'}>{user?.emailVerified ? 'Verified' : 'Unverified'}</Badge>
+            </div>
+            {user && !user.emailVerified ? <Notice tone="warn">Your email is not verified yet. Finish this before publishing your store or approving sensitive actions. <button type="button" className="ml-2 font-semibold underline" onClick={resendVerification} disabled={sent}>{sent ? 'Sent' : 'Resend verification'}</button></Notice> : <Notice tone="ok">Your account email is verified and ready for store publishing.</Notice>}
+          </div>
+          <form onSubmit={saveProfile} className="mt-4 space-y-3">
+            <ErrorNote error={profileErr} />
+            <Input id="acct-name" label="Full name" value={profile.name} onChange={(e) => setProfile({ ...profile, name: e.target.value })} />
+            <Input id="acct-phone" label="Phone" type="tel" value={profile.phone} onChange={(e) => setProfile({ ...profile, phone: e.target.value })} />
+            <Input id="acct-email" label="Email" type="email" value={profile.email} disabled />
+            <button className="btn-primary" disabled={profileBusy}>{profileBusy ? 'Saving...' : 'Save profile'}</button>
+          </form>
+        </Card>
+
+        <Card className="p-5">
+          <h2 className="font-semibold">Security</h2>
+          <form onSubmit={changePassword} className="mt-4 space-y-3">
+            <ErrorNote error={passErr} />
+            <Input id="curr-pass" label="Current password" type="password" autoComplete="current-password" value={pass.currentPassword} onChange={(e) => setPass({ ...pass, currentPassword: e.target.value })} />
+            <Input id="new-pass" label="New password" type="password" autoComplete="new-password" value={pass.newPassword} onChange={(e) => setPass({ ...pass, newPassword: e.target.value })} hint="At least 10 characters." />
+            <Input id="confirm-pass" label="Confirm new password" type="password" autoComplete="new-password" value={pass.confirmPassword} onChange={(e) => setPass({ ...pass, confirmPassword: e.target.value })} />
+            <button className="btn-primary" disabled={passBusy}>{passBusy ? 'Updating...' : 'Update password'}</button>
+          </form>
+        </Card>
+
+        <Card className="p-5">
+          <h2 className="font-semibold">Payments</h2>
+          <p className="mt-2 text-sm text-muted">Your sales gateway is separate from Zuno's platform billing. Update your merchant Paystack settings before publishing live checkout.</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link className="btn-primary" to="/app/settings/payments">Manage payments</Link>
+          </div>
+        </Card>
+      </div>
+    </div>
+  </>);
 }

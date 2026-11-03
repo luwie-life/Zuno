@@ -2,13 +2,14 @@ import { Router } from 'express';
 import { Product, StockMovement, Supplier, Purchase } from '../models/index.js';
 import { asyncH, notFound, bad, conflict } from '../lib/errors.js';
 import { parse, z, objectId, kobo, pageParams } from '../lib/validate.js';
-import { requireAuth, requireBusiness, requireFeature } from '../middleware/auth.js';
+import { requireAuth, requireBusiness, requireFeature, requireModule } from '../middleware/auth.js';
 import * as inv from '../services/inventory.js';
 import { withTxn } from '../services/db.js';
 import { audit } from '../services/audit.js';
 
 const r = Router();
 r.use(requireAuth);
+r.use(requireBusiness(null), requireModule('commerce'));
 const F = 'shared_inventory';
 
 r.get('/', requireBusiness('inventory.read'), requireFeature(F), asyncH(async (req, res) => {

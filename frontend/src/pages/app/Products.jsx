@@ -39,11 +39,21 @@ export default function Products() {
   const cats = useApi(() => api('/catalog/categories', { biz: true }), []);
   const [run] = useAction(); const write = can('products.write'); const productAccess = hasFeature('products');
   const subscriptionActive = ['active', 'grace'].includes(ctx?.subscription?.state);
+  const publishedCount = (data?.items || []).filter((p) => p.published && !p.archived).length;
+  const draftCount = (data?.items || []).filter((p) => !p.published && !p.archived).length;
   return (
     <>
-      <PageHeader title="Products" actions={write && productAccess ? <><button className="btn-secondary" onClick={() => setCatOpen(true)}>Categories</button><button className="btn-primary" onClick={() => setEdit({})}><Plus className="h-4 w-4" />Add product</button></> : !productAccess && can('billing.manage') && <Link className="btn-primary" to="/app/billing">Review billing</Link>} />
+      <PageHeader title="Products" sub={data?.total ? `${data.total} items in catalog` : 'Manage your catalogue'} actions={write && productAccess ? <><button className="btn-secondary" onClick={() => setCatOpen(true)}>Categories</button><button className="btn-primary" onClick={() => setEdit({})}><Plus className="h-4 w-4" />Add product</button></> : !productAccess && can('billing.manage') && <Link className="btn-primary" to="/app/billing">Review billing</Link>} />
       {!productAccess && <Notice tone="warn"><span className="flex items-start gap-2"><Lock className="mt-0.5 h-4 w-4 shrink-0" /><span>{subscriptionActive ? `Product management is not included in ${ctx?.subscription?.plan?.name || 'your current plan'}.` : `Your subscription is ${ctx?.subscription?.state || 'not active'}; product changes are locked until it is activated.`} Existing products remain available to view. Visit Billing for next steps.</span></span></Notice>}
-      <div className="mb-4 flex flex-wrap gap-3"><div className="relative min-w-[200px] flex-1"><Search className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-muted" /><input className="input pl-9" placeholder="Search products" aria-label="Search" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} /></div><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={archived} onChange={(e) => { setArchived(e.target.checked); setPage(1); }} className="h-4 w-4" />Show archived</label></div>
+      <div className="mb-4 grid gap-3 md:grid-cols-[1fr_auto]">
+        <div className="relative min-w-[200px] flex-1"><Search className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-muted" /><input className="input pl-9" placeholder="Search products" aria-label="Search" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} /></div>
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={archived} onChange={(e) => { setArchived(e.target.checked); setPage(1); }} className="h-4 w-4" />Show archived</label>
+      </div>
+      <div className="mb-4 grid gap-3 sm:grid-cols-3">
+        <Card className="p-4"><p className="text-sm text-muted">Published</p><p className="mt-2 font-display text-2xl font-bold">{publishedCount}</p></Card>
+        <Card className="p-4"><p className="text-sm text-muted">Drafts</p><p className="mt-2 font-display text-2xl font-bold">{draftCount}</p></Card>
+        <Card className="p-4"><p className="text-sm text-muted">Catalog</p><p className="mt-2 font-display text-2xl font-bold">{data?.total || 0}</p></Card>
+      </div>
       <Card>{loading ? <Loading /> : error ? <div className="p-4"><ErrorNote error={error} retry={reload} /></div> : data.items.length === 0 ? <Empty icon={Package} title={archived ? 'No archived products' : 'No products yet'} hint="Add your first product to start selling." action={write && productAccess && !archived && <button className="btn-primary" onClick={() => setEdit({})}>Add product</button>} /> : (
         <><Table head={['Product', 'Price', 'Stock', 'Status', '']}>{data.items.map((p) => { const avail = p.stock - p.reserved; return (
           <tr key={p._id}><td className="px-4 py-3"><p className="font-medium">{p.name}</p><p className="text-xs text-muted">{p.sku || '—'}{p.category?.name ? ` · ${p.category.name}` : ''}</p></td><td className="px-4 py-3">{naira(p.price)}</td>

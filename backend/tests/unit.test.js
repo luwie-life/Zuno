@@ -17,7 +17,82 @@ import { env, envFilePath, assertEnv } from '../src/config/env.js';
 import { startServer } from '../src/server.js';
 import { validatePaystackSecret, createPaystackAdapter } from '../src/lib/paystack.js';
 import { encryptGatewaySecret, decryptGatewaySecret } from '../src/lib/gatewayEncryption.js';
-import { gatewayStatus, SUPPORTED_PROVIDERS } from '../src/services/paymentProviders.js';
+import { gatewayStatus, SUPPORTED_PROVIDERS, resolvePaymentProvider } from '../src/services/paymentProviders.js';
+import { businessModulesFor } from '../src/lib/businessModules.js';
+import { Business } from '../src/models/index.js';
+import { requireModule } from '../src/middleware/auth.js';
+import { availableBookingTimes, parseLocalDate, parseLocalTime, resolveBookingSlot, validTimezone } from '../src/lib/bookingAvailability.js';
+import { merchantOriginAllowed } from '../src/lib/merchantDomain.js';
+import { normalizeStorefrontConfig } from '../src/lib/storefront.js';
+
+test('merchant CORS accepts only HTTPS origins on one configured subdomain', () => {
+  assert.equal(merchantOriginAllowed('https://shop.example.com', 'example.com'), true);
+  assert.equal(merchantOriginAllowed('https://example.com', 'example.com'), false);
+  assert.equal(merchantOriginAllowed('https://shop.otherexample.com', 'example.com'), false);
+  assert.equal(merchantOriginAllowed('http://shop.example.com', 'example.com'), false);
+  assert.equal(merchantOriginAllowed('https://nested.shop.example.com', 'example.com'), false);
+  assert.equal(merchantOriginAllowed('https://shop.example.com.evil.test', 'example.com'), false);
+});
+
+test('storefront config keeps a safe draft default and cleans content before publishing', () => {
+  const cfg = normalizeStorefrontConfig({ heroTitle: '   ', heroSubtitle: ' Welcome to my store ', ctaText: '', primaryColor: '#ff0000', published: true }, 'Acme');
+  assert.equal(cfg.heroTitle, '');
+  assert.equal(cfg.heroSubtitle, 'Welcome to my store');
+  assert.equal(cfg.ctaText, 'Shop now');
+  assert.equal(cfg.primaryColor, '#ff0000');
+  assert.equal(cfg.published, true);
+  assert.equal(cfg.ctaLink, '');
+});
+
+test('business type module mapping preserves product defaults and supports service and both', () => {
+  assert.deepEqual(businessModulesFor('product'), ['commerce']);
+  assert.deepEqual(businessModulesFor('service'), ['services']);
+  assert.deepEqual(businessModulesFor('both'), ['commerce', 'services']);
+  assert.deepEqual(businessModulesFor(), ['commerce']);
+  assert.deepEqual(businessModulesFor('unknown'), ['commerce']);
+  assert.equal(Business.schema.path('businessType').defaultValue, 'product');
+});
+
+test('storefront hero metadata has safe defaults for the lightweight storefront editor', () => {
+  const storefront = Business.schema.path('storefront');
+  assert.ok(storefront);
+  assert.equal(storefront.schema.path('heroTitle').defaultValue, '');
+  assert.equal(storefront.schema.path('heroSubtitle').defaultValue, '');
+  assert.equal(storefront.schema.path('ctaText').defaultValue, 'Shop now');
+  assert.equal(storefront.schema.path('bannerImage').defaultValue, '');
+});
+
+test('module authorization allows services and rejects commerce for service-only businesses', async () => {
+  const serviceBusiness = { businessType: 'service' };
+  let error;
+  await requireModule('commerce')({}, {}, (nextError) => { error = nextError; });
+  assert.equal(error.status, 403);
+  error = undefined;
+  await requireModule('commerce')({ business: serviceBusiness }, {}, (nextError) => { error = nextError; });
+  assert.equal(error.status, 403);
+  error = undefined;
+  await requireModule('services')({ business: serviceBusiness }, {}, (nextError) => { error = nextError; });
+  assert.equal(error, undefined);
+  error = undefined;
+  await requireModule('commerce')({ business: { businessType: 'both' } }, {}, (nextError) => { error = nextError; });
+  assert.equal(error, undefined);
+});
+
+test('booking availability validates timezone, hours, duration, and overlapping 15-minute slots', () => {
+  assert.equal(validTimezone('UTC'), true);
+  assert.equal(validTimezone('not/a-zone'), false);
+  assert.equal(parseLocalDate('2026-10-22').weekday, 4);
+  assert.equal(parseLocalDate('2026-02-30'), null);
+  assert.equal(parseLocalTime('09:15'), 555);
+  assert.equal(parseLocalTime('24:00'), null);
+  const business = { timezone: 'UTC', bookingPolicy: { advanceBookingDays: 30 }, weeklyHours: [{ dayOfWeek: 4, open: '09:00', close: '12:00' }] };
+  const service = { durationMinutes: 60 };
+  const now = new Date('2026-10-21T06:00:00.000Z');
+  assert.deepEqual(availableBookingTimes({ business, service, date: '2026-10-22', now }).slice(0, 2), ['09:00', '09:15']);
+  assert.equal(availableBookingTimes({ business, service, date: '2026-10-22', occupiedSlotIndexes: [37], now }).includes('09:00'), false);
+  assert.deepEqual(resolveBookingSlot({ business, service, date: '2026-10-22', time: '09:00', now }).slotIndexes, [36, 37, 38, 39]);
+  assert.equal(resolveBookingSlot({ business, service, date: '2026-10-22', time: '11:15', now }), null);
+});
 
 test('merchant permissions: cashier cannot discount/refund/adjust; manager cannot manage staff or billing', () => {
   for (const p of ['pos.discount', 'pos.refund', 'inventory.adjust', 'staff.manage', 'reports.read']) assert.equal(merchantCan('cashier', p), false, p);
@@ -152,6 +227,17 @@ test('merchant Paystack credentials are encrypted with authenticated encryption 
   assert.equal(gatewayStatus({ _id: 'gw', provider: 'paystack', enabled: false }).connected, false);
   assert.equal(JSON.stringify(status).includes('encryptedSecret'), false);
   assert.equal(createPaystackAdapter(plaintext).provider, 'paystack');
+});
+
+test('merchant sales and platform billing must resolve through separate contexts and gateways', async () => {
+  const platformPayment = { purpose: 'subscription', context: 'platform', provider: 'paystack', amount: 2000000, currency: 'NGN', business: null };
+  const platformResolved = await resolvePaymentProvider(platformPayment, { expectedContext: 'platform' });
+  assert.equal(platformResolved.context, 'platform');
+  await assert.rejects(() => resolvePaymentProvider({ ...platformPayment, context: 'merchant' }, { expectedContext: 'platform' }), /not a Zuno platform charge/);
+  const merchantPayment = { purpose: 'storefront_order', context: 'merchant', provider: 'paystack', gateway: 'gw_123', business: 'business_123', amount: 5000, currency: 'NGN' };
+  await assert.rejects(() => resolvePaymentProvider(merchantPayment, { expectedContext: 'platform' }), /not a merchant sale/);
+  await assert.rejects(() => resolvePaymentProvider({ ...merchantPayment, context: 'platform' }, { expectedContext: 'merchant' }), /missing its gateway binding/);
+  await assert.rejects(() => resolvePaymentProvider({ ...merchantPayment, gateway: undefined }, { expectedContext: 'merchant' }), /missing its gateway binding/);
 });
 
 test('verified transaction must match reference, amount, currency and status', () => {

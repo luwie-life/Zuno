@@ -1,4 +1,12 @@
-const Doc = ({ title, children }) => <section className="mx-auto max-w-3xl px-4 py-14"><h1 className="text-4xl font-bold">{title}</h1><div className="mt-6 space-y-4 text-[15px] leading-relaxed text-ink/90 [&_h2]:mt-8 [&_h2]:text-xl [&_h2]:font-bold">{children}</div></section>;
+const Doc = ({ title, children }) => (
+  <section className="mx-auto max-w-4xl px-4 py-14">
+    <div className="rounded-[28px] bg-forest-50 p-6 md:p-8">
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-forest">Legal</p>
+      <h1 className="mt-3 text-4xl font-bold">{title}</h1>
+    </div>
+    <div className="mt-8 space-y-4 rounded-2xl border border-line bg-white p-5 text-[15px] leading-relaxed text-ink/90 md:p-8 [&_h2]:mt-8 [&_h2]:text-xl [&_h2]:font-bold">{children}</div>
+  </section>
+);
 
 export const Privacy = () => (
   <Doc title="Privacy policy">

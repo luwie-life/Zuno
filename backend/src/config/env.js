@@ -18,6 +18,7 @@ export const env = {
   allowNoTxn: process.env.ALLOW_NO_TXN === 'true',
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
   corsOrigins: list(process.env.CORS_ORIGINS || process.env.FRONTEND_URL || 'http://localhost:5173'),
+  merchantDomain: (process.env.MERCHANT_DOMAIN || '').trim().toLowerCase().replace(/^\.+|\.+$/g, ''),
   backendUrl: process.env.BACKEND_URL || 'http://localhost:4000',
   jwtSecret: process.env.JWT_SECRET || '',
   sessionHours: Number(process.env.SESSION_HOURS || 12),
@@ -40,6 +41,9 @@ export const env = {
 
 export function assertEnv() {
   const missing = [];
+  if (env.merchantDomain && !/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(env.merchantDomain)) {
+    missing.push('MERCHANT_DOMAIN (must be a hostname without a scheme or wildcard)');
+  }
   if (!env.mongoUri) missing.push('MONGODB_URI');
   else {
     try {

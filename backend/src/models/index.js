@@ -1,7 +1,19 @@
 import mongoose from 'mongoose';
+import { storefrontDefaults } from '../lib/storefront.js';
 const { Schema, model } = mongoose;
+const storefrontSchema = new Schema({
+  heroTitle: { type: String, default: '' },
+  heroSubtitle: { type: String, default: '' },
+  ctaText: { type: String, default: 'Shop now' },
+  ctaLink: { type: String, default: '' },
+  primaryColor: { type: String, default: '#0B6B4F' },
+  backgroundImage: { type: String, default: '' },
+  bannerImage: { type: String, default: '' },
+  published: { type: Boolean, default: false },
+}, { _id: false });
 const oid = (ref, extra = {}) => ({ type: Schema.Types.ObjectId, ref, ...extra });
 const opts = { timestamps: true };
+const weeklyHoursSchema = new Schema({ dayOfWeek: { type: Number, required: true, min: 0, max: 6 }, open: { type: String, required: true }, close: { type: String, required: true }, closed: { type: Boolean, default: false } }, { _id: false });
 
 export const User = model('User', new Schema({
   name: { type: String, required: true, trim: true, maxlength: 120 },
@@ -39,13 +51,18 @@ export const Token = model('Token', new Schema({
 export const Business = model('Business', new Schema({
   name: { type: String, required: true, trim: true, maxlength: 120 },
   slug: { type: String, required: true, unique: true, lowercase: true, trim: true },
+  businessType: { type: String, enum: ['product', 'service', 'both'], default: 'product' },
   category: { type: String, trim: true },
   description: { type: String, maxlength: 1000 },
   phone: String, email: String,
   address: { line: String, city: String, state: String },
   logoUrl: String,
   brandColor: { type: String, default: '#0B6B4F' },
+  storefront: { type: storefrontSchema, default: () => ({ ...storefrontDefaults }) },
   deliveryFee: { type: Number, default: 0 }, // kobo
+  timezone: { type: String, default: 'Africa/Lagos' },
+  weeklyHours: { type: [weeklyHoursSchema], default: [] },
+  bookingPolicy: { cancellationNoticeHours: { type: Number, default: 24, min: 0, max: 720 }, advanceBookingDays: { type: Number, default: 60, min: 1, max: 365 } },
   owner: oid('User', { required: true }),
   status: { type: String, enum: ['active', 'suspended'], default: 'active', index: true },
   suspensionReason: String,
@@ -149,6 +166,59 @@ export const Customer = model('Customer', (() => {
   return s;
 })());
 
+export const Service = model('Service', (() => {
+  const s = new Schema({
+    business: oid('Business', { required: true, index: true }),
+    name: { type: String, required: true, trim: true, maxlength: 160 },
+    description: { type: String, maxlength: 4000, default: '' },
+    category: { type: String, trim: true, maxlength: 80, default: '' },
+    price: { type: Number, required: true, min: 0 },
+    durationMinutes: { type: Number, required: true, min: 15, max: 720 },
+    bookingRequirements: { type: String, maxlength: 1000, default: '' },
+    status: { type: String, enum: ['active', 'inactive'], default: 'active' },
+    published: { type: Boolean, default: true },
+  }, opts);
+  s.index({ business: 1, status: 1, published: 1 });
+  return s;
+})());
+
+export const Booking = model('Booking', (() => {
+  const s = new Schema({
+    business: oid('Business', { required: true, index: true }),
+    service: oid('Service', { required: true }),
+    customer: oid('Customer'),
+    reference: { type: String, required: true, unique: true },
+    serviceName: { type: String, required: true },
+    price: { type: Number, required: true, min: 0 },
+    durationMinutes: { type: Number, required: true, min: 15, max: 720 },
+    customerInfo: { name: String, email: String, phone: String, note: String },
+    localDate: { type: String, required: true },
+    startTime: { type: String, required: true },
+    startsAt: { type: Date, required: true, index: true },
+    endsAt: { type: Date, required: true },
+    startMinute: { type: Number, required: true, min: 0, max: 1425 },
+    endMinute: { type: Number, required: true, min: 15, max: 1440 },
+    timezone: { type: String, required: true },
+    status: { type: String, enum: ['pending', 'confirmed', 'cancelled', 'completed'], default: 'pending', index: true },
+    history: [{ at: { type: Date, default: Date.now }, actor: oid('User'), action: String, note: String }],
+  }, opts);
+  s.index({ business: 1, localDate: 1, startMinute: 1 });
+  s.index({ business: 1, status: 1, createdAt: -1 });
+  return s;
+})());
+
+export const BookingSlot = model('BookingSlot', (() => {
+  const s = new Schema({
+    business: oid('Business', { required: true }),
+    localDate: { type: String, required: true },
+    slotIndex: { type: Number, required: true, min: 0, max: 95 },
+    booking: oid('Booking', { required: true }),
+  }, opts);
+  s.index({ business: 1, localDate: 1, slotIndex: 1 }, { unique: true });
+  s.index({ booking: 1 });
+  return s;
+})());
+
 const itemSchema = new Schema({
   product: oid('Product'), name: String, sku: String,
   unitPrice: Number, qty: Number, lineTotal: Number, track: { type: Boolean, default: true },
@@ -226,7 +296,7 @@ export const Plan = model('Plan', new Schema({
   monthlyFee: { type: Number, required: true, min: 0 },   // kobo
   priceIsFrom: { type: Boolean, default: false },
   features: [String],
-  limits: { products: { type: Number, default: -1 }, staff: { type: Number, default: -1 } },
+  limits: { products: { type: Number, default: -1 }, staff: { type: Number, default: -1 }, services: { type: Number, default: -1 }, bookings: { type: Number, default: -1 } },
   active: { type: Boolean, default: true },
   sortOrder: { type: Number, default: 0 },
 }, opts));

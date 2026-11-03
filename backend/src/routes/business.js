@@ -5,6 +5,8 @@ import { parse, z, phone, kobo } from '../lib/validate.js';
 import { requireAuth, requireBusiness, requirePerm, assertLimit } from '../middleware/auth.js';
 import { createSubscription, getAccess } from '../services/subscriptions.js';
 import { audit } from '../services/audit.js';
+import { businessModulesFor } from '../lib/businessModules.js';
+import { normalizeStorefrontConfig } from '../lib/storefront.js';
 
 const r = Router();
 r.use(requireAuth);
@@ -15,13 +17,13 @@ const addr = z.object({ line: z.string().max(200).optional(), city: z.string().m
 const httpsUrl = z.string().url().refine((u) => u.startsWith('https://'), 'Must be an https URL');
 
 r.post('/', asyncH(async (req, res) => {
-  const b = parse(z.object({ name: z.string().trim().min(2).max(120), slug: slugSchema, planKey: z.string().min(2).max(40), category: z.string().max(80).optional() }), req.body);
+  const b = parse(z.object({ name: z.string().trim().min(2).max(120), slug: slugSchema, planKey: z.string().min(2).max(40), businessType: z.enum(['product', 'service', 'both']).default('product'), category: z.string().max(80).optional() }), req.body);
   if (await Business.exists({ slug: b.slug })) throw conflict('That store address is taken.', 'SLUG_TAKEN');
   const plan = await Plan.findOne({ key: b.planKey, active: true });
   if (!plan) throw bad('Choose a valid plan.');
   const owned = await Membership.countDocuments({ user: req.user._id, role: 'owner', status: 'active' });
   if (owned >= 5) throw bad('Business limit reached for one account.');
-  const business = await Business.create({ name: b.name, slug: b.slug, category: b.category, owner: req.user._id, email: req.user.email, phone: req.user.phone });
+  const business = await Business.create({ name: b.name, slug: b.slug, businessType: b.businessType, category: b.category, owner: req.user._id, email: req.user.email, phone: req.user.phone });
   await Membership.create({ user: req.user._id, business: business._id, role: 'owner' });
   await createSubscription(business._id, b.planKey);
   await audit({ req, action: 'business.created', targetType: 'Business', targetId: business._id, business: business._id });
@@ -36,17 +38,20 @@ r.get('/slug-available/:slug', asyncH(async (req, res) => {
 r.get('/current', requireBusiness(null, { allowSuspended: true }), asyncH(async (req, res) => {
   const b = req.business;
   const [products, access] = await Promise.all([Product.countDocuments({ business: b._id, archived: false }), getAccess(b._id)]);
+  const modules = businessModulesFor(b.businessType);
   const overrideFeatures = access.access && access.sub?.override?.until > new Date() ? access.sub.override.features || [] : [];
   const availableFeatures = access.access ? [...new Set([...(access.plan?.features || []), ...overrideFeatures])] : [];
   const profileDone = !!(b.category && b.phone && b.address?.city);
   const steps = [
     { key: 'profile', label: 'Add business details', done: profileDone },
     { key: 'plan', label: 'Activate your plan', done: access.access },
-    { key: 'products', label: 'Add your first product', done: products > 0 },
-    { key: 'publish', label: 'Publish your store', done: b.storePublished },
+    ...(modules.includes('commerce') ? [
+      { key: 'products', label: 'Add your first product', done: products > 0 },
+      { key: 'publish', label: 'Publish your store', done: b.storePublished },
+    ] : []),
   ];
   res.json({
-    business: b, role: req.role, permissions: ['business.update', 'products.write', 'orders.write', 'pos.sell', 'pos.discount', 'pos.refund', 'inventory.adjust', 'reports.read', 'suppliers.write', 'customers.write', 'staff.manage', 'billing.manage', 'apps.read'].filter(req.can),
+    business: b, businessType: b.businessType || 'product', modules, role: req.role, permissions: ['business.update', 'products.read', 'products.write', 'orders.read', 'orders.write', 'pos.sell', 'pos.discount', 'pos.refund', 'inventory.read', 'inventory.adjust', 'reports.read', 'suppliers.write', 'customers.read', 'customers.write', 'services.read', 'services.write', 'bookings.read', 'bookings.manage', 'staff.manage', 'billing.manage', 'apps.read'].filter(req.can),
     subscription: { state: access.state, plan: access.plan && { key: access.plan.key, name: access.plan.name, features: access.plan.features, limits: access.plan.limits }, features: availableFeatures, currentPeriodEnd: access.sub?.currentPeriodEnd, setupStatus: access.sub?.setupStatus },
     setup: { steps, complete: steps.every((s) => s.done) },
   });
@@ -62,10 +67,33 @@ r.patch('/current', requireBusiness('business.update'), asyncH(async (req, res) 
   res.json({ business: req.business });
 }));
 
+r.get('/current/storefront', requireBusiness('business.update'), asyncH(async (req, res) => {
+  const storefront = normalizeStorefrontConfig(req.business.storefront || {}, req.business.name);
+  res.json({ storefront });
+}));
+
+r.put('/current/storefront', requireBusiness('business.update'), asyncH(async (req, res) => {
+  const body = parse(z.object({
+    heroTitle: z.string().max(80).optional(),
+    heroSubtitle: z.string().max(160).optional(),
+    ctaText: z.string().max(40).optional(),
+    ctaLink: z.string().max(200).optional(),
+    primaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+    backgroundImage: z.string().max(500).optional(),
+    bannerImage: z.string().max(500).optional(),
+    published: z.boolean().optional(),
+  }).partial(), req.body);
+  const storefront = normalizeStorefrontConfig({ ...(req.business.storefront || {}), ...body });
+  req.business.storefront = storefront;
+  await req.business.save();
+  res.json({ storefront });
+}));
+
 r.post('/current/publish', requireBusiness('business.update'), asyncH(async (req, res) => {
   const { publish } = parse(z.object({ publish: z.boolean() }), req.body);
   const b = req.business;
   if (publish) {
+    if (!businessModulesFor(b.businessType).includes('commerce')) throw forbidden('The product storefront is not enabled for this business type.');
     const { access, plan, sub } = await getAccess(b._id);
     if (!access || !plan.features.includes('online_store')) throw forbidden('Activate your plan in Billing before publishing your store.');
     if (!req.user.emailVerified) throw forbidden('Verify your email before publishing your store.');

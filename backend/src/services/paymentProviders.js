@@ -71,7 +71,7 @@ export async function resolvePaymentProvider(payment, options = {}) {
     if (payment.context !== 'merchant' || !payment.business || !payment.gateway || !payment.provider) {
       throw new HttpError(503, 'This merchant payment is missing its gateway binding and cannot be verified.', 'PAYMENT_GATEWAY_BINDING_INVALID');
     }
-    if (options.expectedContext && options.expectedContext !== 'merchant') throw new HttpError(403, 'This event is not for a merchant sale.', 'PAYMENT_CONTEXT_MISMATCH');
+    if (options.expectedContext && options.expectedContext !== 'merchant') throw new HttpError(403, 'This payment is not a merchant sale.', 'PAYMENT_CONTEXT_MISMATCH');
     if (options.gatewayId && String(payment.gateway) !== String(options.gatewayId)) throw new HttpError(403, 'The payment does not belong to this merchant gateway.', 'PAYMENT_TENANT_MISMATCH');
     const { adapter, gateway } = await resolveMerchantProvider(payment.business, payment.provider, { allowDisabled: true, gatewayId: payment.gateway });
     if (String(gateway._id) !== String(payment.gateway)) throw new HttpError(403, 'The payment is bound to a different merchant gateway.', 'PAYMENT_TENANT_MISMATCH');

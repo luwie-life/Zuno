@@ -2,11 +2,12 @@ import { Router } from 'express';
 import mongoose from 'mongoose';
 import { Order, Sale, Product } from '../models/index.js';
 import { asyncH, bad } from '../lib/errors.js';
-import { requireAuth, requireBusiness, requireFeature } from '../middleware/auth.js';
+import { requireAuth, requireBusiness, requireFeature, requireModule } from '../middleware/auth.js';
 import { featureAllowed } from '../lib/subscriptionRules.js';
 
 const r = Router();
 r.use(requireAuth);
+r.use(requireBusiness(null), requireModule('commerce'));
 
 /*
  * METRIC DEFINITIONS

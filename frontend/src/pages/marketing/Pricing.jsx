@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Check } from 'lucide-react';
+import { Check, ArrowRight } from 'lucide-react';
 import { api } from '../../lib/api.js';
 import { naira, label } from '../../lib/format.js';
 import { ErrorNote, Loading, useApi } from '../../components/ui.jsx';
@@ -10,23 +10,35 @@ export default function Pricing() {
   const { data, error, loading, reload } = useApi(() => api('/billing/plans', { auth: false }), []);
   return (
     <section className="mx-auto max-w-6xl px-4 py-14">
-      <h1 className="text-4xl font-bold">Simple, honest pricing</h1>
-      <p className="mt-3 max-w-2xl text-muted">Each plan has a one-time setup fee and a monthly subscription. They are separate payments: paying the setup fee does not start your subscription, and the other way round. Prices are in naira and may be adjusted by Zuno.</p>
+      <div className="max-w-3xl">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-forest">Pricing</p>
+        <h1 className="mt-3 text-4xl font-bold sm:text-5xl">Simple pricing that scales with your business.</h1>
+        <p className="mt-4 text-lg leading-8 text-muted">Choose the plan that fits your operating model today, then grow into more features when you need them. Setup and monthly fees are clearly separated, so there is no confusion about what you are paying for.</p>
+      </div>
+
       {loading ? <Loading /> : error ? <div className="mt-8"><ErrorNote error={error} retry={reload} /></div> : (
         <div className="mt-10 grid gap-5 lg:grid-cols-3">
           {data.plans.map((p, i) => (
             <div key={p.key} className={`card flex flex-col p-6 ${i === 1 ? 'border-forest ring-2 ring-forest-100' : ''}`}>
-              {i === 1 && <span className="mb-2 w-fit rounded-full bg-mango-100 px-2.5 py-0.5 text-xs font-semibold">Most complete for shops</span>}
-              <h2 className="text-xl font-bold">{p.name}</h2><p className="mt-1 text-sm text-muted">{p.description}</p>
-              <p className="mt-5 text-sm text-muted">Monthly</p><p className="font-display text-3xl font-bold">{p.priceIsFrom && <span className="text-base font-medium text-muted">from </span>}{naira(p.monthlyFee)}</p>
-              <p className="mt-3 text-sm text-muted">One-time setup</p><p className="font-display text-xl font-semibold">{p.priceIsFrom && <span className="text-sm font-medium text-muted">from </span>}{naira(p.setupFee)}</p>
+              {i === 1 && <span className="mb-2 w-fit rounded-full bg-mango-100 px-2.5 py-0.5 text-xs font-semibold">Most popular</span>}
+              <h2 className="text-xl font-bold">{p.name}</h2>
+              <p className="mt-1 text-sm text-muted">{p.description}</p>
+              <p className="mt-5 text-sm text-muted">Monthly</p>
+              <p className="font-display text-3xl font-bold">{p.priceIsFrom && <span className="text-base font-medium text-muted">from </span>}{naira(p.monthlyFee)}</p>
+              <p className="mt-3 text-sm text-muted">One-time setup</p>
+              <p className="font-display text-xl font-semibold">{p.priceIsFrom && <span className="text-sm font-medium text-muted">from </span>}{naira(p.setupFee)}</p>
               <ul className="mt-5 flex-1 space-y-2 text-sm">{p.features.map((f) => <li key={f} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-forest-500" />{FEATURE_LABELS[f] || label(f)}</li>)}</ul>
-              <Link to={`/register?plan=${p.key}`} className={`mt-6 ${i === 1 ? 'btn-primary' : 'btn-secondary'}`}>Choose {p.name}</Link>
+              <Link to={`/register?plan=${p.key}`} className={`mt-6 inline-flex items-center justify-center gap-2 ${i === 1 ? 'btn-primary' : 'btn-secondary'}`}>
+                Choose {p.name} <ArrowRight className="h-4 w-4" />
+              </Link>
             </div>
           ))}
         </div>
       )}
-      <p className="mt-8 text-sm text-muted">A branded mobile app is a separate service with its own quotation. <Link to="/mobile-app" className="font-semibold text-forest underline">See how it works</Link>.</p>
+
+      <div className="mt-10 rounded-2xl border border-line bg-forest-50 p-5 text-sm text-muted">
+        A branded mobile app is a separate service with a custom quotation and approval step. <Link to="/mobile-app" className="font-semibold text-forest underline">See how it works</Link>.
+      </div>
     </section>
   );
 }

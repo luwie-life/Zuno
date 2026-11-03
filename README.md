@@ -45,7 +45,7 @@ Then sign in at `/admin/login`. Create other staff by registering a normal accou
 | What | Command |
 |---|---|
 | Backend tests (no DB needed) | `cd backend && npm test` |
-| Integration tests (needs replica-set DB, **drops the DB**) | `cd backend && set TEST_MONGODB_URI=mongodb+srv://<test-user>:<password>@<test-cluster>/<disposable-db> && npm run test:integration` |
+| Integration tests (needs replica-set DB, **drops the DB**) | `cd backend && set TEST_MONGODB_URI=mongodb+srv://<test-user>:<password>@<test-cluster>/zuno_test && npm run test:integration` |
 | Frontend production build | `cd frontend && npm run build` |
 | Frontend preview | `cd frontend && npm run preview` |
 | Lint | No lint script is defined in either package |
@@ -62,6 +62,7 @@ Then sign in at `/admin/login`. Create other staff by registering a normal accou
 | `SESSION_HOURS` | Session lifetime (default 12) |
 | `FRONTEND_URL` | Public frontend URL; used in email links and Paystack callbacks |
 | `CORS_ORIGINS` | Comma-separated exact origins allowed to call the API (no wildcard) |
+| `MERCHANT_DOMAIN` | Optional root hostname for merchant subdomains, without scheme or wildcard (for example `shops.example.com`) |
 | `BACKEND_URL` | This API's public URL |
 | `TRUST_PROXY` | `true` on Render so rate limiting sees real IPs |
 | `PLATFORM_PAYSTACK_SECRET_KEY` | Zuno-owned subscriptions/setup fees only. Server-only; never used for merchant sales |
@@ -69,7 +70,7 @@ Then sign in at `/admin/login`. Create other staff by registering a normal accou
 | `SMTP_HOST/PORT/USER/PASS`, `EMAIL_FROM` | Any SMTP provider (Brevo, Mailgun, Resend SMTP, Gmail app password…) |
 | `RUN_JOBS` | `false` to disable in-process background jobs |
 
-**Frontend (`frontend/.env`)**: only `VITE_API_URL` (public). Never put secrets in `VITE_*` variables.
+**Frontend (`frontend/.env`)**: `VITE_API_URL` and, when merchant subdomains are activated, `VITE_MERCHANT_DOMAIN` (the same root hostname as the backend setting). Never put secrets in `VITE_*` variables.
 
 ## Deployment
 
@@ -84,9 +85,11 @@ node --input-type=module -e "import 'dotenv/config'; import { parse } from 'node
 
 This prints only whether the variable is loaded, its URI scheme, and the hostname (not the username/password or full URI). The application loads `backend\.env` by file location, independent of the launch working directory; an already-set Windows/process environment variable takes precedence over `.env`. Resolve the reported hostname with `nslookup ACTUAL_HOSTNAME`. For Atlas SRV URIs, also check `_mongodb._tcp.ACTUAL_HOSTNAME` with `nslookup -type=SRV _mongodb._tcp.ACTUAL_HOSTNAME`. If `nslookup` reports `Non-existent domain`/`NXDOMAIN` or cannot resolve the host, copy a fresh URI from the intended Atlas cluster's **Connect → Drivers** panel and check Windows DNS/network settings. Never replace it with a guessed hostname. A connection-string hostname typo/stale cluster address is a configuration/DNS issue, not an IP allowlist error; Atlas network access rules matter only after DNS resolves. The server logs the hostname and classifies DNS failures without printing URI credentials.
 
-**Backend on Render:** New → Web Service → root dir `backend`, build `npm ci`, start `npm start` (or use `render.yaml`). Set every variable above, with `NODE_ENV=production`, `TRUST_PROXY=true`, `FRONTEND_URL` and `CORS_ORIGINS` set to your Vercel URL(s). Health check: `/api/health`. Free instances sleep: background jobs only run while awake, so also create a Render Cron Job (or any scheduler) that signs in as a Platform Owner and calls `POST /api/admin/jobs/run` every 30 minutes (releases expired stock holds, attempts renewals, reconciles payments). The in-process timers also run while the service is awake.
+**Backend on Render:** New → Web Service → root dir `backend`, build `npm ci`, start `npm start` (or use `render.yaml`). Set every variable above, with `NODE_ENV=production`, `TRUST_PROXY=true`, `FRONTEND_URL` and `CORS_ORIGINS` set to your Vercel URL(s). Render readiness check: `/api/ready` (returns 503 until MongoDB is connected); liveness check: `/api/health`. Free instances sleep: background jobs only run while awake, so also create a Render Cron Job (or any scheduler) that signs in as a Platform Owner and calls `POST /api/admin/jobs/run` every 30 minutes (releases expired stock holds, attempts renewals, reconciles payments). The in-process timers also run while the service is awake.
 
 **Frontend on Vercel:** root dir `frontend`, framework Vite, build `npm run build`, output `dist`, env `VITE_API_URL=https://your-api.onrender.com`. `vercel.json` already rewrites all routes to `index.html`.
+
+**Merchant subdomains (optional):** first configure wildcard DNS (`*.your-domain`) to the frontend host and provision its wildcard TLS certificate. Then set backend `MERCHANT_DOMAIN=your-domain` and frontend `VITE_MERCHANT_DOMAIN=your-domain`, and redeploy both. The existing unique business slug becomes the subdomain, so `shop.your-domain` opens that store; reserved and invalid slugs remain unavailable. Keep both settings unset until DNS and TLS are ready. No DNS records or production domains are changed by the application.
 
 **Paystack:** Zuno's `PLATFORM_PAYSTACK_SECRET_KEY` is used only for Zuno-owned subscriptions/setup charges. Merchants connect their own Paystack secret under **Settings → Payments**; it is encrypted at rest and never returned to the browser. Each merchant checkout and refund is routed through the corresponding merchant account, with no fallback to Zuno's credentials and no split-payment routing. Configure Paystack's webhook URL as `https://YOUR-API/api/webhooks/paystack` on each relevant account. Use test keys first and complete sandbox checkout/webhook/refund tests before going live; provider API behavior has not been tested against a live Paystack account.
 

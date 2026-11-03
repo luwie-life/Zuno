@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { Order, Customer, Payment } from '../models/index.js';
 import { asyncH, notFound, conflict } from '../lib/errors.js';
 import { parse, z, escapeRegex, pageParams } from '../lib/validate.js';
-import { requireAuth, requireBusiness, requireFeature } from '../middleware/auth.js';
+import { requireAuth, requireBusiness, requireFeature, requireModule } from '../middleware/auth.js';
 import { fulfilmentMachine } from '../lib/statusMachines.js';
 import { cancelOrder } from '../services/orders.js';
 import { refundVerifiedPayment } from '../services/payments.js';
@@ -10,6 +10,7 @@ import { audit } from '../services/audit.js';
 
 const r = Router();
 r.use(requireAuth);
+r.use(requireBusiness(null), requireModule('commerce'));
 
 r.get('/', requireBusiness('orders.read'), asyncH(async (req, res) => {
   const { page, limit, skip } = pageParams(req.query);

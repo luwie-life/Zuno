@@ -6,7 +6,16 @@ import { useAuth } from '../lib/auth.jsx';
 import { api, getToken } from '../lib/api.js';
 import { Loading, useApi, cx } from './ui.jsx';
 
-export const Wordmark = ({ light }) => <Link to="/" className={cx('font-display text-2xl font-bold tracking-tight', light ? 'text-white' : 'text-forest')}>Zuno</Link>;
+const LogoMark = ({ light = false }) => (
+  <span className={cx('inline-flex h-8 w-8 items-center justify-center rounded-xl font-display text-lg font-bold leading-none', light ? 'bg-white text-forest' : 'bg-forest text-white')} aria-hidden="true">Z</span>
+);
+
+export const Wordmark = ({ light }) => (
+  <Link to="/" className="inline-flex items-center gap-2 text-forest no-underline">
+    <LogoMark light={light} />
+    <span className={cx('font-display text-2xl font-bold tracking-tight', light ? 'text-white' : 'text-forest')}>Zuno</span>
+  </Link>
+);
 
 export function MarketingLayout() {
   const [open, setOpen] = useState(false);
@@ -57,12 +66,12 @@ export function RequireAuth({ children }) {
 
 const NAV = [
   { to: '/app', label: 'Overview', icon: LayoutDashboard, end: true },
-  { to: '/app/products', label: 'Products', icon: Package, perm: 'products.write', alsoRead: true },
-  { to: '/app/orders', label: 'Orders', icon: ShoppingBag, perm: 'orders.write' },
-  { to: '/app/pos', label: 'POS', icon: Store, feature: 'pos', perm: 'pos.sell', cashier: true },
-  { to: '/app/inventory', label: 'Inventory', icon: Boxes, feature: 'shared_inventory', cashier: true },
+  { to: '/app/products', label: 'Products', icon: Package, module: 'commerce', perm: 'products.write', alsoRead: true },
+  { to: '/app/orders', label: 'Orders', icon: ShoppingBag, module: 'commerce', perm: 'orders.write' },
+  { to: '/app/pos', label: 'POS', icon: Store, module: 'commerce', feature: 'pos', perm: 'pos.sell', cashier: true },
+  { to: '/app/inventory', label: 'Inventory', icon: Boxes, module: 'commerce', feature: 'shared_inventory', cashier: true },
   { to: '/app/customers', label: 'Customers', icon: Users, feature: 'customers', cashier: true },
-  { to: '/app/reports', label: 'Reports', icon: BarChart3, perm: 'reports.read' },
+  { to: '/app/reports', label: 'Reports', icon: BarChart3, module: 'commerce', perm: 'reports.read' },
   { to: '/app/billing', label: 'Billing', icon: CreditCard, perm: 'billing.manage' },
   { to: '/app/mobile-app', label: 'Mobile app', icon: Smartphone, perm: 'apps.read' },
   { to: '/app/team', label: 'Team', icon: UserCog, perm: 'staff.manage' },
@@ -79,7 +88,7 @@ export function AppLayout() {
   useEffect(() => setMore(false), [pathname]);
   if (loading) return <Loading />;
 
-  const items = NAV.filter((n) => !n.perm || can(n.perm) || n.cashier || (n.alsoRead && can('products.read')));
+  const items = NAV.filter((n) => (!n.module || ctx?.modules?.includes(n.module)) && (!n.perm || can(n.perm) || n.cashier || (n.alsoRead && can('products.read'))));
   const mobileMain = ['/app', '/app/products', '/app/pos', '/app/orders'].map((to) => items.find((i) => i.to === to)).filter(Boolean);
   const Item = ({ n, mobile }) => {
     const locked = n.feature && !hasFeature(n.feature);

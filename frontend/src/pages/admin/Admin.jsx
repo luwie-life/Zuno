@@ -9,10 +9,68 @@ const Stat = ({ t, v, to, sub }) => { const c = <Card className="p-4"><p classNa
 export function AdminOverview() {
   const { data, loading, error, reload } = useApi(() => api('/admin/overview'), []);
   if (loading) return <Loading />; if (error) return <ErrorNote error={error} retry={reload} />;
-  const rev = (p) => data.verifiedPlatformRevenue.find((x) => x.purpose === p);
-  return (<><PageHeader title="Overview" sub="Live counts from the database." />
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"><Stat t="Merchants" v={data.merchants} to="/admin/merchants" /><Stat t="Businesses" v={data.businesses} sub={`${data.activeBusinesses} active · ${data.suspendedBusinesses} suspended`} to="/admin/businesses" /><Stat t="Active subscriptions" v={data.activeSubscriptions} to="/admin/subscriptions" /><Stat t="Open support requests" v={data.openSupport} to="/admin/support" /><Stat t="Pending recovery requests" v={data.pendingRecovery} to="/admin/recovery" /><Stat t="Pending app applications" v={data.pendingApps} to="/admin/mobile-apps" /><Stat t="Verified setup fees" v={naira(rev('setup_fee')?.total || 0)} sub={`${rev('setup_fee')?.count || 0} payments`} /><Stat t="Verified subscriptions" v={naira(rev('subscription')?.total || 0)} sub={`${rev('subscription')?.count || 0} payments`} /></div>
-    <h2 className="mb-2 mt-8 text-lg font-bold">Recent administrative actions</h2><Card>{data.recentActions.length === 0 ? <Empty title="No administrative actions yet" /> : <Table head={['When', 'Action', 'By', 'Reason']}>{data.recentActions.map((a) => <tr key={a.id}><td className="px-4 py-2.5 text-muted">{dateTime(a.at)}</td><td className="px-4 py-2.5">{label(a.action.replace('.', ' '))}</td><td className="px-4 py-2.5">{a.actor}</td><td className="px-4 py-2.5 text-muted">{a.reason}</td></tr>)}</Table>}</Card></>);
+  const rev = (purpose) => (data?.verifiedPlatformRevenue || []).find((x) => x.purpose === purpose) || { total: 0, count: 0 };
+  const setupRev = rev('setup_fee');
+  const subRev = rev('subscription');
+
+  return (
+    <>
+      <PageHeader title="Platform overview" sub="Live counts, operational health and recent admin activity." />
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Stat t="Merchants" v={data.merchants} to="/admin/merchants" sub="Registered merchant accounts" />
+        <Stat t="Businesses" v={data.businesses} sub={`${data.activeBusinesses} active · ${data.suspendedBusinesses} suspended`} to="/admin/businesses" />
+        <Stat t="Active subscriptions" v={data.activeSubscriptions} to="/admin/subscriptions" sub="Current active billing" />
+        <Stat t="Open support" v={data.openSupport} to="/admin/support" sub="Requests awaiting review" />
+      </div>
+
+      <div className="mt-5 grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+        <Card className="p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm text-muted">Operational health</p>
+              <h2 className="mt-1 text-xl font-semibold">Platform pulse</h2>
+            </div>
+            <Badge tone={data.pendingRecovery === 0 && data.pendingApps === 0 ? 'ok' : 'warn'}>{data.pendingRecovery === 0 && data.pendingApps === 0 ? 'Stable' : 'Needs attention'}</Badge>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-2xl border border-line bg-paper p-3">
+              <p className="text-xs uppercase tracking-[0.12em] text-muted">Recovery queue</p>
+              <p className="mt-2 font-display text-2xl font-bold">{data.pendingRecovery}</p>
+            </div>
+            <div className="rounded-2xl border border-line bg-paper p-3">
+              <p className="text-xs uppercase tracking-[0.12em] text-muted">Pending app apps</p>
+              <p className="mt-2 font-display text-2xl font-bold">{data.pendingApps}</p>
+            </div>
+            <div className="rounded-2xl border border-line bg-paper p-3">
+              <p className="text-xs uppercase tracking-[0.12em] text-muted">Setup revenue</p>
+              <p className="mt-2 font-display text-2xl font-bold">{naira(setupRev.total || 0)}</p>
+              <p className="mt-1 text-xs text-muted">{setupRev.count || 0} verified payments</p>
+            </div>
+            <div className="rounded-2xl border border-line bg-paper p-3">
+              <p className="text-xs uppercase tracking-[0.12em] text-muted">Subscription revenue</p>
+              <p className="mt-2 font-display text-2xl font-bold">{naira(subRev.total || 0)}</p>
+              <p className="mt-1 text-xs text-muted">{subRev.count || 0} verified payments</p>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-5">
+          <p className="text-sm text-muted">Quick actions</p>
+          <div className="mt-4 space-y-2">
+            <Link to="/admin/merchants" className="flex items-center justify-between rounded-xl border border-line bg-paper px-3 py-2 text-sm font-medium text-ink hover:bg-forest-50">Review merchants <span className="text-muted">→</span></Link>
+            <Link to="/admin/businesses" className="flex items-center justify-between rounded-xl border border-line bg-paper px-3 py-2 text-sm font-medium text-ink hover:bg-forest-50">Review businesses <span className="text-muted">→</span></Link>
+            <Link to="/admin/payments" className="flex items-center justify-between rounded-xl border border-line bg-paper px-3 py-2 text-sm font-medium text-ink hover:bg-forest-50">Check payment flow <span className="text-muted">→</span></Link>
+            <Link to="/admin/settings" className="flex items-center justify-between rounded-xl border border-line bg-paper px-3 py-2 text-sm font-medium text-ink hover:bg-forest-50">Platform settings <span className="text-muted">→</span></Link>
+          </div>
+        </Card>
+      </div>
+
+      <h2 className="mb-2 mt-8 text-lg font-bold">Recent administrative actions</h2>
+      <Card>
+        {data.recentActions.length === 0 ? <Empty title="No administrative actions yet" /> : <Table head={['When', 'Action', 'By', 'Reason']}>{data.recentActions.map((a) => <tr key={a.id}><td className="px-4 py-2.5 text-muted">{dateTime(a.at)}</td><td className="px-4 py-2.5">{label(a.action.replace('.', ' '))}</td><td className="px-4 py-2.5">{a.actor}</td><td className="px-4 py-2.5 text-muted">{a.reason}</td></tr>)}</Table>}
+      </Card>
+    </>
+  );
 }
 
 export function Merchants() {

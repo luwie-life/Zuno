@@ -54,9 +54,12 @@ export async function createOnlineOrder(business, { items: requested, customer, 
   });
 
   try {
+    const callbackUrl = env.merchantDomain
+      ? `https://${business.slug}.${env.merchantDomain}/order`
+      : `${env.frontendUrl}/store/${business.slug}/order`;
     const { payment, authorizationUrl } = await startPayment({
       business: business._id, purpose: 'storefront_order', amount: order.total, email: order.customerInfo.email,
-      target: { kind: 'Order', id: order._id }, callbackUrl: `${env.frontendUrl}/store/${business.slug}/order`, // Paystack appends ?reference=...
+      target: { kind: 'Order', id: order._id }, callbackUrl, // Paystack appends ?reference=...
     });
     await Order.updateOne({ _id: order._id }, { paymentReference: payment.reference });
     return { order, authorizationUrl, reference: payment.reference };

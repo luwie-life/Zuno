@@ -4,7 +4,8 @@ export const MERCHANT_PERMISSIONS = {
   manager: [
     'business.update', 'products.read', 'products.write', 'orders.read', 'orders.write', 'orders.refund',
     'pos.sell', 'pos.discount', 'pos.refund', 'inventory.read', 'inventory.adjust', 'customers.read',
-    'customers.write', 'suppliers.read', 'suppliers.write', 'purchases.write', 'reports.read', 'support.write',
+    'customers.write', 'services.read', 'services.write', 'bookings.read', 'bookings.manage',
+    'suppliers.read', 'suppliers.write', 'purchases.write', 'reports.read', 'support.write',
     'apps.read',
   ],
   cashier: ['products.read', 'pos.sell', 'customers.read', 'customers.write', 'inventory.read', 'support.write'],

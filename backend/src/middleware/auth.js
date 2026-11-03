@@ -6,6 +6,7 @@ import { merchantCan, platformCan } from '../lib/permissions.js';
 import { asyncH } from '../lib/errors.js';
 import { getAccess } from '../services/subscriptions.js';
 import { featureAllowed, limitReached } from '../lib/subscriptionRules.js';
+import { businessModulesFor } from '../lib/businessModules.js';
 
 export function signSession(session, user) {
   return jwt.sign({ sid: String(session._id), sub: String(user._id) }, env.jwtSecret, { algorithm: 'HS256', expiresIn: `${env.sessionHours}h` });
@@ -28,6 +29,11 @@ export const requireAuth = asyncH(async (req, res, next) => {
 export const requireBusiness = (perm, { allowSuspended = false } = {}) => asyncH(async (req, res, next) => {
   const id = req.headers['x-business-id'];
   if (!id || !/^[a-f\d]{24}$/i.test(id)) throw forbidden('No business selected');
+  if (req.business && String(req.business._id) === String(id) && req.membership?.status === 'active') {
+    req.can = (p) => merchantCan(req.membership.role, p);
+    if (perm && !req.can(perm)) throw forbidden();
+    return next();
+  }
   const membership = await Membership.findOne({ user: req.user._id, business: id, status: 'active' });
   if (!membership) throw forbidden('You do not have access to this business'); // identical for "missing" and "not yours"
   const business = await Business.findById(id);
@@ -40,6 +46,14 @@ export const requireBusiness = (perm, { allowSuspended = false } = {}) => asyncH
 });
 
 export const requirePerm = (perm) => (req, res, next) => (req.can(perm) ? next() : next(forbidden()));
+
+export const requireModule = (module) => (req, res, next) => {
+  if (!req.business) return next(forbidden('No business selected'));
+  if (!businessModulesFor(req.business?.businessType).includes(module)) {
+    return next(forbidden(`This business does not have the ${module} module enabled.`));
+  }
+  next();
+};
 
 export const requireFeature = (feature) => asyncH(async (req, res, next) => {
   const { sub, plan, access, state } = await getAccess(req.business._id);

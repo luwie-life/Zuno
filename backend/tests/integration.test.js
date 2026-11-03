@@ -10,12 +10,20 @@ import crypto from 'node:crypto';
 const URI = process.env.TEST_MONGODB_URI;
 const skip = !URI && 'Set TEST_MONGODB_URI (replica set) to run integration tests';
 
+function assertDisposableTestDatabase(uri) {
+  const database = decodeURIComponent(new URL(uri).pathname.replace(/^\/+/, '').split('/')[0] || '');
+  if (!/(^|[-_])tests?(?:ing)?($|[-_])/i.test(database)) {
+    throw new Error('Refusing to run destructive integration tests: TEST_MONGODB_URI must target a database whose name contains a test marker.');
+  }
+}
+
 let server; let base; let M; let mongoose;
 const realFetch = globalThis.fetch;
 const txs = new Map(); // reference -> mocked Paystack transaction
 
 before(async () => {
   if (skip) return;
+  assertDisposableTestDatabase(URI);
   process.env.MONGODB_URI = URI;
   mongoose = (await import('mongoose')).default;
   await mongoose.connect(URI);
@@ -45,12 +53,12 @@ const api = async (path, { method = 'GET', body, token, biz } = {}) => {
   return { status: r.status, body: await r.json().catch(() => ({})) };
 };
 let n = 0;
-async function merchant(planKey = 'store_business') {
+async function merchant(planKey = 'store_business', businessType = 'product') {
   n++;
   const email = `m${n}-${Date.now()}@test.dev`;
   const reg = await api('/api/auth/register', { method: 'POST', body: { name: 'Merchant ' + n, email, password: 'a-long-test-password-1' } });
   const token = reg.body.token;
-  const b = await api('/api/businesses', { method: 'POST', token, body: { name: 'Shop ' + n, slug: `shop-${n}-${Date.now() % 100000}`, planKey } });
+  const b = await api('/api/businesses', { method: 'POST', token, body: { name: 'Shop ' + n, slug: `shop-${n}-${Date.now() % 100000}`, planKey, ...(businessType !== 'product' && { businessType }) } });
   const biz = b.body.business._id;
   await M.Subscription.updateOne({ business: biz }, { setupStatus: 'paid', currentPeriodEnd: new Date(Date.now() + 20 * 86400000) }); // simulate verified payments
   return { token, biz, email, slug: b.body.business.slug };
@@ -61,6 +69,26 @@ async function product(m, over = {}) {
   return r.body.product;
 }
 const stock = async (id) => (({ stock, reserved }) => ({ stock, reserved }))(await M.Product.findById(id));
+
+test('business types configure modules and service-only businesses cannot call commerce APIs', { skip }, async () => {
+  const legacy = await merchant();
+  const legacyContext = await api('/api/businesses/current', { token: legacy.token, biz: legacy.biz });
+  assert.equal(legacyContext.body.businessType, 'product');
+  assert.deepEqual(legacyContext.body.modules, ['commerce']);
+
+  const service = await merchant('store_business', 'service');
+  const serviceContext = await api('/api/businesses/current', { token: service.token, biz: service.biz });
+  assert.equal(serviceContext.body.businessType, 'service');
+  assert.deepEqual(serviceContext.body.modules, ['services']);
+  assert.equal((await api('/api/catalog/products', { method: 'POST', token: service.token, biz: service.biz, body: { name: 'Blocked', price: 1000 } })).status, 403);
+  assert.equal((await api('/api/inventory', { token: service.token, biz: service.biz })).status, 403);
+  assert.equal((await api('/api/pos/products', { token: service.token, biz: service.biz })).status, 403);
+
+  const both = await merchant('store_business', 'both');
+  const bothContext = await api('/api/businesses/current', { token: both.token, biz: both.biz });
+  assert.deepEqual(bothContext.body.modules, ['commerce', 'services']);
+  await product(both);
+});
 
 test('tenant isolation: merchant A cannot touch merchant B data', { skip }, async () => {
   const A = await merchant(); const B = await merchant();

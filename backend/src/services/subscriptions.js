@@ -5,17 +5,23 @@ import { notFound } from '../lib/errors.js';
 import { audit } from './audit.js';
 
 const NGN = (n) => n * 100;
-const BASE = ['online_store', 'products', 'orders', 'basic_reports'];
+const BASE = ['online_store', 'products', 'orders', 'basic_reports', 'services', 'bookings'];
 const BUSINESS = [...BASE, 'pos', 'shared_inventory', 'stock_movements', 'low_stock', 'customers', 'suppliers', 'purchasing', 'enhanced_reports'];
 
 export const DEFAULT_PLANS = [
-  { key: 'online_store', name: 'Online Store', description: 'A professional storefront with product management and online orders.', setupFee: NGN(250000), monthlyFee: NGN(15000), features: BASE, limits: { products: 200, staff: 1 }, sortOrder: 1 },
-  { key: 'store_business', name: 'Store + Business Management', description: 'Everything in Online Store plus an integrated POS and shared inventory.', setupFee: NGN(450000), monthlyFee: NGN(30000), features: BUSINESS, limits: { products: 2000, staff: 5 }, sortOrder: 2 },
-  { key: 'advanced', name: 'Advanced Business', description: 'Everything in Store + Business Management with higher limits and priority support.', setupFee: NGN(750000), monthlyFee: NGN(50000), priceIsFrom: true, features: [...BUSINESS, 'priority_support'], limits: { products: -1, staff: -1 }, sortOrder: 3 },
+  { key: 'online_store', name: 'Online Store', description: 'Online selling or service booking with product management and customer requests.', setupFee: NGN(250000), monthlyFee: NGN(15000), features: BASE, limits: { products: 200, staff: 1, services: 200, bookings: -1 }, sortOrder: 1 },
+  { key: 'store_business', name: 'Store + Business Management', description: 'Everything in Online Store plus integrated POS and shared inventory.', setupFee: NGN(450000), monthlyFee: NGN(30000), features: BUSINESS, limits: { products: 2000, staff: 5, services: 2000, bookings: -1 }, sortOrder: 2 },
+  { key: 'advanced', name: 'Advanced Business', description: 'Everything in Store + Business Management with higher limits and priority support.', setupFee: NGN(750000), monthlyFee: NGN(50000), priceIsFrom: true, features: [...BUSINESS, 'priority_support'], limits: { products: -1, staff: -1, services: -1, bookings: -1 }, sortOrder: 3 },
 ];
 
 export async function ensureDefaultPlans() {
-  for (const p of DEFAULT_PLANS) await Plan.updateOne({ key: p.key }, { $setOnInsert: p }, { upsert: true });
+  for (const p of DEFAULT_PLANS) {
+    await Plan.updateOne({ key: p.key }, { $setOnInsert: p }, { upsert: true });
+    await Plan.updateOne({ key: p.key }, {
+      $addToSet: { features: { $each: ['services', 'bookings'] } },
+      $set: { 'limits.services': p.limits.services, 'limits.bookings': p.limits.bookings },
+    });
+  }
 }
 
 export async function createSubscription(businessId, planKey) {
