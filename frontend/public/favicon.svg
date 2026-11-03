@@ -1,5 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
-  <title id="title">Zuno</title>
-  <rect width="64" height="64" rx="16" fill="#0B3D2E"/>
-  <path d="M18 18h28l-18 14h15L22 46h20v4H16l18-14H19l17-14H18z" fill="#1DCB73"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <circle cx="24" cy="24" r="23" fill="#0B3D2E"/>
+  <path
+    d="M14 14H34L20.5 24H34L14 34H34"
+    fill="none"
+    stroke="#D7F36A"
+    stroke-width="4.2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
 </svg>

@@ -1,3 +1,4 @@
+import { BrandIcon, BrandWordmark } from './BrandMark.jsx';
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -7,14 +8,11 @@ import { api, getToken } from '../lib/api.js';
 import { Loading, useApi, cx } from './ui.jsx';
 
 const LogoMark = ({ light = false }) => (
-  <span className={cx('inline-flex h-8 w-8 items-center justify-center rounded-xl font-display text-lg font-bold leading-none', light ? 'bg-white text-forest' : 'bg-forest text-white')} aria-hidden="true">Z</span>
+  <BrandIcon light={light} size={36} />
 );
 
 export const Wordmark = ({ light }) => (
-  <Link to="/" className="inline-flex items-center gap-2 text-forest no-underline">
-    <LogoMark light={light} />
-    <span className={cx('font-display text-2xl font-bold tracking-tight', light ? 'text-white' : 'text-forest')}>Zuno</span>
-  </Link>
+  <BrandWordmark light={light} />
 );
 
 export function MarketingLayout() {
