@@ -6,6 +6,7 @@ import { Menu, X, LayoutDashboard, Package, ShoppingBag, Store, Boxes, Users, Ba
 import { useAuth } from '../lib/auth.jsx';
 import { api, getToken } from '../lib/api.js';
 import { Loading, useApi, cx } from './ui.jsx';
+import { ArrowRight } from 'lucide-react';
 
 const LogoMark = ({ light = false }) => (
   <BrandIcon light={light} size={36} />
@@ -15,43 +16,229 @@ export const Wordmark = ({ light }) => (
   <BrandWordmark light={light} />
 );
 
+
 export function MarketingLayout() {
   const [open, setOpen] = useState(false);
   const { pathname } = useLocation();
   const { user } = useAuth();
-  useEffect(() => { setOpen(false); window.scrollTo(0, 0); }, [pathname]);
-  const links = [['/#product', 'Product'], ['/pricing', 'Pricing'], ['/mobile-app', 'Mobile app'], ['/support', 'Support']];
+
+  useEffect(() => {
+    setOpen(false);
+    window.scrollTo(0, 0);
+  }, [pathname]);
+
+  const links = [
+    ['/#product', 'Platform'],
+    ['/pricing', 'Pricing'],
+    ['/mobile-app', 'Mobile app'],
+    ['/support', 'Resources'],
+  ];
+
+  const closeMenu = () => setOpen(false);
+
   return (
-    <div className="min-h-screen">
-      <header className="sticky top-0 z-40 border-b border-line bg-paper/90 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
+    <div className="min-h-screen bg-paper">
+      <header className="sticky top-0 z-40 border-b border-line/80 bg-paper/90 backdrop-blur-xl">
+        <div className="mx-auto flex h-[76px] max-w-7xl items-center justify-between px-5 sm:px-8">
           <Wordmark />
-          <nav className="hidden items-center gap-7 text-sm font-medium md:flex" aria-label="Main">{links.map(([to, t]) => <Link key={t} to={to} className="text-muted hover:text-ink">{t}</Link>)}</nav>
-          <div className="hidden items-center gap-2 md:flex">
-            {user ? <Link to="/app" className="btn-primary">Open dashboard</Link> : <><Link to="/login" className="btn-ghost">Sign in</Link><Link to="/register" className="btn-primary">Start your store</Link></>}
+
+          <nav
+            className="hidden items-center gap-8 lg:flex"
+            aria-label="Main navigation"
+          >
+            {links.map(([to, label]) => (
+              <Link
+                key={label}
+                to={to}
+                className={`text-sm font-medium transition-colors ${
+                  pathname === to
+                    ? 'text-forest'
+                    : 'text-muted hover:text-forest'
+                }`}
+              >
+                {label}
+              </Link>
+            ))}
+          </nav>
+
+          <div className="hidden items-center gap-3 lg:flex">
+            {user ? (
+              <Link to="/app" className="btn-primary px-5">
+                Open workspace
+              </Link>
+            ) : (
+              <>
+                <Link
+                  to="/login"
+                  className="rounded-lg px-4 py-2.5 text-sm font-semibold text-ink transition hover:bg-forest-50"
+                >
+                  Sign in
+                </Link>
+                <Link
+                  to="/register"
+                  className="btn-primary rounded-xl px-5"
+                >
+                  Get started
+                </Link>
+              </>
+            )}
           </div>
-          <button className="rounded p-2 md:hidden" onClick={() => setOpen(!open)} aria-label="Menu" aria-expanded={open}>{open ? <X /> : <Menu />}</button>
+
+          <button
+            type="button"
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-line text-ink transition hover:bg-forest-50 lg:hidden"
+            onClick={() => setOpen(!open)}
+            aria-label={open ? 'Close navigation' : 'Open navigation'}
+            aria-expanded={open}
+          >
+            {open ? <X size={20} /> : <Menu size={20} />}
+          </button>
         </div>
-        <AnimatePresence>{open && (
-          <motion.nav initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden border-t border-line bg-paper md:hidden" aria-label="Mobile">
-            <div className="flex flex-col gap-1 p-4">
-              {links.map(([to, t]) => <Link key={t} to={to} className="rounded-lg px-3 py-3 font-medium hover:bg-forest-50">{t}</Link>)}
-              {user ? <Link to="/app" className="btn-primary mt-2">Open dashboard</Link> : <><Link to="/login" className="btn-secondary mt-2">Sign in</Link><Link to="/register" className="btn-primary">Start your store</Link></>}
-            </div>
-          </motion.nav>)}</AnimatePresence>
+
+        <AnimatePresence>
+          {open && (
+            <motion.nav
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.22, ease: 'easeInOut' }}
+              className="overflow-hidden border-t border-line bg-paper lg:hidden"
+              aria-label="Mobile navigation"
+            >
+              <div className="mx-auto flex max-w-7xl flex-col gap-1 px-5 py-5 sm:px-8">
+                {links.map(([to, label]) => (
+                  <Link
+                    key={label}
+                    to={to}
+                    onClick={closeMenu}
+                    className="rounded-xl px-4 py-3 text-sm font-medium text-ink transition hover:bg-forest-50"
+                  >
+                    {label}
+                  </Link>
+                ))}
+
+                <div className="mt-3 grid grid-cols-2 gap-3 border-t border-line pt-4">
+                  {user ? (
+                    <Link
+                      to="/app"
+                      onClick={closeMenu}
+                      className="btn-primary col-span-2"
+                    >
+                      Open workspace
+                    </Link>
+                  ) : (
+                    <>
+                      <Link
+                        to="/login"
+                        onClick={closeMenu}
+                        className="btn-secondary"
+                      >
+                        Sign in
+                      </Link>
+                      <Link
+                        to="/register"
+                        onClick={closeMenu}
+                        className="btn-primary"
+                      >
+                        Get started
+                      </Link>
+                    </>
+                  )}
+                </div>
+              </div>
+            </motion.nav>
+          )}
+        </AnimatePresence>
       </header>
-      <main><Outlet /></main>
-      <footer className="mt-24 bg-forest text-white">
-        <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:grid-cols-4">
-          <div className="sm:col-span-2"><Wordmark light /><p className="mt-3 max-w-xs text-sm text-white/70">Online store, in-person sales and one shared inventory for Nigerian businesses.</p></div>
-          <div className="text-sm"><p className="mb-2 font-semibold">Product</p><ul className="space-y-1.5 text-white/70"><li><Link to="/pricing">Pricing</Link></li><li><Link to="/mobile-app">Branded mobile app</Link></li><li><Link to="/register">Create an account</Link></li></ul></div>
-          <div className="text-sm"><p className="mb-2 font-semibold">Help</p><ul className="space-y-1.5 text-white/70"><li><Link to="/support">Support and FAQ</Link></li><li><Link to="/recover">Recover my business account</Link></li><li><Link to="/privacy">Privacy policy</Link></li><li><Link to="/terms">Terms of service</Link></li></ul></div>
+
+      <main>
+        <Outlet />
+      </main>
+
+      <footer className="mt-24 bg-[#102D22] text-white">
+        <div className="mx-auto max-w-7xl px-5 py-16 sm:px-8">
+          <div className="grid gap-12 md:grid-cols-2 lg:grid-cols-4">
+            <div className="lg:col-span-2">
+              <Wordmark light />
+
+              <p className="mt-5 max-w-sm text-sm leading-7 text-white/60">
+                Everything your business needs to operate, manage customers,
+                sell products, organise services and grow — all in one
+                connected workspace.
+              </p>
+
+              <Link
+                to="/register"
+                className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-[#D7F36A] transition hover:gap-3"
+              >
+                Build your workspace
+                <ArrowRight size={16} />
+              </Link>
+            </div>
+
+            <div>
+              <h3 className="text-sm font-semibold">Platform</h3>
+              <ul className="mt-5 space-y-3 text-sm text-white/60">
+                <li>
+                  <Link to="/#product" className="transition hover:text-white">
+                    Overview
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/pricing" className="transition hover:text-white">
+                    Pricing
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/mobile-app" className="transition hover:text-white">
+                    Branded mobile apps
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/register" className="transition hover:text-white">
+                    Get started
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            <div>
+              <h3 className="text-sm font-semibold">Company & support</h3>
+              <ul className="mt-5 space-y-3 text-sm text-white/60">
+                <li>
+                  <Link to="/support" className="transition hover:text-white">
+                    Help centre
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/recover" className="transition hover:text-white">
+                    Account recovery
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/privacy" className="transition hover:text-white">
+                    Privacy policy
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/terms" className="transition hover:text-white">
+                    Terms of service
+                  </Link>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="mt-14 flex flex-col gap-4 border-t border-white/10 pt-6 text-xs text-white/45 sm:flex-row sm:items-center sm:justify-between">
+            <p>© {new Date().getFullYear()} Zuno. All rights reserved.</p>
+            <p>One workspace. More ways to grow.</p>
+          </div>
         </div>
-        <div className="border-t border-white/10 py-4 text-center text-xs text-white/60">© {new Date().getFullYear()} Zuno</div>
       </footer>
     </div>
   );
 }
+
 
 export function RequireAuth({ children }) {
   const { user, loading } = useAuth();
