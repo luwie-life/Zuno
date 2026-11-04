@@ -1,4 +1,4 @@
-
+import { Router } from 'express';
 import {
   User,
   Business,
@@ -465,10 +465,8 @@ r.patch('/plans/:id', requirePlatform('plans.write'), asyncH(async (req, res) =>
 
   if (!before) throw notFound();
 
-  // Setup fees are permanently disabled for the current pricing model.
   patch.setupFee = 0;
 
-  // The Free plan must always remain free.
   if (before.key === 'free') {
     patch.monthlyFee = 0;
     patch.setupFee = 0;
@@ -682,7 +680,6 @@ r.patch('/settings', requirePlatform('*'), asyncH(async (req, res) => {
 
   const { reason, ...patch } = body;
 
-  // Keep the platform currency configuration consistent.
   patch.currencyConfig = 'ngn_global';
 
   const before = (await getSettings()).toObject();
