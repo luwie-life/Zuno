@@ -316,6 +316,16 @@ export const Subscription = model('Subscription', new Schema({
   lastAppliedPaymentReference: String,
   failedRenewals: { type: Number, default: 0 },
   lastRenewalAttemptAt: Date,
+    renewalStatus: {
+    type: String,
+    enum: ['current', 'retry_required'],
+    default: 'current',
+  },
+  lastRenewalFailureAt: Date,
+  lastRenewalFailureReason: String,
+  nextRenewalRetryAt: Date,
+  renewalLockUntil: Date,
+  pendingRenewalPaymentReference: String,
   override: { until: Date, features: [String], reason: String, by: oid('User') },
 }, opts));
 
