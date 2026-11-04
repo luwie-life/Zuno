@@ -3,10 +3,12 @@ import mongoose from 'mongoose';
 import helmet from 'helmet';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
+
 import { env } from './config/env.js';
 import { merchantOriginAllowed } from './lib/merchantDomain.js';
 import { getSettings } from './services/settings.js';
 import { errorHandler, notFoundHandler } from './middleware/error.js';
+
 import webhooks from './routes/webhooks.js';
 import auth from './routes/auth.js';
 import business from './routes/business.js';
@@ -27,48 +29,117 @@ import payments from './routes/payments.js';
 import services from './routes/services.js';
 import bookings from './routes/bookings.js';
 import serviceManagement from './routes/services.js';
+import portfolio from './routes/portfolio.js';
 
 export function createApp() {
   const app = express();
-  if (env.trustProxy) app.set('trust proxy', 1); // set TRUST_PROXY=true on Render so rate limits see real client IPs
+
+  if (env.trustProxy) {
+    app.set('trust proxy', 1);
+  }
+
   app.disable('x-powered-by');
+
   app.use(helmet());
+
   app.use(cors({
     origin(origin, cb) {
-      if (!origin || env.corsOrigins.includes(origin) || merchantOriginAllowed(origin, env.merchantDomain)) return cb(null, true); // allow-list exact origins and configured merchant hosts only
+      if (
+        !origin ||
+        env.corsOrigins.includes(origin) ||
+        merchantOriginAllowed(origin, env.merchantDomain)
+      ) {
+        return cb(null, true);
+      }
+
       cb(null, false);
     },
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Business-Id'], methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], maxAge: 600,
+
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Business-Id',
+    ],
+
+    methods: [
+      'GET',
+      'POST',
+      'PUT',
+      'PATCH',
+      'DELETE',
+    ],
+
+    maxAge: 600,
   }));
 
-  app.use('/api/webhooks', webhooks); // BEFORE express.json: needs the raw body
-  app.use(express.json({ limit: '200kb' }));
-  app.use('/api', rateLimit({ windowMs: 60_000, max: 300, standardHeaders: true, legacyHeaders: false }));
+  // Webhooks need the raw request body.
+  app.use('/api/webhooks', webhooks);
 
-  app.get('/api/health', (req, res) => res.json({ ok: true, time: new Date().toISOString() }));
+  app.use(express.json({ limit: '200kb' }));
+
+  app.use('/api', rateLimit({
+    windowMs: 60_000,
+    max: 300,
+    standardHeaders: true,
+    legacyHeaders: false,
+  }));
+
+  app.get('/api/health', (req, res) => {
+    res.json({
+      ok: true,
+      time: new Date().toISOString(),
+    });
+  });
+
   app.get('/api/ready', (req, res) => {
     const ready = mongoose.connection.readyState === 1;
-    res.status(ready ? 200 : 503).json({ ok: ready });
+
+    res.status(ready ? 200 : 503).json({
+      ok: ready,
+    });
   });
-  app.get('/api/contact', async (req, res, next) => { try { const s = await getSettings(); res.json({ supportEmail: s.supportEmail, supportPhone: s.supportPhone }); } catch (e) { next(e); } });
+
+  app.get('/api/contact', async (req, res, next) => {
+    try {
+      const settings = await getSettings();
+
+      res.json({
+        supportEmail: settings.supportEmail,
+        supportPhone: settings.supportPhone,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   app.use('/api/auth', auth);
   app.use('/api/recovery', recovery);
+
   app.use('/api/store', store);
   app.use('/api/billing', billing);
   app.use('/api/payments', payments);
+
   app.use('/api/businesses', business);
   app.use('/api/catalog', catalog);
   app.use('/api/orders', orders);
   app.use('/api/customers', customers);
+
   app.use('/api/services', services);
   app.use('/api/bookings', bookings);
   app.use('/api/services', serviceManagement);
+
+  // Portfolio management.
+  app.use('/api/portfolio', portfolio);
+
   app.use('/api/pos', pos);
   app.use('/api/inventory', inventory);
   app.use('/api/reports', reports);
+
   app.use('/api/support', merchantSupport);
+
   app.use('/api/mobile-apps', publicApps);
   app.use('/api/mobile-apps', merchantApps);
+
   app.use('/api/admin/support', adminSupport);
   app.use('/api/admin/mobile-apps', adminApps);
   app.use('/api/admin/recovery', adminRecovery);
@@ -76,5 +147,6 @@ export function createApp() {
 
   app.use(notFoundHandler);
   app.use(errorHandler);
+
   return app;
 }
