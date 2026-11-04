@@ -18,13 +18,19 @@ function SectionHeading({ title, subtitle }) {
 
 function HeroSection({ settings, biz, color, storeBase }) {
   const image = settings.backgroundImage || settings.image;
-
   const buttonLink = settings.buttonLink || settings.ctaLink || '';
   const buttonText = settings.buttonText || settings.ctaText || '';
 
-  const destination = buttonLink.startsWith('http')
+  const external = /^https?:\/\//i.test(buttonLink);
+  const destination = external
     ? buttonLink
     : `${storeBase || ''}${buttonLink.startsWith('/') ? buttonLink : `/${buttonLink}`}`;
+
+  const button = (
+    <span className="mt-7 inline-flex rounded-full bg-white px-6 py-3 text-sm font-semibold text-gray-900 transition hover:bg-gray-100">
+      {buttonText}
+    </span>
+  );
 
   return (
     <section
@@ -58,12 +64,11 @@ function HeroSection({ settings, biz, color, storeBase }) {
         )}
 
         {buttonText && buttonLink && (
-          <Link
-            to={destination}
-            className="mt-7 inline-flex rounded-full bg-white px-6 py-3 text-sm font-semibold text-gray-900 transition hover:bg-gray-100"
-          >
-            {buttonText}
-          </Link>
+          external ? (
+            <a href={destination} target="_blank" rel="noreferrer">{button}</a>
+          ) : (
+            <Link to={destination}>{button}</Link>
+          )
         )}
       </div>
     </section>
@@ -82,7 +87,6 @@ function AboutSection({ settings }) {
             loading="lazy"
           />
         )}
-
         <div>
           <SectionHeading title={settings.title || 'About us'} subtitle={settings.subtitle} />
           {settings.description && (
@@ -111,7 +115,6 @@ function ImageTextSection({ settings }) {
           />
         )}
       </div>
-
       <div className={reverse ? 'md:order-1' : ''}>
         <SectionHeading title={settings.title} subtitle={settings.subtitle} />
         <p className="whitespace-pre-line text-sm leading-7 text-muted md:text-base">
@@ -135,17 +138,14 @@ function RichTextSection({ settings }) {
 
 function GallerySection({ settings }) {
   const images = Array.isArray(settings.images) ? settings.images : [];
-
   if (!images.length) return null;
 
   return (
     <section className="py-10">
       <SectionHeading title={settings.title || 'Gallery'} subtitle={settings.subtitle} />
-
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
         {images.map((image, index) => {
           const src = typeof image === 'string' ? image : image?.url;
-
           if (!src) return null;
 
           return (
@@ -173,10 +173,7 @@ function ProductSection({ settings, slug, storeBase, cart, biz }) {
 
   return (
     <section className="py-10">
-      <SectionHeading
-        title={settings.title || 'Our products'}
-        subtitle={settings.subtitle}
-      />
+      <SectionHeading title={settings.title || 'Our products'} subtitle={settings.subtitle} />
 
       {loading ? (
         <p className="text-sm text-muted">Loading products…</p>
@@ -186,31 +183,18 @@ function ProductSection({ settings, slug, storeBase, cart, biz }) {
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
           {products.map((product) => (
             <article key={product.id} className="flex flex-col overflow-hidden rounded-2xl border border-line bg-white">
-              <Link
-                to={`${storeBase}/p/${product.id}`}
-                className="aspect-square bg-paper"
-              >
+              <Link to={`${storeBase}/p/${product.id}`} className="aspect-square bg-paper">
                 {product.images?.[0] ? (
-                  <img
-                    src={product.images[0]}
-                    alt={product.name}
-                    className="h-full w-full object-cover"
-                    loading="lazy"
-                  />
+                  <img src={product.images[0]} alt={product.name} className="h-full w-full object-cover" loading="lazy" />
                 ) : (
-                  <div className="flex h-full items-center justify-center text-sm text-muted">
-                    No image
-                  </div>
+                  <div className="flex h-full items-center justify-center text-sm text-muted">No image</div>
                 )}
               </Link>
-
               <div className="flex flex-1 flex-col p-3">
                 <Link to={`${storeBase}/p/${product.id}`} className="text-sm font-medium">
                   {product.name}
                 </Link>
-
                 <p className="mt-2 font-bold">{naira(product.price)}</p>
-
                 <button
                   type="button"
                   className="btn-secondary mt-3 w-full"
@@ -238,11 +222,7 @@ function ServicesSection({ settings, slug, storeBase, color }) {
 
   return (
     <section className="py-10">
-      <SectionHeading
-        title={settings.title || 'Our services'}
-        subtitle={settings.subtitle}
-      />
-
+      <SectionHeading title={settings.title || 'Our services'} subtitle={settings.subtitle} />
       {loading ? (
         <p className="text-sm text-muted">Loading services…</p>
       ) : services.length === 0 ? (
@@ -251,23 +231,12 @@ function ServicesSection({ settings, slug, storeBase, color }) {
         <div className="grid gap-4 md:grid-cols-2">
           {services.map((service) => (
             <article key={service.id} className="rounded-2xl border border-line bg-white p-5">
-              <p className="text-xs uppercase tracking-wider text-muted">
-                {service.category || 'Service'}
-              </p>
-
+              <p className="text-xs uppercase tracking-wider text-muted">{service.category || 'Service'}</p>
               <h3 className="mt-2 text-lg font-semibold">{service.name}</h3>
-
-              <p className="mt-2 text-sm leading-6 text-muted">
-                {service.description}
-              </p>
-
+              <p className="mt-2 text-sm leading-6 text-muted">{service.description}</p>
               <div className="mt-4 flex items-center justify-between gap-3">
                 <strong>{naira(service.price)}</strong>
-                <Link
-                  className="btn-primary"
-                  style={{ background: color }}
-                  to={`${storeBase}/services/${service.id}`}
-                >
+                <Link className="btn-primary" style={{ background: color }} to={`${storeBase}/services/${service.id}`}>
                   Book now
                 </Link>
               </div>
@@ -289,11 +258,7 @@ function PortfolioSection({ settings, slug, storeBase }) {
 
   return (
     <section className="py-10">
-      <SectionHeading
-        title={settings.title || 'Selected projects'}
-        subtitle={settings.subtitle}
-      />
-
+      <SectionHeading title={settings.title || 'Selected projects'} subtitle={settings.subtitle} />
       {loading ? (
         <p className="text-sm text-muted">Loading projects…</p>
       ) : projects.length === 0 ? (
@@ -314,27 +279,15 @@ function PortfolioSection({ settings, slug, storeBase }) {
                   loading="lazy"
                 />
               )}
-
               <div className="p-4">
-                {project.category && (
-                  <p className="text-xs uppercase tracking-wider text-muted">
-                    {project.category}
-                  </p>
-                )}
-
+                {project.category && <p className="text-xs uppercase tracking-wider text-muted">{project.category}</p>}
                 <h3 className="mt-2 font-semibold">{project.title}</h3>
-
-                {project.summary && (
-                  <p className="mt-2 line-clamp-3 text-sm text-muted">
-                    {project.summary}
-                  </p>
-                )}
+                {project.summary && <p className="mt-2 line-clamp-3 text-sm text-muted">{project.summary}</p>}
               </div>
             </Link>
           ))}
         </div>
       )}
-
       <div className="mt-5">
         <Link className="text-sm font-semibold underline" to={`${storeBase}/portfolio`}>
           View all projects
@@ -346,20 +299,12 @@ function PortfolioSection({ settings, slug, storeBase }) {
 
 function ContactSection({ settings, biz, color }) {
   const phone = String(biz.phone || '').replace(/\D/g, '');
-  const message = encodeURIComponent(
-    settings.message || `Hello ${biz.name}, I would like to make an enquiry.`
-  );
+  const message = encodeURIComponent(settings.message || `Hello ${biz.name}, I would like to make an enquiry.`);
 
   return (
     <section className="my-10 rounded-3xl bg-gray-950 px-6 py-10 text-white md:px-10">
       <h2 className="text-2xl font-bold">{settings.title || 'Let’s work together'}</h2>
-
-      {settings.description && (
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-white/70">
-          {settings.description}
-        </p>
-      )}
-
+      {settings.description && <p className="mt-3 max-w-2xl text-sm leading-6 text-white/70">{settings.description}</p>}
       {phone && (
         <a
           href={`https://wa.me/${phone}?text=${message}`}
@@ -377,19 +322,15 @@ function ContactSection({ settings, biz, color }) {
 
 function FAQSection({ settings }) {
   const items = Array.isArray(settings.items) ? settings.items : [];
-
   if (!items.length) return null;
 
   return (
     <section className="py-10">
       <SectionHeading title={settings.title || 'Frequently asked questions'} />
-
       <div className="divide-y divide-line rounded-2xl border border-line bg-white px-5">
         {items.map((item, index) => (
           <details key={index} className="py-4">
-            <summary className="cursor-pointer font-medium">
-              {item.question || item.title}
-            </summary>
+            <summary className="cursor-pointer font-medium">{item.question || item.title}</summary>
             <p className="mt-3 whitespace-pre-line text-sm leading-6 text-muted">
               {item.answer || item.description}
             </p>
@@ -402,19 +343,12 @@ function FAQSection({ settings }) {
 
 function SocialSection({ settings }) {
   const links = Array.isArray(settings.links) ? settings.links : [];
-
   if (!links.length) return null;
 
   return (
     <section className="flex flex-wrap gap-4 py-8">
       {links.map((item, index) => (
-        <a
-          key={index}
-          href={item.url}
-          target="_blank"
-          rel="noreferrer"
-          className="text-sm font-medium underline"
-        >
+        <a key={index} href={item.url} target="_blank" rel="noreferrer" className="text-sm font-medium underline">
           {item.label || item.platform || 'Visit'}
         </a>
       ))}
@@ -424,55 +358,42 @@ function SocialSection({ settings }) {
 
 function SectionRenderer({ section, context }) {
   if (section.visible === false) return null;
-
   const settings = section.settings || {};
 
   switch (section.type) {
     case 'hero':
       return <HeroSection settings={settings} {...context} />;
-
     case 'about':
       return <AboutSection settings={settings} />;
-
     case 'image_text':
       return <ImageTextSection settings={settings} />;
-
     case 'rich_text':
     case 'custom_content':
       return <RichTextSection settings={settings} />;
-
     case 'gallery':
       return <GallerySection settings={settings} />;
-
     case 'product_grid':
     case 'featured_products':
       return <ProductSection settings={settings} {...context} />;
-
     case 'services':
     case 'featured_services':
     case 'service_packages':
       return <ServicesSection settings={settings} {...context} />;
-
     case 'portfolio_grid':
     case 'featured_projects':
       return <PortfolioSection settings={settings} {...context} />;
-
     case 'contact':
       return <ContactSection settings={settings} {...context} />;
-
     case 'faq':
       return <FAQSection settings={settings} />;
-
     case 'social_links':
       return <SocialSection settings={settings} />;
-
     case 'announcement':
       return settings.text ? (
         <div className="mb-6 rounded-xl px-4 py-3 text-center text-sm font-medium text-white" style={{ background: context.color }}>
           {settings.text}
         </div>
       ) : null;
-
     case 'navigation':
       return (
         <nav className="mb-6 flex flex-wrap gap-4 border-b border-line pb-4">
@@ -489,14 +410,12 @@ function SectionRenderer({ section, context }) {
             ))}
         </nav>
       );
-
     case 'footer':
       return (
         <div className="border-t border-line py-8 text-center text-sm text-muted">
           {settings.text || context.biz.name}
         </div>
       );
-
     case 'categories':
       return (
         <div className="py-8">
@@ -510,7 +429,6 @@ function SectionRenderer({ section, context }) {
           </div>
         </div>
       );
-
     case 'booking':
       return (
         <section className="py-8">
@@ -520,13 +438,12 @@ function SectionRenderer({ section, context }) {
           </Link>
         </section>
       );
-
     default:
       return null;
   }
 }
 
-export function StorefrontHome() {
+export function StorefrontHome({ pageSlug = 'home' }) {
   const { biz, categories, cart, slug, color, storeBase } = useOutletContext();
 
   const storefront = useMemo(
@@ -534,7 +451,7 @@ export function StorefrontHome() {
     [biz.storefront, biz.name]
   );
 
-  const page = getStorefrontPage(storefront, 'home');
+  const page = getStorefrontPage(storefront, pageSlug);
 
   const context = {
     biz,
@@ -558,24 +475,20 @@ export function StorefrontHome() {
     >
       {page?.sections?.length ? (
         page.sections.map((section) => (
-          <SectionRenderer
-            key={section.id}
-            section={section}
-            context={context}
-          />
+          <SectionRenderer key={section.id} section={section} context={context} />
         ))
       ) : (
         <div className="py-16 text-center">
-          <h1 className="text-3xl font-bold">{biz.name}</h1>
+          <h1 className="text-3xl font-bold">{page?.title || biz.name}</h1>
           <p className="mt-3 text-muted">{biz.description}</p>
         </div>
       )}
 
-      <div className="mt-10 border-t border-line py-5 text-xs text-muted">
-        <Link to={`${storeBase}/order`} className="underline">
-          Track an order
-        </Link>
-      </div>
+      {pageSlug === 'home' && (
+        <div className="mt-10 border-t border-line py-5 text-xs text-muted">
+          <Link to={`${storeBase}/order`} className="underline">Track an order</Link>
+        </div>
+      )}
     </div>
   );
 }
