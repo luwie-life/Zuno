@@ -28,6 +28,7 @@ const StoreCheckout = lazy(() => import('./pages/Store.jsx').then((m) => ({ defa
 const StoreOrder = lazy(() => import('./pages/Store.jsx').then((m) => ({ default: m.StoreOrder })));
 
 const StorefrontHome = lazy(() => import('./pages/StorefrontHome.jsx').then((m) => ({ default: m.StorefrontHome })));
+const StorefrontPage = lazy(() => import('./pages/StorefrontPage.jsx').then((m) => ({ default: m.StorefrontPage })));
 const StorePortfolio = lazy(() => import('./pages/StorePortfolio.jsx').then((m) => ({ default: m.StorePortfolio })));
 const StorePortfolioProject = lazy(() => import('./pages/StorePortfolio.jsx').then((m) => ({ default: m.StorePortfolioProject })));
 
@@ -135,6 +136,7 @@ function StoreRoutes({ merchantSlug }) {
           <Route path="p/:id" element={<StoreProduct />} />
           <Route path="checkout" element={<StoreCheckout />} />
           <Route path="order" element={<StoreOrder />} />
+          <Route path=":pageSlug" element={<StorefrontPage />} />
         </Route>
 
         <Route path="*" element={<NotFound />} />
@@ -186,6 +188,7 @@ export default function App() {
             <Route path="p/:id" element={<StoreProduct />} />
             <Route path="checkout" element={<StoreCheckout />} />
             <Route path="order" element={<StoreOrder />} />
+            <Route path=":pageSlug" element={<StorefrontPage />} />
           </Route>
 
           <Route
