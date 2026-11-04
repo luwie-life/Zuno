@@ -53,6 +53,7 @@ const SettingsPage = lazy(() => import('./pages/app/Account.jsx').then((m) => ({
 const PaymentSettings = lazy(() => import('./pages/app/PaymentSettings.jsx'));
 const Overview = lazy(() => import('./pages/app/Overview.jsx'));
 const NewBusiness = lazy(() => import('./pages/app/Overview.jsx').then((m) => ({ default: m.NewBusiness })));
+const StorefrontEditor = lazy(() => import('./pages/app/StorefrontEditor.jsx'));
 const Products = lazy(() => import('./pages/app/Products.jsx'));
 const Orders = lazy(() => import('./pages/app/Orders.jsx'));
 const POS = lazy(() => import('./pages/app/POS.jsx'));
@@ -204,6 +205,7 @@ export default function App() {
 
           <Route path="/app" element={<RequireAuth><AppLayout /></RequireAuth>}>
             <Route index element={<Overview />} />
+            <Route path="storefront" element={<StorefrontEditor />} />
             <Route path="products" element={<Products />} />
             <Route path="orders" element={<Orders />} />
             <Route path="pos" element={<POS />} />
