@@ -1,8 +1,8 @@
-
 import mongoose from 'mongoose';
 import { storefrontDefaults } from '../lib/storefront.js';
 
 const { Schema, model } = mongoose;
+
 const storefrontSchema = new Schema({
   heroTitle: { type: String, default: '' },
   heroSubtitle: { type: String, default: '' },
@@ -12,7 +12,10 @@ const storefrontSchema = new Schema({
   backgroundImage: { type: String, default: '' },
   bannerImage: { type: String, default: '' },
   published: { type: Boolean, default: false },
-}, { _id: false });
+}, {
+  _id: false,
+  strict: false,
+});
 
 const oid = (ref, extra = {}) => ({ type: Schema.Types.ObjectId, ref, ...extra });
 const opts = { timestamps: true };
