@@ -19,17 +19,22 @@ const planView = (p) => ({
   key: p.key,
   name: p.name,
   description: p.description,
-  setupFee: p.setupFee,
+  setupFee: 0,
   monthlyFee: p.monthlyFee,
   priceIsFrom: p.priceIsFrom,
   features: p.features,
   limits: p.limits,
 });
 
-// Public: plan list for pricing page.
+// Public: plans for the pricing page.
 r.get('/plans', asyncH(async (req, res) => {
+  const plans = await Plan.find({
+    active: true,
+    key: { $in: ['free', 'starter', 'growth', 'pro'] },
+  }).sort('sortOrder');
+
   res.json({
-    plans: (await Plan.find({ active: true }).sort('sortOrder')).map(planView),
+    plans: plans.map(planView),
   });
 }));
 
@@ -92,8 +97,6 @@ r.get(
 );
 
 // Manually retry an unsuccessful automatic renewal.
-// If a payment reference is pending, the service reconciles that
-// same reference instead of creating another charge.
 r.post(
   '/retry-renewal',
   requireBusiness('billing.manage', { allowSuspended: true }),
@@ -122,14 +125,14 @@ r.post(
   }),
 );
 
-// Amount is ALWAYS taken from the plan record, never from the request.
+// Start a subscription payment. Amount always comes from the Plan record.
 r.post(
   '/checkout',
   requireBusiness('billing.manage', { allowSuspended: true }),
   asyncH(async (req, res) => {
-    const { purpose } = parse(
+    parse(
       z.object({
-        purpose: z.enum(['setup_fee', 'subscription']),
+        purpose: z.literal('subscription'),
       }),
       req.body,
     );
@@ -140,80 +143,57 @@ r.post(
 
     if (!sub) throw notFound('No subscription found');
 
-    if (
-      purpose === 'subscription' &&
-      sub.pendingRenewalPaymentReference
-    ) {
+    if (sub.pendingRenewalPaymentReference) {
       throw conflict(
         'A renewal payment is already being processed. Please wait while we verify it.',
       );
     }
 
-    // Do not create another checkout while an earlier payment
-    // of the same purpose is still awaiting verification.
+    if (sub.scheduledPlan) {
+      throw conflict(
+        'Your plan change is scheduled for the end of your current billing period. No payment is required right now.',
+      );
+    }
+
     const unresolvedPayment = await Payment.findOne({
       business: req.business._id,
-      purpose,
+      purpose: 'subscription',
       status: 'initialized',
     }).sort('-createdAt');
 
     if (unresolvedPayment) {
       throw conflict(
-        'You already have a payment awaiting verification. Please verify your existing payment before starting another checkout.',
+        'You already have a subscription payment awaiting verification. Please verify it before starting another checkout.',
       );
     }
 
+    // A pending plan is an immediate upgrade. Otherwise use the current plan.
     const plan = await Plan.findById(
-      sub.pendingPlan && purpose === 'setup_fee'
-        ? sub.pendingPlan
-        : sub.scheduledPlan && purpose === 'subscription'
-          ? sub.scheduledPlan
-          : sub.plan,
+      sub.pendingPlan || sub.plan,
     );
 
-    if (!plan) throw notFound('Plan not found');
+    if (!plan || !plan.active) {
+      throw notFound('Plan not found or unavailable');
+    }
 
-    let amount;
+    const amount = Number(plan.monthlyFee);
 
-    if (purpose === 'setup_fee') {
-      if (sub.pendingPlan) {
-        const cur = await Plan.findById(sub.plan);
-
-        amount = Math.max(
-          0,
-          plan.setupFee - (sub.setupStatus === 'paid' ? cur.setupFee : 0),
-        );
-      } else {
-        if (sub.setupStatus !== 'unpaid') {
-          throw conflict('Setup fee is already settled.');
-        }
-
-        amount = plan.setupFee;
-      }
-
-      if (amount === 0) {
-        throw conflict('Nothing to pay for setup.');
-      }
-    } else {
-      if (sub.setupStatus === 'unpaid' && plan.setupFee > 0) {
-        throw conflict(
-          'Pay the setup fee first. Setup and monthly fees are separate payments.',
-        );
-      }
-
-      amount = plan.monthlyFee;
-
-      if (!amount || amount <= 0) {
-        throw conflict('This plan does not have a valid monthly subscription amount.');
-      }
+    // Free plans never go through Paystack.
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw conflict(
+        'The Free plan does not require payment. Select a paid plan to continue.',
+      );
     }
 
     const { payment, authorizationUrl } = await startPayment({
       business: req.business._id,
-      purpose,
+      purpose: 'subscription',
       amount,
       email: req.user.email,
-      meta: { planId: plan._id },
+      meta: {
+        planId: plan._id,
+        planKey: plan.key,
+      },
       callbackUrl: `${env.frontendUrl}/app/billing`,
     });
 
@@ -226,7 +206,8 @@ r.post(
         id: payment._id,
       },
       meta: {
-        purpose,
+        purpose: 'subscription',
+        plan: plan.key,
         amount,
       },
     });
@@ -235,6 +216,7 @@ r.post(
       authorizationUrl,
       reference: payment.reference,
       amount,
+      plan: planView(plan),
     });
   }),
 );
@@ -269,13 +251,20 @@ r.post(
   requireBusiness('billing.manage', { allowSuspended: true }),
   asyncH(async (req, res) => {
     const { planKey } = parse(
-      z.object({ planKey: z.string() }),
+      z.object({
+        planKey: z.string().min(1),
+      }),
       req.body,
     );
 
     const [sub, next] = await Promise.all([
-      Subscription.findOne({ business: req.business._id }),
-      Plan.findOne({ key: planKey, active: true }),
+      Subscription.findOne({
+        business: req.business._id,
+      }),
+      Plan.findOne({
+        key: planKey,
+        active: true,
+      }),
     ]);
 
     if (!sub || !next) throw notFound('Plan not found');
@@ -288,20 +277,36 @@ r.post(
 
     const cur = await Plan.findById(sub.plan);
 
+    if (!cur) throw notFound('Current plan not found');
+
     if (String(cur._id) === String(next._id)) {
       throw bad('You are already on this plan.');
     }
 
-    if (sub.setupStatus === 'unpaid') {
-      sub.plan = next._id;
-      sub.pendingPlan = undefined;
-      sub.scheduledPlan = undefined;
-    } else if (next.sortOrder > cur.sortOrder) {
+    const currentPrice = Number(cur.monthlyFee || 0);
+    const nextPrice = Number(next.monthlyFee || 0);
+
+    // Free-to-paid or paid-to-higher-tier changes require immediate checkout.
+    if (nextPrice > currentPrice) {
       sub.pendingPlan = next._id;
       sub.scheduledPlan = undefined;
     } else {
-      sub.scheduledPlan = next._id;
-      sub.pendingPlan = undefined;
+      // Downgrades, including switching to Free, happen at period end.
+      if (!sub.currentPeriodEnd) {
+        // No paid period exists, so a Free or lower-priced plan can apply now.
+        sub.plan = next._id;
+        sub.pendingPlan = undefined;
+        sub.scheduledPlan = undefined;
+
+        if (nextPrice === 0) {
+          sub.status = 'active';
+          sub.setupStatus = 'waived';
+          sub.currentPeriodEnd = undefined;
+        }
+      } else {
+        sub.scheduledPlan = next._id;
+        sub.pendingPlan = undefined;
+      }
     }
 
     await sub.save();
@@ -313,6 +318,8 @@ r.post(
       meta: {
         from: cur.key,
         to: next.key,
+        immediate: String(sub.plan) === String(next._id),
+        scheduled: String(sub.scheduledPlan) === String(next._id),
       },
     });
 
@@ -320,6 +327,7 @@ r.post(
       ok: true,
       upgrade: !!sub.pendingPlan,
       downgradeAtPeriodEnd: !!sub.scheduledPlan,
+      immediate: String(sub.plan) === String(next._id),
     });
   }),
 );
@@ -330,7 +338,9 @@ r.post(
   requireBusiness('billing.manage', { allowSuspended: true }),
   asyncH(async (req, res) => {
     const { cancel } = parse(
-      z.object({ cancel: z.boolean() }),
+      z.object({
+        cancel: z.boolean(),
+      }),
       req.body,
     );
 

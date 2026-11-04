@@ -1,39 +1,69 @@
-// Pure subscription rules so they can be unit tested without a database.
-export const DAY = 86400000;
 
-/**
- * Setup fee and monthly fee are independent obligations.
- * A subscription is only "active" when the setup fee is settled (or the plan has none)
- * AND the paid monthly period has not ended. After the period ends there is a grace window.
- */
-export function computeSubscriptionState(sub, plan, now = new Date(), graceDays = 7) {
+const DAY = 24 * 60 * 60 * 1000;
+
+export function computeSubscriptionState(
+  sub,
+  plan,
+  now = new Date(),
+  graceDays = 7,
+) {
+  if (!sub) return 'none';
+
   if (sub.suspended) return 'suspended';
-  if (sub.status === 'cancelled' && (!sub.currentPeriodEnd || sub.currentPeriodEnd <= now)) return 'cancelled';
-  const setupOk = !plan || plan.setupFee === 0 || sub.setupStatus === 'paid' || sub.setupStatus === 'waived';
+
+  if (
+    sub.status === 'cancelled' &&
+    (!sub.currentPeriodEnd || sub.currentPeriodEnd <= now)
+  ) {
+    return 'cancelled';
+  }
+
+  const setupOk =
+    !plan ||
+    Number(plan.setupFee || 0) === 0 ||
+    sub.setupStatus === 'paid' ||
+    sub.setupStatus === 'waived';
+
   if (!setupOk) return 'pending_setup';
+
+  // Free plans remain active without a billing period or Paystack payment.
+  if (plan && Number(plan.monthlyFee) === 0) {
+    return 'active';
+  }
+
   if (!sub.currentPeriodEnd) return 'pending_payment';
+
   if (sub.currentPeriodEnd > now) return 'active';
-  const graceEnd = new Date(sub.currentPeriodEnd.getTime() + graceDays * DAY);
+
+  const graceEnd = new Date(
+    sub.currentPeriodEnd.getTime() + graceDays * DAY,
+  );
+
   if (now < graceEnd) return 'grace';
+
   return 'expired';
 }
 
-export const hasAccess = (state) => state === 'active' || state === 'grace';
-
-export function nextPeriodEnd(currentEnd, now = new Date()) {
-  const base = currentEnd && currentEnd > now ? new Date(currentEnd) : new Date(now);
-  const d = new Date(base);
-  d.setMonth(d.getMonth() + 1);
-  return d;
+export function hasAccess(state) {
+  return ['active', 'grace'].includes(state);
 }
 
-export function featureAllowed(plan, feature, override, now = new Date()) {
-  if (override?.until && override.until > now && override.features?.includes(feature)) return true;
-  return !!plan?.features?.includes(feature);
+export function nextPeriodEnd(currentPeriodEnd, now = new Date()) {
+  const base =
+    currentPeriodEnd && currentPeriodEnd > now
+      ? currentPeriodEnd
+      : now;
+
+  const next = new Date(base);
+  next.setMonth(next.getMonth() + 1);
+
+  return next;
 }
 
-export function limitReached(plan, limitKey, current) {
-  const max = plan?.limits?.[limitKey];
-  if (max === undefined || max === null || max < 0) return false; // -1 / unset = unlimited
-  return current >= max;
+export function featureAllowed(plan, feature, override) {
+  if (override?.features?.includes(feature)) return true;
+
+  if (!plan || !Array.isArray(plan.features)) return false;
+
+  return plan.features.includes(feature);
 }

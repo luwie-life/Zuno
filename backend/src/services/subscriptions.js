@@ -1,3 +1,4 @@
+
 import { Plan, Subscription, Payment } from '../models/index.js';
 import {
   computeSubscriptionState,
@@ -45,32 +46,41 @@ const BUSINESS = [
 
 export const DEFAULT_PLANS = [
   {
-    key: 'online_store',
-    name: 'Online Store',
-    description: 'Online selling or service booking with product management and customer requests.',
-    setupFee: NGN(250000),
-    monthlyFee: NGN(15000),
+    key: 'free',
+    name: 'Free',
+    description: 'Get started with Zuno at no monthly cost.',
+    setupFee: 0,
+    monthlyFee: 0,
+    features: [],
+    limits: { products: 0, staff: 0, services: 0, bookings: 0 },
+    sortOrder: 0,
+  },
+  {
+    key: 'starter',
+    name: 'Starter',
+    description: 'Establish your online business presence.',
+    setupFee: 0,
+    monthlyFee: NGN(5000),
     features: BASE,
     limits: { products: 200, staff: 1, services: 200, bookings: -1 },
     sortOrder: 1,
   },
   {
-    key: 'store_business',
-    name: 'Store + Business Management',
-    description: 'Everything in Online Store plus integrated POS and shared inventory.',
-    setupFee: NGN(450000),
-    monthlyFee: NGN(30000),
+    key: 'growth',
+    name: 'Growth',
+    description: 'More tools to manage and grow your business.',
+    setupFee: 0,
+    monthlyFee: NGN(10000),
     features: BUSINESS,
     limits: { products: 2000, staff: 5, services: 2000, bookings: -1 },
     sortOrder: 2,
   },
   {
-    key: 'advanced',
-    name: 'Advanced Business',
-    description: 'Everything in Store + Business Management with higher limits and priority support.',
-    setupFee: NGN(750000),
-    monthlyFee: NGN(50000),
-    priceIsFrom: true,
+    key: 'pro',
+    name: 'Pro',
+    description: 'The complete Zuno experience for growing businesses.',
+    setupFee: 0,
+    monthlyFee: NGN(20000),
     features: [...BUSINESS, 'priority_support'],
     limits: { products: -1, staff: -1, services: -1, bookings: -1 },
     sortOrder: 3,
@@ -78,41 +88,52 @@ export const DEFAULT_PLANS = [
 ];
 
 export async function ensureDefaultPlans() {
-  for (const p of DEFAULT_PLANS) {
+  for (const plan of DEFAULT_PLANS) {
     await Plan.updateOne(
-      { key: p.key },
-      { $setOnInsert: p },
-      { upsert: true },
-    );
-
-    await Plan.updateOne(
-      { key: p.key },
+      { key: plan.key },
       {
-        $addToSet: {
-          features: { $each: ['services', 'bookings'] },
-        },
-        $set: {
-          'limits.services': p.limits.services,
-          'limits.bookings': p.limits.bookings,
+        $setOnInsert: {
+          ...plan,
+          active: true,
+          priceIsFrom: false,
         },
       },
+      { upsert: true },
     );
   }
 }
 
-export async function createSubscription(businessId, planKey) {
-  const plan = await Plan.findOne({ key: planKey, active: true });
+export async function createSubscription(businessId, planKey = 'free') {
+  const plan = await Plan.findOne({
+    key: planKey,
+    active: true,
+  });
 
   if (!plan) throw notFound('Plan not found');
 
-  return Subscription.create({
+  const existing = await Subscription.findOne({
+    business: businessId,
+  });
+
+  if (existing) return existing;
+
+  const subscription = await Subscription.create({
     business: businessId,
     plan: plan._id,
+    setupStatus: 'waived',
+    status: 'active',
+    ...(Number(plan.monthlyFee) === 0
+      ? { currentPeriodEnd: undefined }
+      : {}),
   });
+
+  return subscription;
 }
 
 export async function getAccess(businessId) {
-  const sub = await Subscription.findOne({ business: businessId });
+  const sub = await Subscription.findOne({
+    business: businessId,
+  });
 
   if (!sub) {
     return {
@@ -165,29 +186,30 @@ export async function applySubscriptionPayment(payment, tx) {
 
   if (sub.lastAppliedPaymentReference === payment.reference) return;
 
-  const planId = payment.meta?.planId;
-
   if (payment.purpose === 'setup_fee') {
-    sub.setupStatus = 'paid';
-    sub.setupPaidAt = new Date();
-
-    if (
-      planId &&
-      String(sub.pendingPlan) === String(planId)
-    ) {
-      sub.plan = sub.pendingPlan;
-      sub.pendingPlan = undefined;
-    }
+    // Historical setup-fee payments remain readable.
+    // They must not trigger a new plan transition.
+    sub.setupStatus = 'waived';
   } else if (payment.purpose === 'subscription') {
+    const paidPlanId = payment.meta?.planId;
+
+    if (paidPlanId) {
+      const paidPlan = await Plan.findById(paidPlanId);
+
+      if (!paidPlan || Number(paidPlan.monthlyFee) <= 0) {
+        throw new Error('Invalid subscription plan payment.');
+      }
+
+      sub.plan = paidPlan._id;
+    }
+
     sub.currentPeriodEnd = nextPeriodEnd(sub.currentPeriodEnd);
     sub.failedRenewals = 0;
     sub.status = 'active';
     sub.cancelAtPeriodEnd = false;
-
-    if (sub.scheduledPlan) {
-      sub.plan = sub.scheduledPlan;
-      sub.scheduledPlan = undefined;
-    }
+    sub.scheduledPlan = undefined;
+    sub.pendingPlan = undefined;
+    sub.setupStatus = 'waived';
 
     const authorization = tx?.authorization;
 
@@ -210,6 +232,8 @@ export async function applySubscriptionPayment(payment, tx) {
     sub.nextRenewalRetryAt = undefined;
     sub.pendingRenewalPaymentReference = undefined;
     sub.renewalLockUntil = undefined;
+  } else {
+    return;
   }
 
   sub.lastAppliedPaymentReference = payment.reference;
@@ -231,11 +255,79 @@ export async function applySubscriptionPayment(payment, tx) {
 }
 
 /**
+ * Apply scheduled Free downgrades at the end of the paid period.
+ * No Paystack request is made for a zero-cost plan.
+ */
+async function applyScheduledFreeDowngrades(now = new Date()) {
+  const candidates = await Subscription.find({
+    scheduledPlan: { $exists: true, $ne: null },
+    currentPeriodEnd: { $lte: now },
+    suspended: false,
+    cancelAtPeriodEnd: false,
+    pendingRenewalPaymentReference: { $in: [null, ''] },
+  }).select('_id business scheduledPlan');
+
+  let applied = 0;
+
+  for (const candidate of candidates) {
+    const targetPlan = await Plan.findById(candidate.scheduledPlan);
+
+    if (!targetPlan || Number(targetPlan.monthlyFee) !== 0) {
+      continue;
+    }
+
+    const result = await Subscription.updateOne(
+      {
+        _id: candidate._id,
+        scheduledPlan: targetPlan._id,
+        currentPeriodEnd: { $lte: now },
+        pendingRenewalPaymentReference: { $in: [null, ''] },
+      },
+      {
+        $set: {
+          plan: targetPlan._id,
+          setupStatus: 'waived',
+          status: 'active',
+          renewalStatus: 'current',
+          failedRenewals: 0,
+          cancelAtPeriodEnd: false,
+        },
+        $unset: {
+          scheduledPlan: 1,
+          pendingPlan: 1,
+          currentPeriodEnd: 1,
+          lastRenewalFailureAt: 1,
+          lastRenewalFailureReason: 1,
+          nextRenewalRetryAt: 1,
+          renewalLockUntil: 1,
+          pendingRenewalPaymentReference: 1,
+        },
+      },
+    );
+
+    if (result.modifiedCount) {
+      applied += 1;
+
+      await audit({
+        actorType: 'system',
+        action: 'billing.free_downgrade_applied',
+        business: candidate.business,
+        related: {
+          kind: 'Plan',
+          id: targetPlan._id,
+        },
+        meta: {
+          plan: targetPlan.key,
+        },
+      });
+    }
+  }
+
+  return applied;
+}
+
+/**
  * Atomically acquire a renewal lock.
- *
- * Automatic retries respect nextRenewalRetryAt.
- * Manual retries can happen immediately after a confirmed failure,
- * but only when the subscription is due or has a pending payment.
  */
 async function acquireRenewalLock(
   businessId,
@@ -337,14 +429,6 @@ async function deferVerification(
   );
 }
 
-/**
- * A transaction reported as successful but failed verification checks
- * must be quarantined. Preserve its reference and do not create another
- * charge automatically.
- *
- * Manual retries may re-check this same reference, but cannot create
- * a replacement charge while the reference remains pending.
- */
 async function quarantineRenewalPayment(
   sub,
   reference,
@@ -391,10 +475,6 @@ async function recordRenewalFailure(
   );
 }
 
-/**
- * Verify an existing payment reference.
- * Never assume a network error means a payment failed.
- */
 async function verifyRenewalPayment(sub, reference) {
   const { verifyAndApply } = await import('./payments.js');
 
@@ -455,7 +535,7 @@ async function processLockedRenewal(sub, now = new Date()) {
   const { initPaymentFor } = await import('./payments.js');
   const { chargeAuthorization } = await import('../lib/paystack.js');
 
-  // Always reconcile an existing payment before creating another.
+  // Reconcile any existing payment before creating another.
   if (sub.pendingRenewalPaymentReference) {
     const existingPayment = await Payment.findOne({
       reference: sub.pendingRenewalPaymentReference,
@@ -464,8 +544,6 @@ async function processLockedRenewal(sub, now = new Date()) {
     });
 
     if (!existingPayment) {
-      // Unknown payment state: preserve the reference.
-      // Never risk a duplicate charge.
       await deferVerification(
         sub,
         sub.pendingRenewalPaymentReference,
@@ -484,9 +562,7 @@ async function processLockedRenewal(sub, now = new Date()) {
       return;
     }
 
-    if (
-      ['failed', 'abandoned'].includes(existingPayment.status)
-    ) {
+    if (['failed', 'abandoned'].includes(existingPayment.status)) {
       if (
         VERIFICATION_MISMATCH_REASONS.has(
           existingPayment.failureReason,
@@ -535,12 +611,22 @@ async function processLockedRenewal(sub, now = new Date()) {
     latestSub.scheduledPlan || latestSub.plan,
   );
 
-  if (!plan || !plan.monthlyFee || plan.monthlyFee <= 0) {
-    await recordRenewalFailure(
-      latestSub,
-      'invalid_plan_amount',
-    );
+  if (!plan) {
+    await recordRenewalFailure(latestSub, 'plan_not_found');
+    return;
+  }
 
+  // Free plans never create Paystack payments.
+  if (Number(plan.monthlyFee) === 0) {
+    if (latestSub.scheduledPlan) {
+      await applyScheduledFreeDowngrades(now);
+    }
+
+    return;
+  }
+
+  if (Number(plan.monthlyFee) < 0) {
+    await recordRenewalFailure(latestSub, 'invalid_plan_amount');
     return;
   }
 
@@ -556,7 +642,6 @@ async function processLockedRenewal(sub, now = new Date()) {
     },
   });
 
-  // Save the reference before contacting Paystack.
   await Subscription.updateOne(
     { _id: latestSub._id },
     {
@@ -578,7 +663,7 @@ async function processLockedRenewal(sub, now = new Date()) {
     });
   } catch (error) {
     // A timeout does not prove the charge failed.
-    // The existing reference will be verified below.
+    // Verify the same reference rather than creating another charge.
   }
 
   await verifyRenewalPayment(
@@ -608,9 +693,7 @@ async function runRenewal(
   try {
     await processLockedRenewal(sub, now);
 
-    return {
-      attempted: true,
-    };
+    return { attempted: true };
   } catch (error) {
     const current = await Subscription.findById(sub._id);
 
@@ -634,11 +717,7 @@ async function runRenewal(
   } finally {
     await Subscription.updateOne(
       { _id: sub._id },
-      {
-        $unset: {
-          renewalLockUntil: 1,
-        },
-      },
+      { $unset: { renewalLockUntil: 1 } },
     );
   }
 }
@@ -647,6 +726,8 @@ async function runRenewal(
  * Scheduler entry point.
  */
 export async function expireAndRenewDue(now = new Date()) {
+  const freeDowngrades = await applyScheduledFreeDowngrades(now);
+
   const candidates = await Subscription.find({
     suspended: false,
     cancelAtPeriodEnd: false,
@@ -686,17 +767,17 @@ export async function expireAndRenewDue(now = new Date()) {
   let attempted = 0;
 
   for (const candidate of candidates) {
-    const result = await runRenewal(
-      candidate.business,
-      now,
-    );
+    const result = await runRenewal(candidate.business, now);
 
     if (result.attempted) {
       attempted += 1;
     }
   }
 
-  return { attempted };
+  return {
+    attempted,
+    freeDowngrades,
+  };
 }
 
 /**

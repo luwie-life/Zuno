@@ -26,8 +26,9 @@ import {
 } from '../../components/ui.jsx';
 
 const STATE_TEXT = {
-  pending_setup: 'Setup fee not paid yet',
-  pending_payment: 'Monthly subscription not paid yet',
+  none: 'No subscription',
+  pending_setup: 'Account setup pending',
+  pending_payment: 'Subscription payment pending',
   active: 'Active',
   grace: 'Payment overdue: grace period',
   expired: 'Expired: paid features are paused',
@@ -42,10 +43,12 @@ function RenewalStatus({ data }) {
         <div className="flex items-start gap-2">
           <Clock3 className="mt-0.5 h-5 w-5 shrink-0" />
           <div>
-            <p className="font-semibold">Renewal payment is being verified</p>
+            <p className="font-semibold">
+              Renewal payment is being verified
+            </p>
             <p className="mt-1 text-sm">
-              We are checking the existing payment with Paystack. Do not make
-              another renewal payment while this is being resolved.
+              We are checking the existing payment with Paystack. Do not
+              initiate another renewal payment while this is being resolved.
             </p>
           </div>
         </div>
@@ -65,19 +68,21 @@ function RenewalStatus({ data }) {
                 ? `Latest issue: ${label(data.lastRenewalFailureReason)}.`
                 : 'Your latest automatic renewal was unsuccessful.'}
             </p>
+
             {data.lastRenewalFailureAt && (
               <p className="mt-1 text-xs text-muted">
                 Last failure: {dateTime(data.lastRenewalFailureAt)}
               </p>
             )}
+
             {data.nextRenewalRetryAt && (
               <p className="mt-1 text-xs text-muted">
                 Next automatic retry: {dateTime(data.nextRenewalRetryAt)}
               </p>
             )}
+
             <p className="mt-2 text-xs">
-              Check that your saved payment method is valid. You can also
-              request a retry below.
+              Check your saved payment method or request a retry below.
             </p>
           </div>
         </div>
@@ -91,7 +96,9 @@ function RenewalStatus({ data }) {
         <div className="flex items-start gap-2">
           <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
           <div>
-            <p className="font-semibold">Automatic renewal is set up</p>
+            <p className="font-semibold">
+              Automatic renewal is set up
+            </p>
             <p className="mt-1 text-sm">
               Your saved Paystack authorisation can be used for eligible
               automatic renewals.
@@ -104,8 +111,8 @@ function RenewalStatus({ data }) {
 
   return (
     <Notice>
-      Automatic renewal is not set up yet. Complete a subscription payment
-      using a payment method that supports reusable authorisation.
+      Automatic renewal is not set up yet. A qualifying Paystack card payment
+      may create a reusable payment authorisation.
     </Notice>
   );
 }
@@ -124,7 +131,6 @@ export default function Billing() {
   } = useApi(() => api('/billing', { biz: true }), []);
 
   const [verifying, setVerifying] = useState(false);
-
   const ref = sp.get('reference') || sp.get('trxref');
 
   useEffect(() => {
@@ -184,20 +190,18 @@ export default function Billing() {
     );
   }
 
-  if (error) {
-    return <ErrorNote error={error} retry={reload} />;
-  }
-
+  if (error) return <ErrorNote error={error} retry={reload} />;
   if (!data) return null;
 
   const d = data;
+  const isFree = Number(d.plan?.monthlyFee || 0) === 0;
 
-  const pay = (purpose) =>
+  const pay = () =>
     run(async () => {
       const result = await api('/billing/checkout', {
         method: 'POST',
         biz: true,
-        body: { purpose },
+        body: { purpose: 'subscription' },
       });
 
       window.location.href = result.authorizationUrl;
@@ -221,18 +225,11 @@ export default function Billing() {
       } else if (result.renewalStatus === 'current') {
         toast('Your renewal has been resolved.', 'ok');
       } else {
-        toast(
-          'Retry processed. Check your renewal status below.',
-          'ok',
-        );
+        toast('Retry processed. Check your renewal status below.', 'ok');
       }
 
       return result;
     });
-
-  const setupDue = d.pendingPlan
-    ? true
-    : d.setupStatus === 'unpaid';
 
   const renewalNeedsAttention =
     d.renewalStatus === 'retry_required';
@@ -240,6 +237,9 @@ export default function Billing() {
   const renewalButtonLabel = d.renewalPaymentPending
     ? 'Check payment status'
     : 'Retry renewal';
+
+  const currentPlan = d.plan;
+  const scheduledPlan = d.scheduledPlan;
 
   return (
     <>
@@ -253,7 +253,7 @@ export default function Billing() {
           <p className="text-sm text-muted">Current plan</p>
 
           <p className="font-display text-2xl font-bold">
-            {d.plan?.name || 'No plan selected'}
+            {currentPlan?.name || 'No plan selected'}
           </p>
 
           <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -276,23 +276,15 @@ export default function Billing() {
 
           <dl className="mt-4 space-y-3 text-sm">
             <div className="flex items-center justify-between gap-3">
-              <dt>Setup fee</dt>
-              <dd>
-                <Badge>
-                  {d.setupStatus === 'paid'
-                    ? 'paid'
-                    : d.setupStatus === 'waived'
-                      ? 'waived'
-                      : 'unpaid'}
-                </Badge>
+              <dt>Monthly subscription</dt>
+              <dd className="text-right font-medium">
+                {currentPlan ? naira(currentPlan.monthlyFee) : '—'}
               </dd>
             </div>
 
             <div className="flex items-center justify-between gap-3">
-              <dt>Monthly subscription</dt>
-              <dd className="text-right">
-                {d.plan ? naira(d.plan.monthlyFee) : '—'}
-              </dd>
+              <dt>Setup fee</dt>
+              <dd className="text-right">None</dd>
             </div>
 
             <div className="flex items-center justify-between gap-3">
@@ -300,7 +292,9 @@ export default function Billing() {
               <dd className="text-right">
                 {d.currentPeriodEnd
                   ? date(d.currentPeriodEnd)
-                  : 'Not paid yet'}
+                  : isFree
+                    ? 'Free plan'
+                    : 'Not paid yet'}
               </dd>
             </div>
 
@@ -318,60 +312,53 @@ export default function Billing() {
           {d.pendingPlan && (
             <div className="mt-4">
               <Notice tone="warn">
-                Upgrade to <strong>{d.pendingPlan.name}</strong> starts after
-                you pay the setup-fee difference.
+                Your change to <strong>{d.pendingPlan.name}</strong> is waiting
+                for payment. Complete the subscription payment to activate it.
               </Notice>
             </div>
           )}
 
-          {d.scheduledPlan && (
+          {scheduledPlan && (
             <div className="mt-4">
               <Notice>
-                Your plan changes to <strong>{d.scheduledPlan.name}</strong>{' '}
-                at your next renewal.
+                Your plan is scheduled to change to{' '}
+                <strong>{scheduledPlan.name}</strong>.
+                {Number(scheduledPlan.monthlyFee) === 0
+                  ? ' The Free plan takes effect after your paid period and 7-day grace period.'
+                  : ' The new plan takes effect at your next successful renewal.'}
               </Notice>
             </div>
           )}
 
           <div className="mt-4 flex flex-wrap gap-2">
-            {setupDue && (
+            {(d.pendingPlan || (isFree && d.scheduledPlan)) && (
               <button
                 className="btn-primary"
-                disabled={busy}
-                onClick={() => pay('setup_fee')}
+                disabled={busy || d.renewalPaymentPending}
+                onClick={pay}
               >
-                Pay setup fee
+                Pay {d.pendingPlan?.name || d.scheduledPlan?.name} subscription
               </button>
             )}
 
-            <button
-              className="btn-primary"
-              disabled={
-                busy ||
-                d.renewalPaymentPending ||
-                (d.setupStatus === 'unpaid' &&
-                  !d.pendingPlan &&
-                  d.plan?.setupFee > 0)
-              }
-              onClick={() => pay('subscription')}
-            >
-              {d.currentPeriodEnd
-                ? 'Pay for next month'
-                : 'Pay monthly subscription'}
-            </button>
+            {!isFree &&
+              !d.pendingPlan &&
+              !d.scheduledPlan &&
+              ['expired', 'pending_payment'].includes(d.state) && (
+                <button
+                  className="btn-primary"
+                  disabled={busy || d.renewalPaymentPending}
+                  onClick={pay}
+                >
+                  Pay monthly subscription
+                </button>
+              )}
           </div>
 
-          {d.setupStatus === 'unpaid' &&
-            d.plan?.setupFee > 0 && (
-              <p className="mt-2 text-xs text-muted">
-                Pay the setup fee first, then the monthly subscription.
-              </p>
-            )}
-
           <p className="mt-4 text-xs text-muted">
-            Payments are made on Paystack's secure page. Zuno never sees your
-            card details. Your plan activates only after we verify the payment
-            with Paystack.
+            Payments are completed on Paystack's secure page. Zuno never sees
+            your card details. Paid subscriptions activate only after
+            server-side payment verification.
           </p>
 
           <div className="mt-3 border-t border-line pt-3 text-sm">
@@ -394,38 +381,42 @@ export default function Billing() {
                 Keep my subscription
               </button>
             ) : (
-              <button
-                className="text-danger underline"
-                disabled={busy}
-                onClick={() =>
-                  window.confirm(
-                    'Cancel at the end of the paid period? Your data stays safe.',
-                  ) &&
-                  run(async () => {
-                    await api('/billing/cancel', {
-                      method: 'POST',
-                      biz: true,
-                      body: { cancel: true },
-                    });
+              !isFree && (
+                <button
+                  className="text-danger underline"
+                  disabled={busy}
+                  onClick={() =>
+                    window.confirm(
+                      'Cancel at the end of the paid period? Your data stays safe.',
+                    ) &&
+                    run(async () => {
+                      await api('/billing/cancel', {
+                        method: 'POST',
+                        biz: true,
+                        body: { cancel: true },
+                      });
 
-                    await reload();
-                  }, 'Will cancel at period end')
-                }
-              >
-                Cancel at period end
-              </button>
+                      await reload();
+                    }, 'Will cancel at period end')
+                  }
+                >
+                  Cancel at period end
+                </button>
+              )
             )}
           </div>
         </Card>
 
         <Card className="p-5">
-          <h2 className="font-semibold">Renewal and payment status</h2>
+          <h2 className="font-semibold">
+            Renewal and payment status
+          </h2>
 
           <div className="mt-4">
             <RenewalStatus data={d} />
           </div>
 
-          {d.renewalStatus === 'retry_required' && (
+          {renewalNeedsAttention && (
             <div className="mt-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="text-sm">
@@ -434,7 +425,6 @@ export default function Billing() {
                       ? 'Existing payment needs verification'
                       : 'Automatic renewal needs attention'}
                   </p>
-
                   <p className="mt-1 text-xs text-muted">
                     Failed attempts: {d.failedRenewals || 0}
                   </p>
@@ -460,22 +450,22 @@ export default function Billing() {
             </div>
           )}
 
-          {d.card && (
+          {d.card ? (
             <div className="mt-4 flex items-center gap-2 rounded-lg border border-line p-3 text-sm">
               <CreditCard className="h-5 w-5 text-muted" />
               <div>
-                <p className="font-medium">Saved payment authorisation</p>
+                <p className="font-medium">
+                  Saved payment authorisation
+                </p>
                 <p className="text-xs text-muted">
                   {d.card.brand || 'Card'} ending in {d.card.last4}
                 </p>
               </div>
             </div>
-          )}
-
-          {!d.card && (
+          ) : (
             <p className="mt-3 text-xs text-muted">
-              A reusable payment authorisation may be saved after a
-              qualifying Paystack card payment.
+              A reusable payment authorisation may be saved after a qualifying
+              Paystack card payment.
             </p>
           )}
         </Card>
@@ -484,56 +474,68 @@ export default function Billing() {
       <Card className="mt-4 p-5">
         <h2 className="font-semibold">Change plan</h2>
 
+        <p className="mt-1 text-sm text-muted">
+          Choose a plan for your store or service business. There are no setup
+          fees.
+        </p>
+
         <ul className="mt-3 space-y-3">
-          {(d.plans || []).map((p) => {
-            const current = p.key === d.plan?.key;
+          {(d.plans || []).map((plan) => {
+            const current = plan.key === currentPlan?.key;
+            const scheduled = plan.key === scheduledPlan?.key;
+            const awaitingPayment = plan.key === d.pendingPlan?.key;
 
             return (
               <li
-                key={p.key}
+                key={plan.key}
                 className="rounded-lg border border-line p-3"
               >
-                <div className="flex items-start justify-between gap-2">
+                <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="font-medium">{p.name}</p>
+                    <p className="font-medium">{plan.name}</p>
                     <p className="text-xs text-muted">
-                      {naira(p.setupFee)} setup · {naira(p.monthlyFee)}
-                      /month
-                      {p.priceIsFrom ? ' (from)' : ''}
+                      {naira(plan.monthlyFee)}/month
+                      {plan.priceIsFrom ? ' (from)' : ''}
                     </p>
-                    {p.description && (
+
+                    {plan.description && (
                       <p className="mt-1 text-xs text-muted">
-                        {p.description}
+                        {plan.description}
                       </p>
                     )}
                   </div>
 
                   {current ? (
                     <Badge tone="ok">Current</Badge>
+                  ) : scheduled ? (
+                    <Badge tone="warn">Scheduled</Badge>
+                  ) : awaitingPayment ? (
+                    <Badge tone="warn">Awaiting payment</Badge>
                   ) : (
                     <button
                       className="btn-secondary !min-h-[36px] !py-1"
                       disabled={busy || d.renewalPaymentPending}
                       onClick={() =>
                         run(async () => {
-                          const result = await api(
-                            '/billing/change-plan',
-                            {
-                              method: 'POST',
-                              biz: true,
-                              body: { planKey: p.key },
-                            },
-                          );
-
-                          toast(
-                            result.upgrade
-                              ? 'Upgrade started: pay the setup-fee difference to activate it'
-                              : result.downgradeAtPeriodEnd
-                                ? 'Downgrade scheduled for next renewal'
-                                : 'Plan changed',
-                          );
+                          const result = await api('/billing/change-plan', {
+                            method: 'POST',
+                            biz: true,
+                            body: { planKey: plan.key },
+                          });
 
                           await reload();
+
+                          toast(
+                            result.requiresPayment
+                              ? 'Plan selected. Complete payment to activate it.'
+                              : result.effective === 'after_period_and_grace'
+                                ? 'Free plan scheduled after your paid period and grace period.'
+                                : result.effective === 'next_renewal'
+                                  ? 'Plan change scheduled for your next renewal.'
+                                  : 'Plan change saved.',
+                          );
+
+                          return result;
                         })
                       }
                     >
@@ -547,7 +549,9 @@ export default function Billing() {
         </ul>
       </Card>
 
-      <h2 className="mb-2 mt-8 text-lg font-bold">Payment history</h2>
+      <h2 className="mb-2 mt-8 text-lg font-bold">
+        Payment history
+      </h2>
 
       <Card>
         {!d.payments?.length ? (
