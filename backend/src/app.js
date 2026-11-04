@@ -14,6 +14,7 @@ import auth from './routes/auth.js';
 import business from './routes/business.js';
 import catalog from './routes/catalog.js';
 import store from './routes/store.js';
+import publicPortfolio from './routes/publicPortfolio.js';
 import orders from './routes/orders.js';
 import customers from './routes/customers.js';
 import pos from './routes/pos.js';
@@ -115,7 +116,10 @@ export function createApp() {
   app.use('/api/auth', auth);
   app.use('/api/recovery', recovery);
 
+  // Public portfolio routes must be registered before the storefront router.
+  app.use('/api/store', publicPortfolio);
   app.use('/api/store', store);
+
   app.use('/api/billing', billing);
   app.use('/api/payments', payments);
 
