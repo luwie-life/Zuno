@@ -21,13 +21,13 @@ const Recover = lazy(() => import('./pages/Recover.jsx').then((m) => ({ default:
 const RecoverStatus = lazy(() => import('./pages/Recover.jsx').then((m) => ({ default: m.RecoverStatus })));
 
 const StoreLayout = lazy(() => import('./pages/Store.jsx').then((m) => ({ default: m.StoreLayout })));
-const StoreHome = lazy(() => import('./pages/Store.jsx').then((m) => ({ default: m.StoreHome })));
 const StoreServices = lazy(() => import('./pages/Store.jsx').then((m) => ({ default: m.StoreServices })));
 const StoreService = lazy(() => import('./pages/Store.jsx').then((m) => ({ default: m.StoreService })));
 const StoreProduct = lazy(() => import('./pages/Store.jsx').then((m) => ({ default: m.StoreProduct })));
 const StoreCheckout = lazy(() => import('./pages/Store.jsx').then((m) => ({ default: m.StoreCheckout })));
 const StoreOrder = lazy(() => import('./pages/Store.jsx').then((m) => ({ default: m.StoreOrder })));
 
+const StorefrontHome = lazy(() => import('./pages/StorefrontHome.jsx').then((m) => ({ default: m.StorefrontHome })));
 const StorePortfolio = lazy(() => import('./pages/StorePortfolio.jsx').then((m) => ({ default: m.StorePortfolio })));
 const StorePortfolioProject = lazy(() => import('./pages/StorePortfolio.jsx').then((m) => ({ default: m.StorePortfolioProject })));
 
@@ -127,7 +127,7 @@ function StoreRoutes({ merchantSlug }) {
           path={merchantSlug ? '/' : '/store/:slug'}
           element={<StoreLayout merchantSlug={merchantSlug} />}
         >
-          <Route index element={<StoreHome />} />
+          <Route index element={<StorefrontHome />} />
           <Route path="services" element={<StoreServices />} />
           <Route path="services/:id" element={<StoreService />} />
           <Route path="portfolio" element={<StorePortfolio />} />
@@ -178,7 +178,7 @@ export default function App() {
           <Route path="/recover/status" element={<RecoverStatus />} />
 
           <Route path="/store/:slug" element={<StoreLayout />}>
-            <Route index element={<StoreHome />} />
+            <Route index element={<StorefrontHome />} />
             <Route path="services" element={<StoreServices />} />
             <Route path="services/:id" element={<StoreService />} />
             <Route path="portfolio" element={<StorePortfolio />} />
