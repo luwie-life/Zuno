@@ -26,7 +26,7 @@ export function computeSubscriptionState(
 
   if (!setupOk) return 'pending_setup';
 
-  // Free plans remain active without a billing period or Paystack payment.
+  // Free plans do not require a billing period.
   if (plan && Number(plan.monthlyFee) === 0) {
     return 'active';
   }
@@ -66,4 +66,23 @@ export function featureAllowed(plan, feature, override) {
   if (!plan || !Array.isArray(plan.features)) return false;
 
   return plan.features.includes(feature);
+}
+
+/**
+ * Returns true when the current resource count has reached
+ * the configured plan limit.
+ *
+ * -1 means unlimited.
+ * Missing limits are treated as unlimited for backward compatibility.
+ */
+export function limitReached(plan, key, current = 0) {
+  if (!plan || !plan.limits) return false;
+
+  const limit = Number(plan.limits[key]);
+
+  if (!Number.isFinite(limit) || limit < 0) {
+    return false;
+  }
+
+  return Number(current) >= limit;
 }
