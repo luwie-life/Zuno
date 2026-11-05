@@ -6,7 +6,7 @@ import {
   Layers, Type, Image as ImageIcon, MousePointer, Columns3,
   Minus, Video, ShoppingBag, BriefcaseBusiness, CalendarDays,
   Palette, X, Settings2, LayoutTemplate, Upload, ZoomIn,
-  ZoomOut, Maximize2, FileText, Paintbrush, Move,
+  ZoomOut, Maximize2, FileText, Paintbrush, Menu,
 } from 'lucide-react';
 
 import { api } from '../../lib/api.js';
@@ -125,6 +125,24 @@ const TOOL_ITEMS = [
   { id: 'brand', label: 'Brand', icon: Palette },
   { id: 'background', label: 'Background', icon: Paintbrush },
   { id: 'pages', label: 'Pages', icon: FileText },
+];
+
+/*
+ * These are the app navigation destinations shown by the editor menu.
+ * Keep these paths aligned with the routes registered in your app router.
+ */
+const APP_NAVIGATION = [
+  { label: 'Dashboard', path: '/app' },
+  { label: 'Products', path: '/app/products' },
+  { label: 'Services', path: '/app/services' },
+  { label: 'Bookings', path: '/app/bookings' },
+  { label: 'Orders', path: '/app/orders' },
+  { label: 'POS', path: '/app/pos' },
+  { label: 'Inventory', path: '/app/inventory' },
+  { label: 'Customers', path: '/app/customers' },
+  { label: 'Reports', path: '/app/reports' },
+  { label: 'Billing', path: '/app/billing' },
+  { label: 'Settings', path: '/app/settings' },
 ];
 
 function Field({ label, value, onChange, multiline = false, placeholder = '' }) {
@@ -509,6 +527,7 @@ export default function StorefrontEditor() {
   const [panel, setPanel] = useState('layers');
   const [activeTool, setActiveTool] = useState('elements');
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [appMenuOpen, setAppMenuOpen] = useState(false);
 
   const [showSections, setShowSections] = useState(false);
   const [showElements, setShowElements] = useState(false);
@@ -591,6 +610,18 @@ export default function StorefrontEditor() {
       cancelled = true;
     };
   }, [business._id]);
+
+  useEffect(() => {
+    if (!appMenuOpen) return undefined;
+
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') setAppMenuOpen(false);
+    };
+
+    window.addEventListener('keydown', closeOnEscape);
+
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [appMenuOpen]);
 
   const commit = useCallback((updater) => {
     setStorefront((current) => {
@@ -1008,16 +1039,23 @@ export default function StorefrontEditor() {
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex flex-col overflow-hidden bg-[#f1f2f5]">
+    <div className="fixed inset-0 z-[60] flex flex-col overflow-hidden bg-[#f1f2f5]">
       {/* TOP BAR */}
-      <header className="z-40 flex min-h-[58px] shrink-0 items-center justify-between gap-2 border-b border-slate-200 bg-white px-3 md:px-5">
+      <header className="relative z-[90] flex min-h-[58px] shrink-0 items-center justify-between gap-2 border-b border-slate-200 bg-white px-3 md:px-5">
         <div className="flex min-w-0 items-center gap-2">
-          <Link
-            to="/app"
-            className="rounded-xl p-2 text-slate-600 hover:bg-slate-100"
+          <button
+            type="button"
+            onClick={() => setAppMenuOpen((open) => !open)}
+            aria-label="Open main navigation"
+            aria-expanded={appMenuOpen}
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition ${
+              appMenuOpen
+                ? 'bg-emerald-50 text-emerald-800'
+                : 'text-slate-600 hover:bg-slate-100'
+            }`}
           >
-            <ArrowLeft size={19} />
-          </Link>
+            {appMenuOpen ? <X size={21} /> : <Menu size={21} />}
+          </button>
 
           <div className="min-w-0">
             <p className="truncate text-sm font-bold text-slate-900">
@@ -1069,6 +1107,56 @@ export default function StorefrontEditor() {
           </button>
         </div>
       </header>
+
+      {/* MAIN APP NAVIGATION */}
+      {appMenuOpen && (
+        <>
+          <button
+            type="button"
+            aria-label="Close navigation"
+            onClick={() => setAppMenuOpen(false)}
+            className="fixed inset-0 z-[95] bg-slate-950/30"
+          />
+
+          <nav className="fixed left-3 top-[66px] z-[100] max-h-[calc(100svh-90px)] w-[min(300px,calc(100vw-24px))] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-3 shadow-2xl">
+            <div className="border-b border-slate-100 px-3 pb-3">
+              <p className="text-sm font-bold text-slate-900">
+                {business.name || 'Zuno'}
+              </p>
+              <p className="mt-1 text-[11px] text-slate-400">
+                Main navigation
+              </p>
+            </div>
+
+            <div className="mt-2 space-y-1">
+              {APP_NAVIGATION.map((item) => (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  onClick={() => setAppMenuOpen(false)}
+                  className={`block rounded-xl px-3 py-3 text-sm font-medium transition ${
+                    item.path === '/app'
+                      ? 'bg-emerald-50 text-emerald-800'
+                      : 'text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+
+            <div className="mt-3 border-t border-slate-100 pt-3">
+              <button
+                type="button"
+                onClick={() => setAppMenuOpen(false)}
+                className="w-full rounded-xl bg-slate-100 px-3 py-3 text-sm font-semibold text-slate-600"
+              >
+                Return to editor
+              </button>
+            </div>
+          </nav>
+        </>
+      )}
 
       {(error || notice) && (
         <div className={`z-30 flex shrink-0 items-center justify-between px-4 py-2 text-xs ${
@@ -1151,7 +1239,6 @@ export default function StorefrontEditor() {
 
         {/* CANVAS AREA */}
         <main className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-          {/* CANVAS TOP CONTROLS */}
           <div className="z-10 flex min-h-12 shrink-0 items-center justify-between gap-2 border-b border-slate-200 bg-white px-3">
             <p className="min-w-0 truncate text-xs font-bold text-slate-700">
               {activePage?.title || 'Your page'}
@@ -1453,7 +1540,7 @@ export default function StorefrontEditor() {
 
       {/* ADD SECTION DIALOG */}
       {showSections && (
-        <div className="fixed inset-0 z-[80] flex items-end justify-center bg-slate-950/50 p-3 sm:items-center">
+        <div className="fixed inset-0 z-[120] flex items-end justify-center bg-slate-950/50 p-3 sm:items-center">
           <div className="max-h-[82svh] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl">
             <div className="mb-5 flex items-center justify-between">
               <div>
@@ -1492,7 +1579,7 @@ export default function StorefrontEditor() {
 
       {/* ADD ELEMENT DIALOG */}
       {showElements && (
-        <div className="fixed inset-0 z-[80] flex items-end justify-center bg-slate-950/50 p-3 sm:items-center">
+        <div className="fixed inset-0 z-[120] flex items-end justify-center bg-slate-950/50 p-3 sm:items-center">
           <div className="max-h-[82svh] w-full max-w-xl overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl">
             <div className="mb-5 flex items-center justify-between">
               <div>
