@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  ArrowLeft, Monitor, Tablet, Smartphone, Plus, Save, Eye,
+  Monitor, Tablet, Smartphone, Plus, Save, Eye,
   Trash2, Copy, ChevronUp, ChevronDown, Undo2, Redo2,
   Layers, Type, Image as ImageIcon, MousePointer, Columns3,
   Minus, Video, ShoppingBag, BriefcaseBusiness, CalendarDays,
   Palette, X, Settings2, LayoutTemplate, Upload, ZoomIn,
-  ZoomOut, Maximize2, FileText, Paintbrush, Menu,
+  ZoomOut, Maximize2, FileText, Paintbrush, Menu, Pencil,
+  Clipboard, ClipboardPaste, Files,
 } from 'lucide-react';
 
 import { api } from '../../lib/api.js';
@@ -143,6 +144,27 @@ const APP_NAVIGATION = [
   { label: 'Settings', path: '/app/settings' },
 ];
 
+const makeId = (prefix = 'item') =>
+  `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+
+const cloneElement = (element) => ({
+  ...JSON.parse(JSON.stringify(element)),
+  id: makeId('element'),
+});
+
+const cloneSection = (section) => ({
+  ...JSON.parse(JSON.stringify(section)),
+  id: makeId('section'),
+  elements: (section.elements || []).map(cloneElement),
+});
+
+const slugify = (value) =>
+  String(value || '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '') || 'page';
+
 function Field({ label, value, onChange, multiline = false, placeholder = '' }) {
   const className =
     'w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-800 outline-none focus:border-emerald-600';
@@ -206,6 +228,8 @@ function Inspector({
   onUpdateElement,
   onUpdateSection,
   onRemoveElement,
+  onDuplicateElement,
+  onCopyElement,
 }) {
   if (element) {
     const update = (key, value) =>
@@ -239,8 +263,24 @@ function Inspector({
           <button
             onClick={() => onRemoveElement(element.id)}
             className="rounded-xl p-2 text-red-500 hover:bg-red-50"
+            title="Delete element"
           >
             <Trash2 size={17} />
+          </button>
+        </div>
+
+        <div className="flex gap-2">
+          <button
+            onClick={() => onCopyElement(element)}
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 py-2.5 text-xs font-semibold text-slate-600"
+          >
+            <Copy size={14} /> Copy
+          </button>
+          <button
+            onClick={() => onDuplicateElement(element)}
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 py-2.5 text-xs font-semibold text-slate-600"
+          >
+            <Files size={14} /> Duplicate
           </button>
         </div>
 
@@ -540,6 +580,7 @@ export default function StorefrontEditor() {
   const [savedSnapshot, setSavedSnapshot] = useState('');
   const [history, setHistory] = useState([]);
   const [future, setFuture] = useState([]);
+  const [clipboardElement, setClipboardElement] = useState(null);
 
   const currentRef = useRef(null);
   const saveLock = useRef(false);
@@ -591,6 +632,8 @@ export default function StorefrontEditor() {
         setStorefront(config);
         currentRef.current = config;
         setSavedSnapshot(JSON.stringify(config));
+        setHistory([]);
+        setFuture([]);
 
         setActivePageId(
           config.pages.find((page) => page.isHome)?.id ||
@@ -619,7 +662,6 @@ export default function StorefrontEditor() {
     };
 
     window.addEventListener('keydown', closeOnEscape);
-
     return () => window.removeEventListener('keydown', closeOnEscape);
   }, [appMenuOpen]);
 
@@ -630,7 +672,7 @@ export default function StorefrontEditor() {
       const next = typeof updater === 'function' ? updater(current) : updater;
       if (next === current) return current;
 
-      setHistory((items) => [...items.slice(-39), current]);
+      setHistory((items) => [...items.slice(-49), current]);
       setFuture([]);
       currentRef.current = next;
 
@@ -693,7 +735,7 @@ export default function StorefrontEditor() {
                           ? { ...element, ...changes }
                           : element
                       ),
-                    }
+                    },
               ),
             }
       ),
@@ -732,26 +774,161 @@ export default function StorefrontEditor() {
     }
   };
 
-  const undo = () => {
-    if (!history.length || !storefront) return;
+  const undo = useCallback(() => {
+    const current = currentRef.current;
+    if (!history.length || !current) return;
 
     const previous = history[history.length - 1];
 
     setHistory((items) => items.slice(0, -1));
-    setFuture((items) => [...items, storefront]);
+    setFuture((items) => [...items, current]);
     currentRef.current = previous;
     setStorefront(previous);
-  };
 
-  const redo = () => {
-    if (!future.length || !storefront) return;
+    setSelectedSectionId('');
+    setSelectedElementId('');
+    setNotice('Change undone.');
+  }, [history]);
+
+  const redo = useCallback(() => {
+    const current = currentRef.current;
+    if (!future.length || !current) return;
 
     const next = future[future.length - 1];
 
     setFuture((items) => items.slice(0, -1));
-    setHistory((items) => [...items, storefront]);
+    setHistory((items) => [...items, current]);
     currentRef.current = next;
     setStorefront(next);
+
+    setSelectedSectionId('');
+    setSelectedElementId('');
+    setNotice('Change restored.');
+  }, [future]);
+
+  const copyElement = (element) => {
+    if (!element) return;
+    setClipboardElement(JSON.parse(JSON.stringify(element)));
+    setNotice('Element copied. Select a section and paste it.');
+  };
+
+  const pasteElement = (targetSectionId = selectedSectionId) => {
+    if (!clipboardElement || !activePage || !targetSectionId) {
+      setNotice('Copy an element and select a section before pasting.');
+      return;
+    }
+
+    const pasted = cloneElement(clipboardElement);
+
+    commit((current) => ({
+      ...current,
+      pages: current.pages.map((page) =>
+        page.id !== activePage.id
+          ? page
+          : {
+              ...page,
+              sections: page.sections.map((section) =>
+                section.id !== targetSectionId
+                  ? section
+                  : {
+                      ...section,
+                      elements: [...(section.elements || []), pasted],
+                    }
+              ),
+            }
+      ),
+    }));
+
+    setSelectedSectionId(targetSectionId);
+    setSelectedElementId(pasted.id);
+    setPanel('inspector');
+    setDrawerOpen(true);
+    setNotice('Element pasted.');
+  };
+
+  const duplicateElement = (element) => {
+    if (!element || !selectedSection || !activePage) return;
+
+    const duplicate = cloneElement(element);
+    const elements = [...(selectedSection.elements || [])];
+    const index = elements.findIndex((item) => item.id === element.id);
+
+    elements.splice(index + 1, 0, duplicate);
+
+    commit((current) => ({
+      ...current,
+      pages: current.pages.map((page) =>
+        page.id !== activePage.id
+          ? page
+          : {
+              ...page,
+              sections: page.sections.map((section) =>
+                section.id !== selectedSection.id
+                  ? section
+                  : { ...section, elements },
+              ),
+            }
+      ),
+    }));
+
+    setSelectedElementId(duplicate.id);
+    setNotice('Element duplicated.');
+  };
+
+  const removeElement = (elementId) => {
+    if (!activePage || !selectedSection) return;
+
+    commit((current) => ({
+      ...current,
+      pages: current.pages.map((page) =>
+        page.id !== activePage.id
+          ? page
+          : {
+              ...page,
+              sections: page.sections.map((section) =>
+                section.id !== selectedSection.id
+                  ? section
+                  : {
+                      ...section,
+                      elements: (section.elements || []).filter(
+                        (item) => item.id !== elementId
+                      ),
+                    }
+              ),
+            }
+      ),
+    }));
+
+    setSelectedElementId('');
+    setNotice('Element deleted.');
+  };
+
+  const moveElement = (elementId, direction) => {
+    if (!selectedSection || !activePage) return;
+
+    const elements = [...(selectedSection.elements || [])];
+    const index = elements.findIndex((item) => item.id === elementId);
+    const target = index + direction;
+
+    if (index < 0 || target < 0 || target >= elements.length) return;
+
+    [elements[index], elements[target]] = [elements[target], elements[index]];
+
+    commit((current) => ({
+      ...current,
+      pages: current.pages.map((page) =>
+        page.id !== activePage.id
+          ? page
+          : {
+              ...page,
+              sections: page.sections.map((section) =>
+                section.id === selectedSection.id
+                  ? { ...section, elements }
+                  : section
+              ),
+            }
+      ),
+    }));
   };
 
   const addSection = (type) => {
@@ -819,61 +996,6 @@ export default function StorefrontEditor() {
     setDrawerOpen(true);
   };
 
-  const removeElement = (elementId) => {
-    if (!activePage || !selectedSection) return;
-
-    commit((current) => ({
-      ...current,
-      pages: current.pages.map((page) =>
-        page.id !== activePage.id
-          ? page
-          : {
-              ...page,
-              sections: page.sections.map((section) =>
-                section.id !== selectedSection.id
-                  ? section
-                  : {
-                      ...section,
-                      elements: (section.elements || []).filter(
-                        (item) => item.id !== elementId
-                      ),
-                    }
-              ),
-            }
-      ),
-    }));
-
-    setSelectedElementId('');
-  };
-
-  const moveElement = (elementId, direction) => {
-    if (!selectedSection) return;
-
-    const elements = [...(selectedSection.elements || [])];
-    const index = elements.findIndex((item) => item.id === elementId);
-    const target = index + direction;
-
-    if (index < 0 || target < 0 || target >= elements.length) return;
-
-    [elements[index], elements[target]] = [elements[target], elements[index]];
-
-    commit((current) => ({
-      ...current,
-      pages: current.pages.map((page) =>
-        page.id !== activePage.id
-          ? page
-          : {
-              ...page,
-              sections: page.sections.map((section) =>
-                section.id === selectedSection.id
-                  ? { ...section, elements }
-                  : section
-              ),
-            }
-      ),
-    }));
-  };
-
   const removeSection = (sectionId) => {
     if (!activePage) return;
 
@@ -902,29 +1024,32 @@ export default function StorefrontEditor() {
   const duplicateSection = (section) => {
     if (!activePage) return;
 
-    const copy = createSection(section.type, { ...(section.settings || {}) });
-
-    copy.elements = (section.elements || []).map((element) => ({
-      ...element,
-      id: `${element.id}-copy-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-    }));
-
+    const copy = cloneSection(section);
     const next = [...activePage.sections];
     const index = next.findIndex((item) => item.id === section.id);
+
     next.splice(index + 1, 0, copy);
 
     updatePage(activePage.id, { sections: next });
     setSelectedSectionId(copy.id);
     setSelectedElementId('');
+    setNotice('Section duplicated.');
   };
 
   const addPage = () => {
     if (!storefront) return;
 
     const number = storefront.pages.length + 1;
+    let slug = `page-${number}`;
+    let suffix = 2;
+
+    while (storefront.pages.some((page) => page.slug === slug)) {
+      slug = `page-${number}-${suffix++}`;
+    }
+
     const page = createPage({
       title: `Page ${number}`,
-      slug: `page-${number}`,
+      slug,
       sections: [
         createSection('hero', {
           title: `Page ${number}`,
@@ -945,6 +1070,110 @@ export default function StorefrontEditor() {
     setPanel('layers');
     setActiveTool('pages');
     setDrawerOpen(true);
+    setNotice('Page created.');
+  };
+
+  const renamePage = (page) => {
+    if (!page || page.isHome) {
+      setNotice('The Home page keeps its original name.');
+      return;
+    }
+
+    const title = window.prompt('Enter a new page name:', page.title || '');
+
+    if (title === null) return;
+
+    const cleanTitle = title.trim();
+
+    if (!cleanTitle) {
+      setNotice('Page name cannot be empty.');
+      return;
+    }
+
+    const baseSlug = slugify(cleanTitle);
+    let slug = baseSlug;
+    let suffix = 2;
+
+    while (storefront.pages.some((item) => item.id !== page.id && item.slug === slug)) {
+      slug = `${baseSlug}-${suffix++}`;
+    }
+
+    updatePage(page.id, { title: cleanTitle, slug });
+    setNotice('Page renamed.');
+  };
+
+  const duplicatePage = (page) => {
+    if (!page || !storefront) return;
+
+    const baseTitle = `${page.title || 'Page'} copy`;
+    let title = baseTitle;
+    let count = 2;
+
+    while (storefront.pages.some((item) => item.title === title)) {
+      title = `${baseTitle} ${count++}`;
+    }
+
+    const baseSlug = slugify(title);
+    let slug = baseSlug;
+    let suffix = 2;
+
+    while (storefront.pages.some((item) => item.slug === slug)) {
+      slug = `${baseSlug}-${suffix++}`;
+    }
+
+    const duplicate = createPage({
+      title,
+      slug,
+      sections: (page.sections || []).map(cloneSection),
+    });
+
+    duplicate.isHome = false;
+
+    commit((current) => ({
+      ...current,
+      pages: [...current.pages, duplicate],
+    }));
+
+    setActivePageId(duplicate.id);
+    setSelectedSectionId('');
+    setSelectedElementId('');
+    setPanel('layers');
+    setNotice('Page duplicated.');
+  };
+
+  const deletePage = (page) => {
+    if (!page || page.isHome) {
+      setNotice('The Home page cannot be deleted.');
+      return;
+    }
+
+    if (pages.length <= 1) {
+      setNotice('Your storefront must have at least one page.');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Delete "${page.title}"? This will remove the page and its sections.`
+    );
+
+    if (!confirmed) return;
+
+    const remaining = pages.filter((item) => item.id !== page.id);
+
+    commit((current) => ({
+      ...current,
+      pages: remaining,
+    }));
+
+    if (activePageId === page.id) {
+      const home = remaining.find((item) => item.isHome) || remaining[0];
+      setActivePageId(home?.id || '');
+    }
+
+    setSelectedSectionId('');
+    setSelectedElementId('');
+    setPanel('layers');
+    setNotice('Page deleted. Save to publish the change.');
   };
 
   const updateTheme = (key, value) => {
@@ -981,10 +1210,7 @@ export default function StorefrontEditor() {
     setActiveTool(id);
     setDrawerOpen(true);
 
-    if (id === 'elements') {
-      setPanel('layers');
-      setShowElements(true);
-    } else if (id === 'text') {
+    if (id === 'elements' || id === 'text') {
       setPanel('layers');
       setShowElements(true);
     } else if (id === 'brand') {
@@ -1029,6 +1255,66 @@ export default function StorefrontEditor() {
     setNotice('Template applied. Save to publish your new design.');
   };
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyboard = (event) => {
+      const target = event.target;
+      const tag = target?.tagName?.toLowerCase();
+
+      const typing =
+        tag === 'input' ||
+        tag === 'textarea' ||
+        tag === 'select' ||
+        target?.isContentEditable;
+
+      const modifier = event.ctrlKey || event.metaKey;
+      if (!modifier) return;
+
+      const key = event.key.toLowerCase();
+
+      if (key === 'z' && !event.shiftKey) {
+        event.preventDefault();
+        undo();
+        return;
+      }
+
+      if (key === 'y' || (key === 'z' && event.shiftKey)) {
+        event.preventDefault();
+        redo();
+        return;
+      }
+
+      if (typing) return;
+
+      if (key === 'c' && selectedElement) {
+        event.preventDefault();
+        copyElement(selectedElement);
+      }
+
+      if (key === 'v' && clipboardElement) {
+        event.preventDefault();
+        pasteElement();
+      }
+
+      if (key === 'd' && selectedElement) {
+        event.preventDefault();
+        duplicateElement(selectedElement);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyboard);
+
+    return () => window.removeEventListener('keydown', handleKeyboard);
+  }, [
+    undo,
+    redo,
+    selectedElement,
+    clipboardElement,
+    selectedSectionId,
+    activePageId,
+    storefront,
+  ]);
+
   const storeUrl = business.slug ? `/store/${business.slug}` : '/';
 
   const previewWidth = {
@@ -1054,6 +1340,49 @@ export default function StorefrontEditor() {
       </div>
     );
   }
+
+  const layerProps = {
+    pages,
+    activePage,
+    selectedSectionId,
+    selectedElementId,
+    onPage: (id) => {
+      setActivePageId(id);
+      setSelectedSectionId('');
+      setSelectedElementId('');
+    },
+    onAddPage: addPage,
+    onRenamePage: renamePage,
+    onDuplicatePage: duplicatePage,
+    onDeletePage: deletePage,
+    onAddSection: () => setShowSections(true),
+    onAddElement: () => setShowElements(true),
+    onSelectSection: (id) => {
+      setSelectedSectionId(id);
+      setSelectedElementId('');
+      setPanel('inspector');
+      setDrawerOpen(true);
+    },
+    onSelectElement: (sectionId, elementId) => {
+      setSelectedSectionId(sectionId);
+      setSelectedElementId(elementId);
+      setPanel('inspector');
+      setDrawerOpen(true);
+    },
+    onMoveSection: moveSection,
+    onDuplicateSection: duplicateSection,
+    onRemoveSection: removeSection,
+  };
+
+  const inspectorProps = {
+    element: selectedElement,
+    section: selectedSection,
+    onUpdateElement: updateElement,
+    onUpdateSection: updateSection,
+    onRemoveElement: removeElement,
+    onDuplicateElement: duplicateElement,
+    onCopyElement: copyElement,
+  };
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col overflow-hidden bg-[#f1f2f5]">
@@ -1089,7 +1418,7 @@ export default function StorefrontEditor() {
             onClick={undo}
             disabled={!history.length}
             className="rounded-lg p-2 text-slate-600 disabled:opacity-30"
-            title="Undo"
+            title="Undo (Ctrl/Cmd + Z)"
           >
             <Undo2 size={17} />
           </button>
@@ -1098,7 +1427,7 @@ export default function StorefrontEditor() {
             onClick={redo}
             disabled={!future.length}
             className="rounded-lg p-2 text-slate-600 disabled:opacity-30"
-            title="Redo"
+            title="Redo (Ctrl/Cmd + Y)"
           >
             <Redo2 size={17} />
           </button>
@@ -1230,35 +1559,7 @@ export default function StorefrontEditor() {
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto p-4">
-            {panel === 'layers' && (
-              <LayersPanel
-                pages={pages}
-                activePage={activePage}
-                selectedSectionId={selectedSectionId}
-                selectedElementId={selectedElementId}
-                onPage={(id) => {
-                  setActivePageId(id);
-                  setSelectedSectionId('');
-                  setSelectedElementId('');
-                }}
-                onAddPage={addPage}
-                onAddSection={() => setShowSections(true)}
-                onAddElement={() => setShowElements(true)}
-                onSelectSection={(id) => {
-                  setSelectedSectionId(id);
-                  setSelectedElementId('');
-                  setPanel('inspector');
-                }}
-                onSelectElement={(sectionId, elementId) => {
-                  setSelectedSectionId(sectionId);
-                  setSelectedElementId(elementId);
-                  setPanel('inspector');
-                }}
-                onMoveSection={moveSection}
-                onDuplicateSection={duplicateSection}
-                onRemoveSection={removeSection}
-              />
-            )}
+            {panel === 'layers' && <LayersPanel {...layerProps} />}
 
             {panel === 'theme' && (
               <ThemePanel theme={storefront.theme} onUpdate={updateTheme} />
@@ -1274,15 +1575,7 @@ export default function StorefrontEditor() {
               />
             )}
 
-            {panel === 'inspector' && (
-              <Inspector
-                element={selectedElement}
-                section={selectedSection}
-                onUpdateElement={updateElement}
-                onUpdateSection={updateSection}
-                onRemoveElement={removeElement}
-              />
-            )}
+            {panel === 'inspector' && <Inspector {...inspectorProps} />}
           </div>
         </aside>
 
@@ -1409,13 +1702,7 @@ export default function StorefrontEditor() {
 
         {/* DESKTOP RIGHT INSPECTOR */}
         <aside className="hidden w-[290px] shrink-0 overflow-y-auto border-l border-slate-200 bg-white p-4 xl:block">
-          <Inspector
-            element={selectedElement}
-            section={selectedSection}
-            onUpdateElement={updateElement}
-            onUpdateSection={updateSection}
-            onRemoveElement={removeElement}
-          />
+          <Inspector {...inspectorProps} />
 
           {selectedElement && (
             <div className="mt-5 flex gap-2 border-t border-slate-100 pt-4">
@@ -1469,15 +1756,7 @@ export default function StorefrontEditor() {
               </button>
             </div>
 
-            {panel === 'inspector' && (
-              <Inspector
-                element={selectedElement}
-                section={selectedSection}
-                onUpdateElement={updateElement}
-                onUpdateSection={updateSection}
-                onRemoveElement={removeElement}
-              />
-            )}
+            {panel === 'inspector' && <Inspector {...inspectorProps} />}
 
             {panel === 'theme' && (
               <ThemePanel theme={storefront.theme} onUpdate={updateTheme} />
@@ -1516,32 +1795,7 @@ export default function StorefrontEditor() {
             )}
 
             {panel === 'pages' && (
-              <div className="space-y-2">
-                {pages.map((page) => (
-                  <button
-                    key={page.id}
-                    onClick={() => {
-                      setActivePageId(page.id);
-                      setSelectedSectionId('');
-                      setSelectedElementId('');
-                    }}
-                    className={`w-full rounded-xl px-3 py-3 text-left text-sm ${
-                      activePage?.id === page.id
-                        ? 'bg-emerald-50 font-bold text-emerald-800'
-                        : 'bg-slate-50 text-slate-700'
-                    }`}
-                  >
-                    {page.title} {page.isHome ? '(Home)' : ''}
-                  </button>
-                ))}
-
-                <button
-                  onClick={addPage}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-emerald-300 py-3 text-sm font-semibold text-emerald-700"
-                >
-                  <Plus size={16} /> Add page
-                </button>
-              </div>
+              <LayersPanel {...layerProps} />
             )}
 
             {panel === 'templates' && (
@@ -1557,35 +1811,7 @@ export default function StorefrontEditor() {
               />
             )}
 
-            {panel === 'layers' && (
-              <LayersPanel
-                pages={pages}
-                activePage={activePage}
-                selectedSectionId={selectedSectionId}
-                selectedElementId={selectedElementId}
-                onPage={(id) => {
-                  setActivePageId(id);
-                  setSelectedSectionId('');
-                  setSelectedElementId('');
-                }}
-                onAddPage={addPage}
-                onAddSection={() => setShowSections(true)}
-                onAddElement={() => setShowElements(true)}
-                onSelectSection={(id) => {
-                  setSelectedSectionId(id);
-                  setSelectedElementId('');
-                  setPanel('inspector');
-                }}
-                onSelectElement={(sectionId, elementId) => {
-                  setSelectedSectionId(sectionId);
-                  setSelectedElementId(elementId);
-                  setPanel('inspector');
-                }}
-                onMoveSection={moveSection}
-                onDuplicateSection={duplicateSection}
-                onRemoveSection={removeSection}
-              />
-            )}
+            {panel === 'layers' && <LayersPanel {...layerProps} />}
           </div>
         )}
 
@@ -1715,6 +1941,9 @@ function LayersPanel({
   selectedElementId,
   onPage,
   onAddPage,
+  onRenamePage,
+  onDuplicatePage,
+  onDeletePage,
   onAddSection,
   onAddElement,
   onSelectSection,
@@ -1725,6 +1954,7 @@ function LayersPanel({
 }) {
   return (
     <div className="space-y-5">
+      {/* PAGES */}
       <div>
         <div className="mb-2 flex items-center justify-between">
           <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
@@ -1734,28 +1964,66 @@ function LayersPanel({
           <button
             onClick={onAddPage}
             className="rounded-lg p-2 text-emerald-700 hover:bg-emerald-50"
+            title="Add page"
           >
             <Plus size={16} />
           </button>
         </div>
 
-        <div className="space-y-1">
+        <div className="space-y-2">
           {pages.map((page) => (
-            <button
+            <div
               key={page.id}
-              onClick={() => onPage(page.id)}
-              className={`w-full truncate rounded-xl px-3 py-3 text-left text-xs ${
+              className={`rounded-xl border p-2 ${
                 activePage?.id === page.id
-                  ? 'bg-emerald-50 font-bold text-emerald-800'
-                  : 'text-slate-600 hover:bg-slate-50'
+                  ? 'border-emerald-200 bg-emerald-50/60'
+                  : 'border-transparent'
               }`}
             >
-              {page.title} {page.isHome ? '(Home)' : ''}
-            </button>
+              <button
+                onClick={() => onPage(page.id)}
+                className="w-full truncate px-2 py-2 text-left text-xs"
+              >
+                <span className={activePage?.id === page.id ? 'font-bold text-emerald-800' : 'text-slate-600'}>
+                  {page.title} {page.isHome ? '(Home)' : ''}
+                </span>
+              </button>
+
+              {activePage?.id === page.id && (
+                <div className="mt-1 flex items-center gap-1 border-t border-slate-200/70 pt-2">
+                  <button
+                    onClick={() => onRenamePage(page)}
+                    disabled={page.isHome}
+                    className="flex flex-1 items-center justify-center gap-1 rounded-lg px-2 py-2 text-[10px] font-semibold text-slate-600 hover:bg-white disabled:opacity-30"
+                    title="Rename page"
+                  >
+                    <Pencil size={12} /> Rename
+                  </button>
+
+                  <button
+                    onClick={() => onDuplicatePage(page)}
+                    className="flex flex-1 items-center justify-center gap-1 rounded-lg px-2 py-2 text-[10px] font-semibold text-slate-600 hover:bg-white"
+                    title="Duplicate page"
+                  >
+                    <Copy size={12} /> Duplicate
+                  </button>
+
+                  <button
+                    onClick={() => onDeletePage(page)}
+                    disabled={page.isHome}
+                    className="flex items-center justify-center rounded-lg px-2 py-2 text-red-500 hover:bg-red-50 disabled:opacity-30"
+                    title="Delete page"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              )}
+            </div>
           ))}
         </div>
       </div>
 
+      {/* SECTIONS */}
       <div className="border-t border-slate-100 pt-4">
         <div className="mb-2 flex items-center justify-between">
           <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
@@ -1815,6 +2083,7 @@ function LayersPanel({
                     onClick={() => onMoveSection(section.id, -1)}
                     disabled={index === 0}
                     className="rounded p-2 text-slate-400 disabled:opacity-20"
+                    title="Move section up"
                   >
                     <ChevronUp size={14} />
                   </button>
@@ -1823,6 +2092,7 @@ function LayersPanel({
                     onClick={() => onMoveSection(section.id, 1)}
                     disabled={index === activePage.sections.length - 1}
                     className="rounded p-2 text-slate-400 disabled:opacity-20"
+                    title="Move section down"
                   >
                     <ChevronDown size={14} />
                   </button>
@@ -1830,6 +2100,7 @@ function LayersPanel({
                   <button
                     onClick={() => onDuplicateSection(section)}
                     className="rounded p-2 text-slate-400 hover:text-emerald-700"
+                    title="Duplicate section"
                   >
                     <Copy size={14} />
                   </button>
@@ -1837,6 +2108,7 @@ function LayersPanel({
                   <button
                     onClick={() => onRemoveSection(section.id)}
                     className="rounded p-2 text-slate-400 hover:text-red-600"
+                    title="Delete section"
                   >
                     <Trash2 size={14} />
                   </button>
