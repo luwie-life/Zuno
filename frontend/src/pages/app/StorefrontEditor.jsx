@@ -12,13 +12,21 @@ import {
   Copy,
   ChevronUp,
   ChevronDown,
-  X,
-  Palette,
-  Settings2,
-  Layers,
-  ExternalLink,
   Undo2,
   Redo2,
+  Layers,
+  Type,
+  Image as ImageIcon,
+  MousePointer,
+  Columns3,
+  Minus,
+  Video,
+  ShoppingBag,
+  BriefcaseBusiness,
+  CalendarDays,
+  Palette,
+  X,
+  Settings2,
 } from 'lucide-react';
 
 import { api } from '../../lib/api.js';
@@ -27,63 +35,87 @@ import { StorefrontRenderer } from '../StorefrontHome.jsx';
 
 import {
   createSection,
+  createElement,
+  createPage,
   getAvailableSectionTypes,
   normalizeStorefrontConfig,
+  ELEMENT_TYPES,
 } from '../../lib/storefront.js';
 
-const LABELS = {
+const SECTION_LABELS = {
   announcement: 'Announcement bar',
   navigation: 'Navigation',
   hero: 'Hero banner',
-  about: 'About section',
+  about: 'About',
   image_text: 'Image and text',
   rich_text: 'Text section',
-  gallery: 'Image gallery',
+  gallery: 'Gallery',
   portfolio_grid: 'Portfolio projects',
   featured_projects: 'Featured projects',
   services: 'Services',
   featured_services: 'Featured services',
   service_packages: 'Service packages',
-  booking: 'Booking section',
+  booking: 'Booking',
   featured_products: 'Featured products',
   product_grid: 'Product catalogue',
   categories: 'Categories',
   testimonials: 'Testimonials',
   pricing: 'Pricing',
-  faq: 'Frequently asked questions',
-  contact: 'Contact section',
+  faq: 'FAQs',
+  contact: 'Contact',
   social_links: 'Social links',
   custom_content: 'Custom content',
   footer: 'Footer',
 };
 
-const DEFAULT_SETTINGS = {
+const ELEMENT_OPTIONS = [
+  { type: 'heading', label: 'Heading', icon: Type },
+  { type: 'text', label: 'Text', icon: Type },
+  { type: 'button', label: 'Button', icon: MousePointer },
+  { type: 'image', label: 'Image', icon: ImageIcon },
+  { type: 'spacer', label: 'Spacer', icon: Minus },
+  { type: 'divider', label: 'Divider', icon: Minus },
+  { type: 'columns', label: 'Columns', icon: Columns3 },
+  { type: 'grid', label: 'Grid', icon: Layers },
+  { type: 'gallery', label: 'Gallery', icon: ImageIcon },
+  { type: 'video', label: 'Video', icon: Video },
+  { type: 'product_list', label: 'Products', icon: ShoppingBag },
+  { type: 'service_list', label: 'Services', icon: BriefcaseBusiness },
+  { type: 'booking_button', label: 'Booking button', icon: CalendarDays },
+  { type: 'contact_form', label: 'Contact block', icon: MousePointer },
+];
+
+const DEFAULT_ELEMENT_CONTENT = {
+  heading: 'Add your heading',
+  text: 'Write something meaningful for your visitors.',
+  button: 'Get started',
+  spacer: '',
+  divider: '',
+  columns: '',
+  grid: '',
+  icon: '✦',
+  booking_button: 'Book an appointment',
+};
+
+const DEFAULT_SECTION_SETTINGS = {
   hero: {
-    eyebrow: 'WELCOME',
     title: 'Welcome to our business',
     subtitle: 'Tell visitors what makes your business special.',
     buttonText: 'Get started',
-    buttonLink: '/services',
-    backgroundImage: '',
+    buttonLink: '',
     alignment: 'left',
     height: 'large',
   },
   about: {
     title: 'About us',
-    subtitle: '',
-    description: 'Tell customers about your business and what makes you different.',
-    image: '',
+    description: 'Tell customers about your business.',
   },
   image_text: {
     title: 'A little about what we do',
-    subtitle: '',
     description: 'Add a description about your business.',
-    image: '',
-    layout: 'image_left',
   },
   rich_text: {
     title: 'Tell your story',
-    subtitle: '',
     content: 'Write something meaningful for your visitors.',
   },
   custom_content: {
@@ -92,109 +124,72 @@ const DEFAULT_SETTINGS = {
   },
   gallery: {
     title: 'Our gallery',
-    subtitle: 'A look at what we do.',
     images: [],
-  },
-  contact: {
-    title: 'Let’s work together',
-    description: 'Have a question or ready to get started? Get in touch.',
-    buttonText: 'Contact us',
-  },
-  announcement: {
-    text: 'Welcome to our business',
-  },
-  navigation: {},
-  footer: {
-    text: '',
-  },
-  services: {
-    title: 'Our services',
-    subtitle: 'Explore what we can do for you.',
-    limit: 6,
-  },
-  featured_services: {
-    title: 'Featured services',
-    subtitle: '',
-    limit: 3,
-  },
-  service_packages: {
-    title: 'Our packages',
-    subtitle: '',
-    limit: 3,
-  },
-  booking: {
-    title: 'Ready to book?',
-    description: 'Choose a service and book a time that works for you.',
-    buttonText: 'View services',
-  },
-  portfolio_grid: {
-    title: 'Selected projects',
-    subtitle: 'A few examples of our work.',
-    limit: 6,
-  },
-  featured_projects: {
-    title: 'Featured work',
-    subtitle: '',
-    limit: 3,
   },
   product_grid: {
     title: 'Our products',
-    subtitle: 'Explore our collection.',
     limit: 8,
   },
   featured_products: {
     title: 'Featured products',
-    subtitle: '',
     limit: 4,
   },
-  categories: {
-    title: 'Shop by category',
+  services: {
+    title: 'Our services',
+    limit: 6,
   },
-  testimonials: {
-    title: 'What customers say',
+  featured_services: {
+    title: 'Featured services',
+    limit: 3,
   },
-  pricing: {
-    title: 'Our pricing',
-    subtitle: '',
+  service_packages: {
+    title: 'Our packages',
+    limit: 3,
+  },
+  portfolio_grid: {
+    title: 'Selected projects',
+    limit: 6,
+  },
+  featured_projects: {
+    title: 'Featured work',
+    limit: 3,
+  },
+  contact: {
+    title: 'Let’s work together',
+    description: 'Have a question? Get in touch.',
+    buttonText: 'Contact us',
+  },
+  booking: {
+    title: 'Ready to book?',
+    buttonText: 'View services',
   },
   faq: {
     title: 'Frequently asked questions',
   },
-  social_links: {},
+  categories: {
+    title: 'Browse categories',
+  },
+  announcement: {
+    text: 'Welcome to our business',
+  },
+  footer: {
+    text: '',
+  },
 };
 
-const makeSettings = (type, businessName) => ({
-  ...(DEFAULT_SETTINGS[type] || {
-    title: LABELS[type] || 'New section',
-  }),
-  ...(type === 'hero' && businessName
-    ? { title: businessName }
-    : {}),
-});
-
-function TextInput({
-  label,
-  value,
-  onChange,
-  multiline = false,
-  placeholder = '',
-}) {
-  const common =
-    'w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-emerald-700';
+function PanelInput({ label, value, onChange, multiline = false, placeholder = '' }) {
+  const common = 'w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-emerald-600';
 
   return (
-    <label className="block">
-      <span className="mb-1.5 block text-xs font-semibold text-slate-600">
-        {label}
-      </span>
-
+    <label className="block space-y-1.5">
+      <span className="text-xs font-semibold text-slate-600">{label}</span>
       {multiline ? (
         <textarea
           rows={4}
           value={value ?? ''}
           placeholder={placeholder}
           onChange={(event) => onChange(event.target.value)}
-          className={`${common} resize-y`}
+          className={common}
         />
       ) : (
         <input
@@ -208,242 +203,333 @@ function TextInput({
   );
 }
 
-function ColorInput({ label, value, onChange }) {
+function PanelSelect({ label, value, onChange, options }) {
   return (
-    <label className="flex items-center justify-between gap-3">
-      <span className="text-sm text-slate-700">{label}</span>
-
-      <input
-        type="color"
-        value={value || '#111827'}
+    <label className="block space-y-1.5">
+      <span className="text-xs font-semibold text-slate-600">{label}</span>
+      <select
+        value={value ?? ''}
         onChange={(event) => onChange(event.target.value)}
-        className="h-9 w-12 cursor-pointer rounded-lg border border-slate-200 bg-white p-1"
-      />
+        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-emerald-600"
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
     </label>
   );
 }
 
-function SectionSettings({ section, update, close }) {
-  if (!section) return null;
+function Inspector({ element, section, onUpdateElement, onUpdateSection }) {
+  if (element) {
+    const update = (key, value) => onUpdateElement(element.id, { [key]: value });
+    const updateStyle = (key, value) => {
+      onUpdateElement(element.id, {
+        style: { ...(element.style || {}), [key]: value },
+      });
+    };
+    const updateAction = (key, value) => {
+      onUpdateElement(element.id, {
+        action: { ...(element.action || {}), [key]: value },
+      });
+    };
+    const updateAnimation = (key, value) => {
+      onUpdateElement(element.id, {
+        animation: { ...(element.animation || {}), [key]: value },
+      });
+    };
 
-  const settings = section.settings || {};
-
-  const set = (key, value) => {
-    update(section.id, key, value);
-  };
-
-  return (
-    <div className="flex h-full flex-col bg-white">
-      <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+    return (
+      <div className="space-y-5">
         <div>
-          <p className="text-xs text-slate-400">
-            SECTION SETTINGS
-          </p>
-
-          <h3 className="mt-1 font-semibold text-slate-900">
-            {LABELS[section.type] || section.type}
-          </h3>
+          <p className="text-sm font-bold text-slate-900">Element settings</p>
+          <p className="mt-1 text-xs text-slate-500">{element.type.replaceAll('_', ' ')}</p>
         </div>
 
-        <button
-          onClick={close}
-          className="rounded-lg p-2 hover:bg-slate-100"
-        >
-          <X size={18} />
-        </button>
-      </div>
-
-      <div className="flex-1 space-y-5 overflow-y-auto p-5">
-        {Object.prototype.hasOwnProperty.call(settings, 'title') && (
-          <TextInput
-            label="Heading"
-            value={settings.title}
-            onChange={(value) => set('title', value)}
-          />
-        )}
-
-        {Object.prototype.hasOwnProperty.call(settings, 'eyebrow') && (
-          <TextInput
-            label="Small heading"
-            value={settings.eyebrow}
-            onChange={(value) => set('eyebrow', value)}
-          />
-        )}
-
-        {Object.prototype.hasOwnProperty.call(settings, 'subtitle') && (
-          <TextInput
-            label="Subtitle"
-            value={settings.subtitle}
-            onChange={(value) => set('subtitle', value)}
-            multiline
-          />
-        )}
-
-        {Object.prototype.hasOwnProperty.call(settings, 'description') && (
-          <TextInput
-            label="Description"
-            value={settings.description}
-            onChange={(value) => set('description', value)}
-            multiline
-          />
-        )}
-
-        {Object.prototype.hasOwnProperty.call(settings, 'content') && (
-          <TextInput
+        {['heading', 'text', 'button', 'icon', 'booking_button'].includes(element.type) && (
+          <PanelInput
             label="Content"
-            value={settings.content}
-            onChange={(value) => set('content', value)}
-            multiline
+            value={element.content}
+            multiline={element.type === 'text'}
+            onChange={(value) => update('content', value)}
           />
         )}
 
-        {Object.prototype.hasOwnProperty.call(settings, 'text') && (
-          <TextInput
-            label="Text"
-            value={settings.text}
-            onChange={(value) => set('text', value)}
-          />
-        )}
-
-        {Object.prototype.hasOwnProperty.call(settings, 'buttonText') && (
-          <TextInput
-            label="Button label"
-            value={settings.buttonText}
-            onChange={(value) => set('buttonText', value)}
-          />
-        )}
-
-        {Object.prototype.hasOwnProperty.call(settings, 'buttonLink') && (
-          <TextInput
-            label="Button link"
-            value={settings.buttonLink}
-            onChange={(value) => set('buttonLink', value)}
-            placeholder="/services"
-          />
-        )}
-
-        {Object.prototype.hasOwnProperty.call(settings, 'backgroundImage') && (
-          <TextInput
-            label="Background image URL"
-            value={settings.backgroundImage}
-            onChange={(value) => set('backgroundImage', value)}
-            placeholder="Paste an image URL"
-          />
-        )}
-
-        {Object.prototype.hasOwnProperty.call(settings, 'image') && (
-          <TextInput
-            label="Image URL"
-            value={settings.image}
-            onChange={(value) => set('image', value)}
-            placeholder="Paste an image URL"
-          />
-        )}
-
-        {section.type === 'gallery' && (
-          <TextInput
-            label="Image URLs (one per line)"
-            value={(settings.images || [])
-              .map((item) =>
-                typeof item === 'string'
-                  ? item
-                  : item?.url || ''
-              )
-              .join('\n')}
-            onChange={(value) =>
-              set(
-                'images',
-                value
-                  .split('\n')
-                  .map((item) => item.trim())
-                  .filter(Boolean)
-              )
-            }
-            multiline
-          />
-        )}
-
-        {section.type === 'hero' && (
+        {['image', 'video'].includes(element.type) && (
           <>
-            <label className="block">
-              <span className="mb-1.5 block text-xs font-semibold text-slate-600">
-                Text alignment
-              </span>
-
-              <select
-                value={settings.alignment || 'left'}
-                onChange={(event) =>
-                  set('alignment', event.target.value)
-                }
-                className="w-full rounded-xl border border-slate-200 p-3 text-sm"
-              >
-                <option value="left">Left</option>
-                <option value="center">Center</option>
-              </select>
-            </label>
-
-            <label className="block">
-              <span className="mb-1.5 block text-xs font-semibold text-slate-600">
-                Banner height
-              </span>
-
-              <select
-                value={settings.height || 'large'}
-                onChange={(event) =>
-                  set('height', event.target.value)
-                }
-                className="w-full rounded-xl border border-slate-200 p-3 text-sm"
-              >
-                <option value="small">Short</option>
-                <option value="medium">Medium</option>
-                <option value="large">Tall</option>
-              </select>
-            </label>
+            <PanelInput
+              label={element.type === 'image' ? 'Image URL' : 'Video URL'}
+              value={element.src}
+              onChange={(value) => update('src', value)}
+              placeholder="https://..."
+            />
+            <p className="text-xs text-slate-400">
+              Device uploads and media management are the next editor integration.
+            </p>
           </>
         )}
 
-        <div className="border-t border-slate-100 pt-5">
-          <p className="mb-4 text-xs font-bold uppercase tracking-wide text-slate-500">
-            Section styling
-          </p>
+        {['columns', 'grid'].includes(element.type) && (
+          <PanelSelect
+            label="Columns"
+            value={element.settings?.columns || 2}
+            onChange={(value) => onUpdateElement(element.id, {
+              settings: { ...(element.settings || {}), columns: Number(value) },
+            })}
+            options={[
+              { value: 1, label: '1 column' },
+              { value: 2, label: '2 columns' },
+              { value: 3, label: '3 columns' },
+              { value: 4, label: '4 columns' },
+            ]}
+          />
+        )}
 
-          <div className="space-y-4">
-            <ColorInput
-              label="Heading colour"
-              value={settings.titleColor}
-              onChange={(value) => set('titleColor', value)}
+        <div className="space-y-3 border-t border-slate-100 pt-4">
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Appearance</p>
+
+          <PanelInput
+            label="Text colour"
+            value={element.style?.color || ''}
+            onChange={(value) => updateStyle('color', value)}
+            placeholder="#111827"
+          />
+
+          <PanelInput
+            label="Background colour"
+            value={element.style?.backgroundColor || ''}
+            onChange={(value) => updateStyle('backgroundColor', value)}
+            placeholder="#FFFFFF"
+          />
+
+          <PanelInput
+            label="Font size (px)"
+            value={element.style?.fontSize || 16}
+            onChange={(value) => updateStyle('fontSize', Number(value))}
+          />
+
+          <PanelSelect
+            label="Font weight"
+            value={element.style?.fontWeight || 'normal'}
+            onChange={(value) => updateStyle('fontWeight', value)}
+            options={[
+              { value: 'normal', label: 'Regular' },
+              { value: 'medium', label: 'Medium' },
+              { value: 'semibold', label: 'Semibold' },
+              { value: 'bold', label: 'Bold' },
+            ]}
+          />
+
+          <PanelSelect
+            label="Alignment"
+            value={element.style?.textAlign || 'left'}
+            onChange={(value) => updateStyle('textAlign', value)}
+            options={[
+              { value: 'left', label: 'Left' },
+              { value: 'center', label: 'Centre' },
+              { value: 'right', label: 'Right' },
+            ]}
+          />
+
+          <PanelInput
+            label="Border radius"
+            value={element.style?.borderRadius || '0'}
+            onChange={(value) => updateStyle('borderRadius', value)}
+            placeholder="12px"
+          />
+
+          <PanelInput
+            label="Padding"
+            value={element.style?.padding || '0'}
+            onChange={(value) => updateStyle('padding', value)}
+            placeholder="12px"
+          />
+        </div>
+
+        {['button', 'booking_button'].includes(element.type) && (
+          <div className="space-y-3 border-t border-slate-100 pt-4">
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Button action</p>
+
+            <PanelSelect
+              label="Action"
+              value={element.action?.type || 'none'}
+              onChange={(value) => updateAction('type', value)}
+              options={[
+                { value: 'none', label: 'No action' },
+                { value: 'page', label: 'Storefront page' },
+                { value: 'external', label: 'External URL' },
+                { value: 'whatsapp', label: 'WhatsApp' },
+                { value: 'phone', label: 'Phone call' },
+                { value: 'email', label: 'Email' },
+                { value: 'products', label: 'Products' },
+                { value: 'services', label: 'Services' },
+                { value: 'booking', label: 'Booking' },
+                { value: 'contact', label: 'Contact' },
+              ]}
             />
 
-            <ColorInput
-              label="Body colour"
-              value={settings.bodyColor}
-              onChange={(value) => set('bodyColor', value)}
-            />
-
-            <ColorInput
-              label="Button colour"
-              value={settings.buttonColor}
-              onChange={(value) => set('buttonColor', value)}
-            />
+            {['page', 'external', 'whatsapp', 'phone', 'email'].includes(element.action?.type) && (
+              <PanelInput
+                label="Destination"
+                value={element.action?.value || ''}
+                onChange={(value) => updateAction('value', value)}
+                placeholder="Enter destination"
+              />
+            )}
           </div>
+        )}
+
+        <div className="space-y-3 border-t border-slate-100 pt-4">
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Animation</p>
+
+          <PanelSelect
+            label="Preset"
+            value={element.animation?.preset || 'none'}
+            onChange={(value) => updateAnimation('preset', value)}
+            options={[
+              { value: 'none', label: 'None' },
+              { value: 'fade', label: 'Fade' },
+              { value: 'fade_up', label: 'Fade up' },
+              { value: 'fade_down', label: 'Fade down' },
+              { value: 'slide_left', label: 'Slide left' },
+              { value: 'slide_right', label: 'Slide right' },
+              { value: 'zoom', label: 'Zoom' },
+            ]}
+          />
+
+          <PanelSelect
+            label="Trigger"
+            value={element.animation?.trigger || 'scroll'}
+            onChange={(value) => updateAnimation('trigger', value)}
+            options={[
+              { value: 'load', label: 'On page load' },
+              { value: 'scroll', label: 'On scroll' },
+              { value: 'hover', label: 'On hover' },
+            ]}
+          />
+
+          <PanelInput
+            label="Duration (ms)"
+            value={element.animation?.duration || 500}
+            onChange={(value) => updateAnimation('duration', Number(value))}
+          />
+
+          <PanelInput
+            label="Delay (ms)"
+            value={element.animation?.delay || 0}
+            onChange={(value) => updateAnimation('delay', Number(value))}
+          />
         </div>
       </div>
+    );
+  }
+
+  if (section) {
+    const settings = section.settings || {};
+
+    const set = (key, value) => onUpdateSection(section.id, key, value);
+
+    return (
+      <div className="space-y-5">
+        <div>
+          <p className="text-sm font-bold text-slate-900">Section settings</p>
+          <p className="mt-1 text-xs text-slate-500">
+            {SECTION_LABELS[section.type] || section.type}
+          </p>
+        </div>
+
+        {settings.title !== undefined && (
+          <PanelInput label="Title" value={settings.title} onChange={(value) => set('title', value)} />
+        )}
+
+        {settings.subtitle !== undefined && (
+          <PanelInput label="Subtitle" value={settings.subtitle} onChange={(value) => set('subtitle', value)} multiline />
+        )}
+
+        {settings.description !== undefined && (
+          <PanelInput label="Description" value={settings.description} onChange={(value) => set('description', value)} multiline />
+        )}
+
+        {settings.content !== undefined && (
+          <PanelInput label="Content" value={settings.content} onChange={(value) => set('content', value)} multiline />
+        )}
+
+        {settings.buttonText !== undefined && (
+          <PanelInput label="Button text" value={settings.buttonText} onChange={(value) => set('buttonText', value)} />
+        )}
+
+        {settings.buttonLink !== undefined && (
+          <PanelInput label="Button link" value={settings.buttonLink} onChange={(value) => set('buttonLink', value)} />
+        )}
+
+        {settings.backgroundImage !== undefined && (
+          <PanelInput label="Background image URL" value={settings.backgroundImage} onChange={(value) => set('backgroundImage', value)} />
+        )}
+
+        {settings.image !== undefined && (
+          <PanelInput label="Image URL" value={settings.image} onChange={(value) => set('image', value)} />
+        )}
+
+        {settings.limit !== undefined && (
+          <PanelInput label="Items to display" value={settings.limit} onChange={(value) => set('limit', Number(value))} />
+        )}
+
+        {settings.alignment !== undefined && (
+          <PanelSelect
+            label="Alignment"
+            value={settings.alignment}
+            onChange={(value) => set('alignment', value)}
+            options={[
+              { value: 'left', label: 'Left' },
+              { value: 'center', label: 'Centre' },
+            ]}
+          />
+        )}
+
+        {settings.height !== undefined && (
+          <PanelSelect
+            label="Hero height"
+            value={settings.height}
+            onChange={(value) => set('height', value)}
+            options={[
+              { value: 'small', label: 'Short' },
+              { value: 'medium', label: 'Medium' },
+              { value: 'large', label: 'Tall' },
+            ]}
+          />
+        )}
+
+        <p className="text-xs leading-5 text-slate-400">
+          Add independent text, buttons, images and other elements to this section using the Add element control.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="py-10 text-center">
+      <Settings2 className="mx-auto text-slate-300" size={28} />
+      <p className="mt-3 text-sm font-semibold text-slate-700">Nothing selected</p>
+      <p className="mt-1 text-xs text-slate-400">Select a section or element to edit it.</p>
     </div>
   );
 }
 
 export default function StorefrontEditor() {
   const { ctx } = useAuth();
-
   const business = ctx?.business || {};
   const businessType = business.businessType || 'product';
 
   const [storefront, setStorefront] = useState(null);
   const [activePageId, setActivePageId] = useState('');
   const [selectedSectionId, setSelectedSectionId] = useState('');
+  const [selectedElementId, setSelectedElementId] = useState('');
   const [device, setDevice] = useState('desktop');
-  const [panel, setPanel] = useState('');
+  const [panel, setPanel] = useState('layers');
   const [showSections, setShowSections] = useState(false);
+  const [showElements, setShowElements] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -466,17 +552,17 @@ export default function StorefrontEditor() {
     (section) => section.id === selectedSectionId
   );
 
+  const selectedElement = selectedSection?.elements?.find(
+    (element) => element.id === selectedElementId
+  );
+
   const availableSections = useMemo(
     () => getAvailableSectionTypes(businessType),
     [businessType]
   );
 
-  const snapshot = storefront
-    ? JSON.stringify(storefront)
-    : '';
-
-  const dirty =
-    !!snapshot && snapshot !== savedSnapshot;
+  const snapshot = storefront ? JSON.stringify(storefront) : '';
+  const dirty = !!snapshot && snapshot !== savedSnapshot;
 
   useEffect(() => {
     currentRef.current = storefront;
@@ -490,10 +576,7 @@ export default function StorefrontEditor() {
       setError('');
 
       try {
-        const result = await api(
-          '/businesses/current/storefront',
-          { biz: true }
-        );
+        const result = await api('/businesses/current/storefront', { biz: true });
 
         if (cancelled) return;
 
@@ -504,7 +587,6 @@ export default function StorefrontEditor() {
 
         setStorefront(config);
         currentRef.current = config;
-
         setSavedSnapshot(JSON.stringify(config));
 
         setActivePageId(
@@ -514,14 +596,10 @@ export default function StorefrontEditor() {
         );
       } catch (err) {
         if (!cancelled) {
-          setError(
-            err.message || 'Could not load your storefront.'
-          );
+          setError(err.message || 'Could not load your storefront.');
         }
       } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+        if (!cancelled) setLoading(false);
       }
     }
 
@@ -536,20 +614,11 @@ export default function StorefrontEditor() {
     setStorefront((current) => {
       if (!current) return current;
 
-      const next =
-        typeof updater === 'function'
-          ? updater(current)
-          : updater;
-
+      const next = typeof updater === 'function' ? updater(current) : updater;
       if (next === current) return current;
 
-      setHistory((items) => [
-        ...items.slice(-29),
-        current,
-      ]);
-
+      setHistory((items) => [...items.slice(-39), current]);
       setFuture([]);
-
       currentRef.current = next;
 
       return next;
@@ -560,9 +629,7 @@ export default function StorefrontEditor() {
     commit((current) => ({
       ...current,
       pages: current.pages.map((page) =>
-        page.id === pageId
-          ? { ...page, ...changes }
-          : page
+        page.id === pageId ? { ...page, ...changes } : page
       ),
     }));
   };
@@ -593,9 +660,35 @@ export default function StorefrontEditor() {
     }));
   };
 
+  const updateElement = (elementId, changes) => {
+    if (!activePage || !selectedSection) return;
+
+    commit((current) => ({
+      ...current,
+      pages: current.pages.map((page) => {
+        if (page.id !== activePage.id) return page;
+
+        return {
+          ...page,
+          sections: page.sections.map((section) => {
+            if (section.id !== selectedSection.id) return section;
+
+            return {
+              ...section,
+              elements: section.elements.map((element) =>
+                element.id === elementId
+                  ? { ...element, ...changes }
+                  : element
+              ),
+            };
+          }),
+        };
+      }),
+    }));
+  };
+
   const save = async () => {
     const data = currentRef.current;
-
     if (!data || saveLock.current) return;
 
     saveLock.current = true;
@@ -613,16 +706,13 @@ export default function StorefrontEditor() {
       });
 
       setSavedSnapshot(savingSnapshot);
-
       setNotice(
         JSON.stringify(currentRef.current) === savingSnapshot
           ? 'All changes saved'
-          : 'Saved. You still have newer unsaved changes.'
+          : 'Saved. You have newer unsaved changes.'
       );
     } catch (err) {
-      setError(
-        err.message || 'Could not save your changes.'
-      );
+      setError(err.message || 'Could not save your changes.');
     } finally {
       saveLock.current = false;
       setSaving(false);
@@ -636,7 +726,6 @@ export default function StorefrontEditor() {
 
     setHistory((items) => items.slice(0, -1));
     setFuture((items) => [...items, storefront]);
-
     currentRef.current = previous;
     setStorefront(previous);
   };
@@ -648,7 +737,6 @@ export default function StorefrontEditor() {
 
     setFuture((items) => items.slice(0, -1));
     setHistory((items) => [...items, storefront]);
-
     currentRef.current = next;
     setStorefront(next);
   };
@@ -656,124 +744,205 @@ export default function StorefrontEditor() {
   const addSection = (type) => {
     if (!activePage) return;
 
-    const section = createSection(
-      type,
-      makeSettings(type, business.name)
-    );
+    const settings = {
+      ...(DEFAULT_SECTION_SETTINGS[type] || {}),
+    };
+
+    if (type === 'hero') {
+      settings.title = business.name || 'Welcome to our business';
+      if (businessType === 'product') {
+        settings.buttonLink = '/products';
+      } else {
+        settings.buttonLink = '/services';
+      }
+    }
+
+    const section = createSection(type, settings);
 
     updatePage(activePage.id, {
-      sections: [
-        ...activePage.sections,
-        section,
-      ],
+      sections: [...activePage.sections, section],
     });
 
     setSelectedSectionId(section.id);
+    setSelectedElementId('');
     setShowSections(false);
-    setPanel('settings');
+    setPanel('inspector');
   };
 
-  const removeSection = (id) => {
+  const addElement = (type) => {
+    if (!activePage || !selectedSection) return;
+
+    if (!ELEMENT_TYPES.includes(type)) return;
+
+    const element = createElement(type, {
+      content: DEFAULT_ELEMENT_CONTENT[type] || '',
+      settings: type === 'spacer'
+        ? { height: 40 }
+        : type === 'columns' || type === 'grid'
+          ? { columns: 2 }
+          : {},
+      style: {
+        fontSize: type === 'heading' ? 32 : 16,
+        fontWeight: type === 'heading' ? 'bold' : 'normal',
+      },
+    });
+
+    commit((current) => ({
+      ...current,
+      pages: current.pages.map((page) =>
+        page.id !== activePage.id
+          ? page
+          : {
+              ...page,
+              sections: page.sections.map((section) =>
+                section.id !== selectedSection.id
+                  ? section
+                  : {
+                      ...section,
+                      elements: [...(section.elements || []), element],
+                    }
+              ),
+            }
+      ),
+    }));
+
+    setSelectedElementId(element.id);
+    setShowElements(false);
+    setPanel('inspector');
+  };
+
+  const removeElement = (elementId) => {
+    if (!activePage || !selectedSection) return;
+
+    commit((current) => ({
+      ...current,
+      pages: current.pages.map((page) =>
+        page.id !== activePage.id
+          ? page
+          : {
+              ...page,
+              sections: page.sections.map((section) =>
+                section.id !== selectedSection.id
+                  ? section
+                  : {
+                      ...section,
+                      elements: section.elements.filter((item) => item.id !== elementId),
+                    }
+              ),
+            }
+      ),
+    }));
+
+    setSelectedElementId('');
+  };
+
+  const moveElement = (elementId, direction) => {
+    if (!selectedSection) return;
+
+    const elements = [...selectedSection.elements];
+    const index = elements.findIndex((item) => item.id === elementId);
+    const target = index + direction;
+
+    if (index < 0 || target < 0 || target >= elements.length) return;
+
+    [elements[index], elements[target]] = [elements[target], elements[index]];
+
+    commit((current) => ({
+      ...current,
+      pages: current.pages.map((page) =>
+        page.id !== activePage.id
+          ? page
+          : {
+              ...page,
+              sections: page.sections.map((section) =>
+                section.id === selectedSection.id
+                  ? { ...section, elements }
+                  : section
+              ),
+            }
+      ),
+    }));
+  };
+
+  const removeSection = (sectionId) => {
     if (!activePage) return;
 
     updatePage(activePage.id, {
-      sections: activePage.sections.filter(
-        (section) => section.id !== id
-      ),
+      sections: activePage.sections.filter((section) => section.id !== sectionId),
     });
 
     setSelectedSectionId('');
-    setPanel('');
+    setSelectedElementId('');
+    setPanel('layers');
   };
 
-  const moveSection = (id, direction) => {
+  const moveSection = (sectionId, direction) => {
     if (!activePage) return;
 
-    const index = activePage.sections.findIndex(
-      (section) => section.id === id
-    );
-
+    const sections = [...activePage.sections];
+    const index = sections.findIndex((section) => section.id === sectionId);
     const target = index + direction;
 
-    if (
-      index < 0 ||
-      target < 0 ||
-      target >= activePage.sections.length
-    ) {
-      return;
-    }
+    if (index < 0 || target < 0 || target >= sections.length) return;
 
-    const next = [...activePage.sections];
+    [sections[index], sections[target]] = [sections[target], sections[index]];
 
-    [next[index], next[target]] = [
-      next[target],
-      next[index],
-    ];
-
-    updatePage(activePage.id, {
-      sections: next,
-    });
+    updatePage(activePage.id, { sections });
   };
 
   const duplicateSection = (section) => {
     if (!activePage) return;
 
-    const copy = createSection(
-      section.type,
-      { ...section.settings }
-    );
-
-    const index = activePage.sections.findIndex(
-      (item) => item.id === section.id
-    );
-
-    const next = [...activePage.sections];
-
-    next.splice(index + 1, 0, copy);
-
-    updatePage(activePage.id, {
-      sections: next,
+    const copy = createSection(section.type, {
+      ...(section.settings || {}),
     });
 
+    copy.elements = (section.elements || []).map((element) => ({
+      ...element,
+      id: `${element.id}-copy-${Date.now()}`,
+      children: (element.children || []).map((child) => ({
+        ...child,
+        id: `${child.id}-copy-${Date.now()}`,
+      })),
+    }));
+
+    const index = activePage.sections.findIndex((item) => item.id === section.id);
+    const next = [...activePage.sections];
+    next.splice(index + 1, 0, copy);
+
+    updatePage(activePage.id, { sections: next });
     setSelectedSectionId(copy.id);
+    setSelectedElementId('');
   };
 
   const addPage = () => {
     if (!storefront) return;
 
     const number = storefront.pages.length + 1;
-    const title = `Page ${number}`;
-    const slug = `page-${number}`;
-
-    const page = {
-      id: `page-${slug}-${Date.now()}`,
-      title,
-      slug,
-      isHome: false,
-      visible: true,
+    const page = createPage({
+      title: `Page ${number}`,
+      slug: `page-${number}`,
       sections: [
-        createSection(
-          'hero',
-          makeSettings('hero', business.name)
-        ),
+        createSection('hero', {
+          title: `Page ${number}`,
+          subtitle: 'Add content to this page.',
+        }),
       ],
-    };
+    });
 
     commit((current) => ({
       ...current,
-      pages: [
-        ...current.pages,
-        page,
-      ],
-      activePage: slug,
+      pages: [...current.pages, page],
+      activePage: page.slug,
     }));
 
     setActivePageId(page.id);
     setSelectedSectionId('');
-    setPanel('');
+    setSelectedElementId('');
+    setPanel('layers');
   };
 
-  const changeTheme = (key, value) => {
+  const updateTheme = (key, value) => {
     commit((current) => ({
       ...current,
       theme: {
@@ -789,9 +958,7 @@ export default function StorefrontEditor() {
     mobile: '390px',
   }[device];
 
-  const storeUrl = business.slug
-    ? `/store/${business.slug}`
-    : '/';
+  const storeUrl = business.slug ? `/store/${business.slug}` : '/';
 
   if (loading) {
     return (
@@ -804,24 +971,16 @@ export default function StorefrontEditor() {
   if (!storefront) {
     return (
       <div className="p-8 text-center">
-        <p className="text-sm text-red-600">
-          {error || 'Could not load editor.'}
-        </p>
+        <p className="text-sm text-red-600">{error || 'Could not load editor.'}</p>
       </div>
     );
   }
 
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-slate-100">
-
-      {/* TOP BAR */}
       <header className="z-30 flex min-h-16 items-center justify-between gap-3 border-b border-slate-200 bg-white px-3 md:px-5">
         <div className="flex min-w-0 items-center gap-2">
-          <Link
-            to="/app"
-            className="rounded-lg p-2 text-slate-600 hover:bg-slate-100"
-            title="Back to dashboard"
-          >
+          <Link to="/app" className="rounded-lg p-2 text-slate-600 hover:bg-slate-100">
             <ArrowLeft size={19} />
           </Link>
 
@@ -829,229 +988,300 @@ export default function StorefrontEditor() {
             <p className="truncate text-sm font-bold text-slate-900">
               {business.name || 'Your storefront'}
             </p>
-
             <p className="text-[10px] text-slate-400">
-              {dirty
-                ? 'Unsaved changes'
-                : 'All changes saved'}
+              {dirty ? 'Unsaved changes' : 'All changes saved'}
             </p>
           </div>
         </div>
 
         <div className="hidden items-center gap-1 rounded-xl bg-slate-100 p-1 sm:flex">
-          <button
-            onClick={undo}
-            disabled={!history.length}
-            className="rounded-lg p-2 text-slate-600 disabled:opacity-30"
-            title="Undo"
-          >
+          <button onClick={undo} disabled={!history.length} className="rounded-lg p-2 text-slate-600 disabled:opacity-30" title="Undo">
             <Undo2 size={17} />
           </button>
-
-          <button
-            onClick={redo}
-            disabled={!future.length}
-            className="rounded-lg p-2 text-slate-600 disabled:opacity-30"
-            title="Redo"
-          >
+          <button onClick={redo} disabled={!future.length} className="rounded-lg p-2 text-slate-600 disabled:opacity-30" title="Redo">
             <Redo2 size={17} />
           </button>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex items-center gap-2">
+          <div className="hidden items-center gap-1 sm:flex">
+            {[
+              ['desktop', Monitor],
+              ['tablet', Tablet],
+              ['mobile', Smartphone],
+            ].map(([value, Icon]) => (
+              <button
+                key={value}
+                onClick={() => setDevice(value)}
+                className={`rounded-lg p-2 ${device === value ? 'bg-emerald-50 text-emerald-700' : 'text-slate-500 hover:bg-slate-100'}`}
+                title={`${value} preview`}
+              >
+                <Icon size={17} />
+              </button>
+            ))}
+          </div>
+
           <a
             href={storeUrl}
             target="_blank"
             rel="noreferrer"
-            className="hidden items-center gap-1 rounded-lg px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 sm:flex"
+            className="hidden items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 sm:flex"
           >
-            <Eye size={15} />
-            Preview
-            <ExternalLink size={12} />
+            <Eye size={15} /> Preview
           </a>
 
           <button
             onClick={save}
-            disabled={!dirty || saving}
-            className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+            disabled={saving || !dirty}
+            className="flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-xs font-bold text-white disabled:opacity-40"
           >
-            {saving ? (
-              <span className="animate-pulse">
-                Saving…
-              </span>
-            ) : (
-              <>
-                <Save size={15} />
-                Save
-              </>
-            )}
+            <Save size={15} />
+            {saving ? 'Saving…' : 'Save'}
           </button>
         </div>
       </header>
 
-      {/* WORKSPACE */}
+      {(error || notice) && (
+        <div className={`flex items-center justify-between px-4 py-2 text-xs ${error ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-800'}`}>
+          <span>{error || notice}</span>
+          <button onClick={() => { setError(''); setNotice(''); }}>
+            <X size={15} />
+          </button>
+        </div>
+      )}
+
       <div className="flex min-h-0 flex-1">
+        {/* LEFT TOOL PANEL */}
+        <aside className="z-20 flex w-[68px] shrink-0 flex-col border-r border-slate-200 bg-white md:w-[250px]">
+          <div className="grid grid-cols-2 border-b border-slate-100 p-2">
+            <button
+              onClick={() => setPanel('layers')}
+              className={`flex flex-col items-center gap-1 rounded-xl py-2 text-[10px] font-semibold md:flex-row md:justify-center md:text-xs ${panel === 'layers' ? 'bg-emerald-50 text-emerald-800' : 'text-slate-500'}`}
+            >
+              <Layers size={17} /> <span>Layers</span>
+            </button>
+            <button
+              onClick={() => setPanel('theme')}
+              className={`flex flex-col items-center gap-1 rounded-xl py-2 text-[10px] font-semibold md:flex-row md:justify-center md:text-xs ${panel === 'theme' ? 'bg-emerald-50 text-emerald-800' : 'text-slate-500'}`}
+            >
+              <Palette size={17} /> <span>Theme</span>
+            </button>
+          </div>
 
-        {/* LEFT TOOLBAR */}
-        <aside className="hidden w-16 shrink-0 flex-col items-center gap-3 border-r border-slate-200 bg-white py-4 md:flex">
-          <button
-            onClick={() => setShowSections(true)}
-            className="flex w-full flex-col items-center gap-1 py-2 text-slate-600 hover:text-emerald-700"
-          >
-            <Plus size={21} />
-            <span className="text-[10px]">Add</span>
-          </button>
+          <div className="min-h-0 flex-1 overflow-y-auto p-2 md:p-4">
+            {panel === 'layers' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Pages</p>
+                  <button onClick={addPage} className="rounded-lg p-1.5 text-emerald-700 hover:bg-emerald-50" title="Add page">
+                    <Plus size={17} />
+                  </button>
+                </div>
 
-          <button
-            onClick={() =>
-              setPanel(panel === 'pages' ? '' : 'pages')
-            }
-            className={`flex w-full flex-col items-center gap-1 py-2 ${
-              panel === 'pages'
-                ? 'text-emerald-700'
-                : 'text-slate-600'
-            }`}
-          >
-            <Layers size={21} />
-            <span className="text-[10px]">Pages</span>
-          </button>
+                <div className="space-y-1">
+                  {pages.map((page) => (
+                    <button
+                      key={page.id}
+                      onClick={() => {
+                        setActivePageId(page.id);
+                        setSelectedSectionId('');
+                        setSelectedElementId('');
+                      }}
+                      className={`w-full truncate rounded-lg px-3 py-2 text-left text-xs font-medium ${activePage?.id === page.id ? 'bg-emerald-50 text-emerald-800' : 'text-slate-600 hover:bg-slate-50'}`}
+                    >
+                      {page.title} {page.isHome ? '(Home)' : ''}
+                    </button>
+                  ))}
+                </div>
 
-          <button
-            onClick={() =>
-              setPanel(panel === 'design' ? '' : 'design')
-            }
-            className={`flex w-full flex-col items-center gap-1 py-2 ${
-              panel === 'design'
-                ? 'text-emerald-700'
-                : 'text-slate-600'
-            }`}
-          >
-            <Palette size={21} />
-            <span className="text-[10px]">Design</span>
-          </button>
+                <div className="border-t border-slate-100 pt-4">
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Sections</p>
+                    <button onClick={() => setShowSections(true)} className="rounded-lg p-1.5 text-emerald-700 hover:bg-emerald-50">
+                      <Plus size={17} />
+                    </button>
+                  </div>
+
+                  <div className="space-y-1">
+                    {(activePage?.sections || []).map((section, index) => (
+                      <div key={section.id}>
+                        <button
+                          onClick={() => {
+                            setSelectedSectionId(section.id);
+                            setSelectedElementId('');
+                            setPanel('layers');
+                          }}
+                          className={`w-full rounded-lg px-3 py-2 text-left text-xs ${selectedSectionId === section.id ? 'bg-emerald-50 font-bold text-emerald-800' : 'text-slate-600 hover:bg-slate-50'}`}
+                        >
+                          {SECTION_LABELS[section.type] || section.type}
+                        </button>
+
+                        {selectedSectionId === section.id && (
+                          <div className="ml-3 mt-1 space-y-1 border-l border-slate-200 pl-2">
+                            {(section.elements || []).map((element) => (
+                              <button
+                                key={element.id}
+                                onClick={() => {
+                                  setSelectedElementId(element.id);
+                                  setPanel('inspector');
+                                }}
+                                className={`w-full truncate rounded-lg px-2 py-2 text-left text-[11px] ${selectedElementId === element.id ? 'bg-emerald-100 font-bold text-emerald-900' : 'text-slate-500 hover:bg-slate-50'}`}
+                              >
+                                {element.type.replaceAll('_', ' ')} — {element.content || 'Element'}
+                              </button>
+                            ))}
+
+                            <button
+                              onClick={() => setShowElements(true)}
+                              className="flex w-full items-center gap-1 rounded-lg px-2 py-2 text-left text-[11px] font-semibold text-emerald-700 hover:bg-emerald-50"
+                            >
+                              <Plus size={13} /> Add element
+                            </button>
+                          </div>
+                        )}
+
+                        {selectedSectionId === section.id && (
+                          <div className="mt-1 flex items-center gap-1 px-2">
+                            <button onClick={() => moveSection(section.id, -1)} disabled={index === 0} className="rounded p-1 text-slate-400 disabled:opacity-20" title="Move up">
+                              <ChevronUp size={14} />
+                            </button>
+                            <button onClick={() => moveSection(section.id, 1)} disabled={index === activePage.sections.length - 1} className="rounded p-1 text-slate-400 disabled:opacity-20" title="Move down">
+                              <ChevronDown size={14} />
+                            </button>
+                            <button onClick={() => duplicateSection(section)} className="rounded p-1 text-slate-400 hover:text-emerald-700" title="Duplicate section">
+                              <Copy size={14} />
+                            </button>
+                            <button onClick={() => removeSection(section.id)} className="rounded p-1 text-slate-400 hover:text-red-600" title="Delete section">
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {panel === 'theme' && (
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm font-bold text-slate-900">Theme</p>
+                  <p className="mt-1 text-xs text-slate-500">Set the global storefront appearance.</p>
+                </div>
+
+                {[
+                  ['primaryColor', 'Primary colour'],
+                  ['secondaryColor', 'Secondary colour'],
+                  ['accentColor', 'Accent colour'],
+                  ['backgroundColor', 'Background'],
+                  ['surfaceColor', 'Surface'],
+                  ['textColor', 'Text'],
+                  ['mutedColor', 'Muted text'],
+                  ['borderColor', 'Borders'],
+                ].map(([key, label]) => (
+                  <label key={key} className="block space-y-1.5">
+                    <span className="text-xs font-semibold text-slate-600">{label}</span>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={storefront.theme?.[key] || '#FFFFFF'}
+                        onChange={(event) => updateTheme(key, event.target.value)}
+                        className="h-10 w-12 cursor-pointer rounded-lg border-0 bg-transparent"
+                      />
+                      <input
+                        value={storefront.theme?.[key] || ''}
+                        onChange={(event) => updateTheme(key, event.target.value)}
+                        className="min-w-0 flex-1 rounded-lg border border-slate-200 px-2 py-2 text-xs uppercase"
+                      />
+                    </div>
+                  </label>
+                ))}
+
+                <PanelSelect
+                  label="Border radius"
+                  value={storefront.theme?.borderRadius || 'medium'}
+                  onChange={(value) => updateTheme('borderRadius', value)}
+                  options={[
+                    { value: 'none', label: 'Square' },
+                    { value: 'small', label: 'Small' },
+                    { value: 'medium', label: 'Medium' },
+                    { value: 'large', label: 'Large' },
+                    { value: 'full', label: 'Pill' },
+                  ]}
+                />
+              </div>
+            )}
+
+            {panel === 'inspector' && (
+              <Inspector
+                element={selectedElement}
+                section={selectedSection}
+                onUpdateElement={updateElement}
+                onUpdateSection={updateSection}
+              />
+            )}
+          </div>
         </aside>
 
-        {/* MAIN CANVAS */}
-        <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
-
-          {/* CANVAS TOOLBAR */}
-          <div className="flex min-h-12 shrink-0 items-center justify-between gap-2 border-b border-slate-200 bg-white px-3">
-            <div className="flex min-w-0 items-center gap-2">
-              <select
-                value={activePage?.id || ''}
-                onChange={(event) => {
-                  setActivePageId(event.target.value);
-                  setSelectedSectionId('');
-                  setPanel('');
-                }}
-                className="max-w-[150px] rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold"
-              >
-                {pages.map((page) => (
-                  <option key={page.id} value={page.id}>
-                    {page.title}
-                  </option>
-                ))}
-              </select>
-
-              <button
-                onClick={addPage}
-                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
-                title="Add page"
-              >
-                <Plus size={16} />
-              </button>
+        {/* CANVAS */}
+        <main className="relative flex min-w-0 flex-1 flex-col">
+          <div className="flex min-h-12 items-center justify-between border-b border-slate-200 bg-white px-3 md:px-5">
+            <div className="min-w-0">
+              <p className="truncate text-xs font-bold text-slate-700">
+                {activePage?.title || 'Your page'}
+              </p>
             </div>
 
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 sm:hidden">
               {[
                 ['desktop', Monitor],
                 ['tablet', Tablet],
                 ['mobile', Smartphone],
-              ].map(([name, Icon]) => (
+              ].map(([value, Icon]) => (
                 <button
-                  key={name}
-                  onClick={() => setDevice(name)}
-                  className={`rounded-lg p-2 ${
-                    device === name
-                      ? 'bg-emerald-50 text-emerald-800'
-                      : 'text-slate-500 hover:bg-slate-100'
-                  }`}
-                  title={`${name} preview`}
+                  key={value}
+                  onClick={() => setDevice(value)}
+                  className={`rounded-lg p-2 ${device === value ? 'bg-emerald-50 text-emerald-700' : 'text-slate-500'}`}
                 >
-                  <Icon size={17} />
+                  <Icon size={16} />
                 </button>
               ))}
             </div>
+
+            <button
+              onClick={() => setShowSections(true)}
+              className="flex items-center gap-1 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800"
+            >
+              <Plus size={14} /> Add section
+            </button>
           </div>
 
-          {/* ERROR MESSAGE */}
-          {error && (
-            <div className="z-20 flex items-center justify-between bg-red-50 px-4 py-2 text-xs text-red-700">
-              <span>{error}</span>
-
-              <button onClick={() => setError('')}>
-                <X size={15} />
-              </button>
-            </div>
-          )}
-
-          {/* SUCCESS MESSAGE */}
-          {notice && (
-            <div className="z-20 flex items-center justify-between bg-emerald-50 px-4 py-2 text-xs text-emerald-800">
-              <span>{notice}</span>
-
-              <button onClick={() => setNotice('')}>
-                <X size={15} />
-              </button>
-            </div>
-          )}
-
-          {/* SHARED STOREFRONT PREVIEW */}
           <div className="flex-1 overflow-auto p-3 md:p-6">
             <div
               className="mx-auto min-h-full overflow-hidden bg-white shadow-xl transition-all duration-200"
-              style={{
-                width: previewWidth,
-                maxWidth: '100%',
-              }}
+              style={{ width: previewWidth, maxWidth: '100%' }}
             >
               <StorefrontRenderer
-                pageSlug={
-                  activePage?.isHome
-                    ? 'home'
-                    : activePage?.slug || 'home'
-                }
+                pageSlug={activePage?.isHome ? 'home' : activePage?.slug || 'home'}
                 biz={business}
                 storefront={storefront}
                 slug={business.slug || ''}
-                storeBase={
-                  business.slug
-                    ? `/store/${business.slug}`
-                    : ''
-                }
-                color={
-                  storefront.theme?.primaryColor ||
-                  business.brandColor ||
-                  '#0B3D2E'
-                }
+                storeBase={business.slug ? `/store/${business.slug}` : ''}
+                color={storefront.theme?.primaryColor || business.brandColor || '#0B3D2E'}
                 editorMode
                 selectedSectionId={selectedSectionId}
                 onSelectSection={(id) => {
                   setSelectedSectionId(id);
-                  setPanel('');
+                  setSelectedElementId('');
+                  setPanel('inspector');
                 }}
               />
 
               {!activePage?.sections?.length && (
                 <div className="px-8 py-24 text-center">
-                  <h2 className="text-xl font-bold">
-                    Start building your page
-                  </h2>
-
-                  <p className="mt-2 text-sm text-slate-500">
-                    Add a section to begin designing your storefront.
-                  </p>
-
+                  <h2 className="text-xl font-bold">Start building your page</h2>
+                  <p className="mt-2 text-sm text-slate-500">Add a section to begin designing your storefront.</p>
                   <button
                     onClick={() => setShowSections(true)}
                     className="mt-5 rounded-xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white"
@@ -1062,246 +1292,63 @@ export default function StorefrontEditor() {
               )}
             </div>
           </div>
-
-          {/* SELECTED SECTION TOOLBAR */}
-          {selectedSection && (
-            <div className="absolute bottom-4 left-1/2 z-20 flex max-w-[95%] -translate-x-1/2 items-center gap-1 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
-              <span className="hidden px-2 text-xs font-semibold text-slate-600 sm:block">
-                {LABELS[selectedSection.type]}
-              </span>
-
-              <button
-                onClick={() => setPanel('settings')}
-                className="flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-50"
-              >
-                <Settings2 size={15} />
-                Edit
-              </button>
-
-              <button
-                onClick={() =>
-                  moveSection(selectedSection.id, -1)
-                }
-                className="rounded-lg p-2 text-slate-600 hover:bg-slate-100"
-                title="Move up"
-              >
-                <ChevronUp size={17} />
-              </button>
-
-              <button
-                onClick={() =>
-                  moveSection(selectedSection.id, 1)
-                }
-                className="rounded-lg p-2 text-slate-600 hover:bg-slate-100"
-                title="Move down"
-              >
-                <ChevronDown size={17} />
-              </button>
-
-              <button
-                onClick={() =>
-                  duplicateSection(selectedSection)
-                }
-                className="rounded-lg p-2 text-slate-600 hover:bg-slate-100"
-                title="Duplicate"
-              >
-                <Copy size={16} />
-              </button>
-
-              <button
-                onClick={() =>
-                  removeSection(selectedSection.id)
-                }
-                className="rounded-lg p-2 text-red-600 hover:bg-red-50"
-                title="Delete"
-              >
-                <Trash2 size={16} />
-              </button>
-
-              <button
-                onClick={() => setSelectedSectionId('')}
-                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
-                title="Deselect"
-              >
-                <X size={16} />
-              </button>
-            </div>
-          )}
         </main>
 
         {/* RIGHT INSPECTOR */}
-        {panel && (
-          <aside className="absolute inset-0 z-40 flex justify-end bg-black/20 md:static md:inset-auto md:z-20 md:w-80 md:shrink-0 md:bg-transparent">
-            <div className="flex h-full w-[min(88vw,360px)] flex-col border-l border-slate-200 bg-white shadow-2xl md:w-full md:shadow-none">
+        <aside className="hidden w-[290px] shrink-0 overflow-y-auto border-l border-slate-200 bg-white p-4 xl:block">
+          <Inspector
+            element={selectedElement}
+            section={selectedSection}
+            onUpdateElement={updateElement}
+            onUpdateSection={updateSection}
+          />
 
-              {panel === 'settings' && selectedSection && (
-                <SectionSettings
-                  section={selectedSection}
-                  update={updateSection}
-                  close={() => setPanel('')}
-                />
-              )}
-
-              {panel === 'design' && (
-                <div className="flex h-full flex-col">
-                  <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-                    <h3 className="font-semibold">
-                      Design
-                    </h3>
-
-                    <button onClick={() => setPanel('')}>
-                      <X size={18} />
-                    </button>
-                  </div>
-
-                  <div className="space-y-5 p-5">
-                    <ColorInput
-                      label="Primary colour"
-                      value={storefront.theme?.primaryColor}
-                      onChange={(value) =>
-                        changeTheme('primaryColor', value)
-                      }
-                    />
-
-                    <ColorInput
-                      label="Page background"
-                      value={storefront.theme?.backgroundColor}
-                      onChange={(value) =>
-                        changeTheme('backgroundColor', value)
-                      }
-                    />
-
-                    <ColorInput
-                      label="Text colour"
-                      value={storefront.theme?.textColor}
-                      onChange={(value) =>
-                        changeTheme('textColor', value)
-                      }
-                    />
-
-                    <ColorInput
-                      label="Muted text"
-                      value={storefront.theme?.mutedColor}
-                      onChange={(value) =>
-                        changeTheme('mutedColor', value)
-                      }
-                    />
-
-                    <label className="block">
-                      <span className="mb-2 block text-xs font-semibold text-slate-600">
-                        Button shape
-                      </span>
-
-                      <select
-                        value={
-                          storefront.theme?.buttonStyle ||
-                          'rounded'
-                        }
-                        onChange={(event) =>
-                          changeTheme(
-                            'buttonStyle',
-                            event.target.value
-                          )
-                        }
-                        className="w-full rounded-xl border border-slate-200 p-3 text-sm"
-                      >
-                        <option value="square">Square</option>
-                        <option value="rounded">Rounded</option>
-                        <option value="pill">Pill</option>
-                      </select>
-                    </label>
-                  </div>
-                </div>
-              )}
-
-              {panel === 'pages' && (
-                <div className="flex h-full flex-col">
-                  <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-                    <h3 className="font-semibold">
-                      Pages
-                    </h3>
-
-                    <button onClick={() => setPanel('')}>
-                      <X size={18} />
-                    </button>
-                  </div>
-
-                  <div className="space-y-2 p-4">
-                    {pages.map((page) => (
-                      <button
-                        key={page.id}
-                        onClick={() => {
-                          setActivePageId(page.id);
-                          setSelectedSectionId('');
-                          setPanel('');
-                        }}
-                        className={`w-full rounded-xl border p-3 text-left text-sm ${
-                          activePage?.id === page.id
-                            ? 'border-emerald-600 bg-emerald-50'
-                            : 'border-slate-200'
-                        }`}
-                      >
-                        {page.title}
-
-                        {page.isHome && (
-                          <span className="ml-2 text-xs text-slate-400">
-                            Home
-                          </span>
-                        )}
-                      </button>
-                    ))}
-
-                    <button
-                      onClick={addPage}
-                      className="mt-3 w-full rounded-xl bg-emerald-700 px-4 py-3 text-sm font-semibold text-white"
-                    >
-                      + Add page
-                    </button>
-                  </div>
-                </div>
-              )}
+          {selectedElement && (
+            <div className="mt-6 border-t border-slate-100 pt-4">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Element order</p>
+                <button onClick={() => removeElement(selectedElement.id)} className="rounded-lg p-2 text-red-500 hover:bg-red-50">
+                  <Trash2 size={15} />
+                </button>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => moveElement(selectedElement.id, -1)} className="flex-1 rounded-lg border border-slate-200 py-2 text-xs font-semibold">
+                  Move up
+                </button>
+                <button onClick={() => moveElement(selectedElement.id, 1)} className="flex-1 rounded-lg border border-slate-200 py-2 text-xs font-semibold">
+                  Move down
+                </button>
+              </div>
             </div>
-          </aside>
-        )}
+          )}
+        </aside>
       </div>
 
-      {/* ADD SECTION DRAWER */}
+      {/* ADD SECTION DIALOG */}
       {showSections && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 md:items-center md:p-6">
-          <div className="max-h-[85vh] w-full max-w-2xl overflow-hidden rounded-t-3xl bg-white shadow-2xl md:rounded-3xl">
-            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+        <div className="fixed inset-0 z-[70] flex items-end justify-center bg-slate-950/40 p-3 sm:items-center">
+          <div className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl">
+            <div className="mb-5 flex items-center justify-between">
               <div>
-                <h3 className="font-bold text-slate-900">
-                  Add a section
-                </h3>
-
-                <p className="mt-1 text-xs text-slate-500">
-                  Choose what you want to add to your page.
-                </p>
+                <h2 className="text-lg font-bold text-slate-900">Add a section</h2>
+                <p className="mt-1 text-xs text-slate-500">Choose a section for this page.</p>
               </div>
-
-              <button
-                onClick={() => setShowSections(false)}
-                className="rounded-lg p-2 hover:bg-slate-100"
-              >
-                <X size={19} />
+              <button onClick={() => setShowSections(false)} className="rounded-xl p-2 hover:bg-slate-100">
+                <X size={18} />
               </button>
             </div>
 
-            <div className="grid max-h-[65vh] grid-cols-2 gap-3 overflow-y-auto p-5 sm:grid-cols-3">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {availableSections.map((type) => (
                 <button
                   key={type}
                   onClick={() => addSection(type)}
-                  className="rounded-2xl border border-slate-200 p-4 text-left transition hover:border-emerald-600 hover:bg-emerald-50"
+                  className="rounded-2xl border border-slate-200 p-4 text-left transition hover:border-emerald-500 hover:bg-emerald-50"
                 >
-                  <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-800">
-                    <Plus size={18} />
-                  </div>
-
-                  <span className="text-sm font-semibold text-slate-800">
-                    {LABELS[type] || type}
-                  </span>
+                  <p className="text-sm font-semibold text-slate-800">
+                    {SECTION_LABELS[type] || type}
+                  </p>
+                  <p className="mt-1 text-[10px] text-slate-400">Add to page</p>
                 </button>
               ))}
             </div>
@@ -1309,45 +1356,35 @@ export default function StorefrontEditor() {
         </div>
       )}
 
-      {/* MOBILE TOOLBAR */}
-      <div className="z-30 flex h-14 shrink-0 items-center justify-around border-t border-slate-200 bg-white md:hidden">
-        <button
-          onClick={() => setShowSections(true)}
-          className="flex flex-col items-center gap-1 text-slate-600"
-        >
-          <Plus size={19} />
-          <span className="text-[10px]">Add</span>
-        </button>
+      {/* ADD ELEMENT DIALOG */}
+      {showElements && (
+        <div className="fixed inset-0 z-[70] flex items-end justify-center bg-slate-950/40 p-3 sm:items-center">
+          <div className="w-full max-w-xl rounded-3xl bg-white p-5 shadow-2xl">
+            <div className="mb-5 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">Add an element</h2>
+                <p className="mt-1 text-xs text-slate-500">Add an independent element to the selected section.</p>
+              </div>
+              <button onClick={() => setShowElements(false)} className="rounded-xl p-2 hover:bg-slate-100">
+                <X size={18} />
+              </button>
+            </div>
 
-        <button
-          onClick={() =>
-            setPanel(panel === 'pages' ? '' : 'pages')
-          }
-          className="flex flex-col items-center gap-1 text-slate-600"
-        >
-          <Layers size={19} />
-          <span className="text-[10px]">Pages</span>
-        </button>
-
-        <button
-          onClick={() =>
-            setPanel(panel === 'design' ? '' : 'design')
-          }
-          className="flex flex-col items-center gap-1 text-slate-600"
-        >
-          <Palette size={19} />
-          <span className="text-[10px]">Design</span>
-        </button>
-
-        <button
-          onClick={() => setPanel('settings')}
-          disabled={!selectedSection}
-          className="flex flex-col items-center gap-1 text-slate-600 disabled:opacity-30"
-        >
-          <Settings2 size={19} />
-          <span className="text-[10px]">Edit</span>
-        </button>
-      </div>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {ELEMENT_OPTIONS.map(({ type, label, icon: Icon }) => (
+                <button
+                  key={type}
+                  onClick={() => addElement(type)}
+                  className="flex items-center gap-3 rounded-2xl border border-slate-200 p-3 text-left transition hover:border-emerald-500 hover:bg-emerald-50"
+                >
+                  <Icon size={18} className="text-emerald-700" />
+                  <span className="text-xs font-semibold text-slate-700">{label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
