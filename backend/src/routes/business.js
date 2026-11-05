@@ -5,9 +5,7 @@ import {
   Product,
   User,
   Plan,
-  Service,
 } from '../models/index.js';
-import PortfolioProject from '../models/PortfolioProject.js';
 
 import { asyncH, bad, conflict, forbidden } from '../lib/errors.js';
 import { parse, z, phone, kobo } from '../lib/validate.js';
@@ -203,6 +201,7 @@ r.get(
         key: 'plan',
         label: 'Activate your plan',
         done: access.access,
+        optional: true,
       },
       ...(modules.includes('commerce')
         ? [
@@ -210,6 +209,7 @@ r.get(
               key: 'products',
               label: 'Add your first product',
               done: products > 0,
+              optional: true,
             },
             {
               key: 'publish',
@@ -222,6 +222,7 @@ r.get(
               key: 'portfolio',
               label: 'Add your first service or project',
               done: b.storePublished,
+              optional: true,
             },
           ]),
     ];
@@ -271,7 +272,9 @@ r.get(
 
       setup: {
         steps,
-        complete: steps.every((s) => s.done),
+        complete: steps
+          .filter((step) => !step.optional)
+          .every((step) => step.done),
       },
     });
   }),
@@ -391,14 +394,6 @@ r.post(
         );
       }
 
-      const { access, plan } = await getAccess(b._id);
-
-      if (!access || !plan) {
-        throw forbidden(
-          'Activate your plan in Billing before publishing.',
-        );
-      }
-
       if (!req.user.emailVerified) {
         throw forbidden(
           'Verify your email before publishing.',
@@ -408,77 +403,6 @@ r.post(
       if (!(b.category && b.phone && b.address?.city)) {
         throw bad(
           'Add your category, phone and city first.',
-        );
-      }
-
-      const features = plan.features || [];
-
-      if (
-        hasCommerce &&
-        !features.includes('online_store')
-      ) {
-        throw forbidden(
-          'Your plan does not include online store publishing.',
-        );
-      }
-
-      if (
-        hasServices &&
-        !features.includes('services')
-      ) {
-        throw forbidden(
-          'Your plan does not include service business publishing.',
-        );
-      }
-
-      const [
-        publishedProducts,
-        publishedServices,
-        publishedProjects,
-      ] = await Promise.all([
-        hasCommerce
-          ? Product.exists({
-              business: b._id,
-              archived: false,
-              published: true,
-            })
-          : null,
-
-        hasServices
-          ? Service.exists({
-              business: b._id,
-              published: true,
-            })
-          : null,
-
-        hasServices
-          ? PortfolioProject.exists({
-              business: b._id,
-              published: true,
-            })
-          : null,
-      ]);
-
-      const hasPublishedContent =
-        !!publishedProducts ||
-        !!publishedServices ||
-        !!publishedProjects;
-
-      if (!hasPublishedContent) {
-        if (hasCommerce && hasServices) {
-          throw bad(
-            'Publish at least one product, service or portfolio project first.',
-          );
-        }
-
-        if (hasCommerce) {
-          throw bad(
-            'Publish at least one product first.',
-          );
-        }
-
-        throw bad(
-          'Publish at least one service or portfolio project first.',
         );
       }
     }
