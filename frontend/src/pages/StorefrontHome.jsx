@@ -89,13 +89,16 @@ function getActionDestination(action, context) {
         (item) => item.id === value || item.slug === value
       );
 
-      if (!page) return `${context.storeBase}/${value.replace(/^\/+/, '')}`;
+      if (!page) {
+        return `${context.storeBase}/${value.replace(/^\/+/, '')}`;
+      }
 
       return page.isHome
         ? context.storeBase || '/'
         : `${context.storeBase}/${page.slug}`;
     }
 
+    case 'external':
     case 'url':
       return value;
 
@@ -127,7 +130,13 @@ function getActionDestination(action, context) {
   }
 }
 
-function ActionLink({ action, context, children, className = '', style = {} }) {
+function ActionLink({
+  action,
+  context,
+  children,
+  className = '',
+  style = {},
+}) {
   const destination = getActionDestination(action, context);
 
   if (!destination) {
@@ -144,7 +153,11 @@ function ActionLink({ action, context, children, className = '', style = {} }) {
     return (
       <a
         href={destination}
-        target={action?.target === '_blank' && /^https?:\/\//i.test(destination) ? '_blank' : undefined}
+        target={
+          action?.target === '_blank' && /^https?:\/\//i.test(destination)
+            ? '_blank'
+            : undefined
+        }
         rel="noreferrer"
         className={className}
         style={style}
@@ -176,14 +189,24 @@ function ElementProducts({ element, context }) {
   }
 
   if (!products.length) {
-    return <p className="py-5 text-sm text-muted">Products will appear here when available.</p>;
+    return (
+      <p className="py-5 text-sm text-muted">
+        Products will appear here when available.
+      </p>
+    );
   }
 
   return (
     <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
       {products.map((product) => (
-        <article key={product.id} className="overflow-hidden rounded-2xl border border-line bg-white">
-          <Link to={`${context.storeBase}/p/${product.id}`} className="block aspect-square bg-paper">
+        <article
+          key={product.id}
+          className="overflow-hidden rounded-2xl border border-line bg-white"
+        >
+          <Link
+            to={`${context.storeBase}/p/${product.id}`}
+            className="block aspect-square bg-paper"
+          >
             {product.images?.[0] ? (
               <img
                 src={product.images[0]}
@@ -199,15 +222,23 @@ function ElementProducts({ element, context }) {
           </Link>
 
           <div className="p-3">
-            <Link to={`${context.storeBase}/p/${product.id}`} className="text-sm font-medium">
+            <Link
+              to={`${context.storeBase}/p/${product.id}`}
+              className="text-sm font-medium"
+            >
               {product.name}
             </Link>
+
             <p className="mt-2 font-bold">{naira(product.price)}</p>
 
             <button
               type="button"
               className="btn-secondary mt-3 w-full"
-              disabled={!product.inStock || !context.biz.acceptingOrders || !context.cart?.add}
+              disabled={
+                !product.inStock ||
+                !context.biz.acceptingOrders ||
+                !context.cart?.add
+              }
               onClick={() => context.cart?.add?.(product)}
             >
               {product.inStock ? 'Add to cart' : 'Out of stock'}
@@ -234,22 +265,35 @@ function ElementServices({ element, context }) {
   }
 
   if (!services.length) {
-    return <p className="py-5 text-sm text-muted">Services will appear here when available.</p>;
+    return (
+      <p className="py-5 text-sm text-muted">
+        Services will appear here when available.
+      </p>
+    );
   }
 
   return (
     <div className="grid gap-4 md:grid-cols-2">
       {services.map((service) => (
-        <article key={service.id} className="rounded-2xl border border-line bg-white p-5">
+        <article
+          key={service.id}
+          className="rounded-2xl border border-line bg-white p-5"
+        >
           <p className="text-xs uppercase tracking-wider text-muted">
             {service.category || 'Service'}
           </p>
+
           <h3 className="mt-2 text-lg font-semibold">{service.name}</h3>
+
           {service.description && (
-            <p className="mt-2 text-sm leading-6 text-muted">{service.description}</p>
+            <p className="mt-2 text-sm leading-6 text-muted">
+              {service.description}
+            </p>
           )}
+
           <div className="mt-4 flex items-center justify-between gap-3">
             <strong>{naira(service.price)}</strong>
+
             <Link
               className="btn-primary"
               style={{ background: context.color }}
@@ -264,7 +308,13 @@ function ElementServices({ element, context }) {
   );
 }
 
-function ElementRenderer({ element, context, editorMode, onSelectElement }) {
+function ElementRenderer({
+  element,
+  context,
+  editorMode,
+  onSelectElement,
+  selectedElementId,
+}) {
   if (!element || element.visible === false) return null;
 
   if (!isElementAllowedForBusiness(element.type, context.biz.businessType)) {
@@ -281,13 +331,13 @@ function ElementRenderer({ element, context, editorMode, onSelectElement }) {
 
     event.preventDefault();
     event.stopPropagation();
+
     onSelectElement?.(element.id);
   };
 
   const commonProps = {
     style,
     className: `${animation.className} ${editorMode ? 'cursor-pointer' : ''}`,
-    onClickCapture: editorMode ? selectElement : undefined,
     'data-editor-element': element.id,
   };
 
@@ -296,7 +346,10 @@ function ElementRenderer({ element, context, editorMode, onSelectElement }) {
   switch (element.type) {
     case 'heading':
       output = (
-        <h2 {...commonProps} className={`${commonProps.className} font-bold tracking-tight`}>
+        <h2
+          {...commonProps}
+          className={`${commonProps.className} font-bold tracking-tight`}
+        >
           {content}
         </h2>
       );
@@ -304,7 +357,10 @@ function ElementRenderer({ element, context, editorMode, onSelectElement }) {
 
     case 'text':
       output = (
-        <p {...commonProps} className={`${commonProps.className} whitespace-pre-line leading-7`}>
+        <p
+          {...commonProps}
+          className={`${commonProps.className} whitespace-pre-line leading-7`}
+        >
           {content}
         </p>
       );
@@ -316,7 +372,10 @@ function ElementRenderer({ element, context, editorMode, onSelectElement }) {
           action={element.action}
           context={context}
           className="inline-flex items-center justify-center rounded-full px-6 py-3 text-sm font-semibold text-white"
-          style={{ ...style, background: style.backgroundColor || context.color }}
+          style={{
+            ...style,
+            background: style.backgroundColor || context.color,
+          }}
         >
           {content || 'Learn more'}
         </ActionLink>
@@ -336,11 +395,21 @@ function ElementRenderer({ element, context, editorMode, onSelectElement }) {
       break;
 
     case 'spacer':
-      output = <div aria-hidden="true" style={{ height: element.settings?.height || 40 }} />;
+      output = (
+        <div
+          aria-hidden="true"
+          style={{ height: element.settings?.height || 40 }}
+        />
+      );
       break;
 
     case 'divider':
-      output = <hr {...commonProps} className={`${commonProps.className} border-t border-line`} />;
+      output = (
+        <hr
+          {...commonProps}
+          className={`${commonProps.className} border-t border-line`}
+        />
+      );
       break;
 
     case 'columns':
@@ -351,7 +420,10 @@ function ElementRenderer({ element, context, editorMode, onSelectElement }) {
           className={`${commonProps.className} grid gap-4`}
           style={{
             ...style,
-            gridTemplateColumns: `repeat(${Math.max(1, Math.min(4, Number(element.settings?.columns) || 2))}, minmax(0, 1fr))`,
+            gridTemplateColumns: `repeat(${Math.max(
+              1,
+              Math.min(4, Number(element.settings?.columns) || 2)
+            )}, minmax(0, 1fr))`,
           }}
         >
           {children.map((child) => (
@@ -361,6 +433,7 @@ function ElementRenderer({ element, context, editorMode, onSelectElement }) {
               context={context}
               editorMode={editorMode}
               onSelectElement={onSelectElement}
+              selectedElementId={selectedElementId}
             />
           ))}
         </div>
@@ -374,6 +447,7 @@ function ElementRenderer({ element, context, editorMode, onSelectElement }) {
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
           {images.map((image, index) => {
             const src = typeof image === 'string' ? image : image?.url;
+
             if (!src) return null;
 
             return (
@@ -393,7 +467,11 @@ function ElementRenderer({ element, context, editorMode, onSelectElement }) {
 
     case 'icon':
       output = (
-        <span {...commonProps} aria-hidden="true" className={`${commonProps.className} inline-flex text-3xl`}>
+        <span
+          {...commonProps}
+          aria-hidden="true"
+          className={`${commonProps.className} inline-flex text-3xl`}
+        >
           {element.settings?.icon || '✦'}
         </span>
       );
@@ -452,8 +530,14 @@ function ElementRenderer({ element, context, editorMode, onSelectElement }) {
 
   return (
     <div
-      className="relative rounded-sm outline outline-1 outline-transparent hover:outline-emerald-400"
+      onClickCapture={selectElement}
+      className={`relative rounded-sm outline outline-1 transition ${
+        selectedElementId === element.id
+          ? 'outline-emerald-600'
+          : 'outline-transparent hover:outline-emerald-400'
+      }`}
       data-editor-element-wrapper={element.id}
+      data-editor-element={element.id}
     >
       {output}
     </div>
@@ -465,15 +549,23 @@ function HeroSection({ settings, context }) {
   const buttonLink = settings.buttonLink || settings.ctaLink || '';
   const buttonText = settings.buttonText || settings.ctaText || '';
   const external = /^https?:\/\//i.test(buttonLink);
+
   const destination = external
     ? buttonLink
-    : `${context.storeBase || ''}${buttonLink.startsWith('/') ? buttonLink : `/${buttonLink}`}`;
+    : `${context.storeBase || ''}${
+        buttonLink.startsWith('/') ? buttonLink : `/${buttonLink}`
+      }`;
 
   return (
     <section
       className="relative mb-10 overflow-hidden rounded-3xl bg-gray-900 text-white"
       style={{
-        minHeight: settings.height === 'small' ? 280 : settings.height === 'large' ? 480 : 360,
+        minHeight:
+          settings.height === 'small'
+            ? 280
+            : settings.height === 'large'
+              ? 480
+              : 360,
         backgroundImage: image
           ? `linear-gradient(90deg, rgba(0,0,0,.72), rgba(0,0,0,.18)), url("${image}")`
           : 'linear-gradient(120deg, #102f27, #111827)',
@@ -481,27 +573,44 @@ function HeroSection({ settings, context }) {
         backgroundSize: 'cover',
       }}
     >
-      <div className={`flex min-h-[280px] flex-col justify-center p-7 md:p-14 ${settings.alignment === 'center' ? 'items-center text-center' : 'items-start text-left'}`}>
+      <div
+        className={`flex min-h-[280px] flex-col justify-center p-7 md:p-14 ${
+          settings.alignment === 'center'
+            ? 'items-center text-center'
+            : 'items-start text-left'
+        }`}
+      >
         {settings.eyebrow && (
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/70">
             {settings.eyebrow}
           </p>
         )}
+
         <h1 className="mt-3 max-w-3xl text-3xl font-bold leading-tight md:text-5xl">
           {settings.title || context.biz.name}
         </h1>
+
         {settings.subtitle && (
           <p className="mt-4 max-w-2xl text-sm leading-relaxed text-white/80 md:text-lg">
             {settings.subtitle}
           </p>
         )}
+
         {buttonText && buttonLink && (
           external ? (
-            <a href={destination} target="_blank" rel="noreferrer" className="mt-7 inline-flex rounded-full bg-white px-6 py-3 text-sm font-semibold text-gray-900">
+            <a
+              href={destination}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-7 inline-flex rounded-full bg-white px-6 py-3 text-sm font-semibold text-gray-900"
+            >
               {buttonText}
             </a>
           ) : (
-            <Link to={destination} className="mt-7 inline-flex rounded-full bg-white px-6 py-3 text-sm font-semibold text-gray-900">
+            <Link
+              to={destination}
+              className="mt-7 inline-flex rounded-full bg-white px-6 py-3 text-sm font-semibold text-gray-900"
+            >
               {buttonText}
             </Link>
           )
@@ -514,7 +623,10 @@ function HeroSection({ settings, context }) {
 function ProductSection({ settings, context }) {
   return (
     <section className="py-10">
-      <SectionHeading title={settings.title || 'Our products'} subtitle={settings.subtitle} />
+      <SectionHeading
+        title={settings.title || 'Our products'}
+        subtitle={settings.subtitle}
+      />
       <ElementProducts element={{ settings }} context={context} />
     </section>
   );
@@ -523,7 +635,10 @@ function ProductSection({ settings, context }) {
 function ServicesSection({ settings, context }) {
   return (
     <section className="py-10">
-      <SectionHeading title={settings.title || 'Our services'} subtitle={settings.subtitle} />
+      <SectionHeading
+        title={settings.title || 'Our services'}
+        subtitle={settings.subtitle}
+      />
       <ElementServices element={{ settings }} context={context} />
     </section>
   );
@@ -541,11 +656,17 @@ function PortfolioSection({ settings, context }) {
 
   return (
     <section className="py-10">
-      <SectionHeading title={settings.title || 'Selected projects'} subtitle={settings.subtitle} />
+      <SectionHeading
+        title={settings.title || 'Selected projects'}
+        subtitle={settings.subtitle}
+      />
+
       {loading ? (
         <p className="text-sm text-muted">Loading projects…</p>
       ) : projects.length === 0 ? (
-        <p className="text-sm text-muted">Projects will appear here when available.</p>
+        <p className="text-sm text-muted">
+          Projects will appear here when available.
+        </p>
       ) : (
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {projects.map((project) => (
@@ -562,10 +683,14 @@ function PortfolioSection({ settings, context }) {
                   loading="lazy"
                 />
               )}
+
               <div className="p-4">
                 <h3 className="font-semibold">{project.title}</h3>
+
                 {project.summary && (
-                  <p className="mt-2 line-clamp-3 text-sm text-muted">{project.summary}</p>
+                  <p className="mt-2 line-clamp-3 text-sm text-muted">
+                    {project.summary}
+                  </p>
                 )}
               </div>
             </Link>
@@ -578,18 +703,24 @@ function PortfolioSection({ settings, context }) {
 
 function ContactSection({ settings, context }) {
   const phone = String(context.biz.phone || '').replace(/\D/g, '');
+
   const message = encodeURIComponent(
-    settings.message || `Hello ${context.biz.name}, I would like to make an enquiry.`
+    settings.message ||
+      `Hello ${context.biz.name}, I would like to make an enquiry.`
   );
 
   return (
     <section className="my-10 rounded-3xl bg-gray-950 px-6 py-10 text-white md:px-10">
-      <h2 className="text-2xl font-bold">{settings.title || 'Let’s work together'}</h2>
+      <h2 className="text-2xl font-bold">
+        {settings.title || 'Let’s work together'}
+      </h2>
+
       {settings.description && (
         <p className="mt-3 max-w-2xl text-sm leading-6 text-white/70">
           {settings.description}
         </p>
       )}
+
       {phone && (
         <a
           href={`https://wa.me/${phone}?text=${message}`}
@@ -605,7 +736,7 @@ function ContactSection({ settings, context }) {
   );
 }
 
-function LegacySection({ section, context, editorMode, onSelectElement }) {
+function LegacySection({ section, context }) {
   const settings = section.settings || {};
 
   switch (section.type) {
@@ -616,11 +747,22 @@ function LegacySection({ section, context, editorMode, onSelectElement }) {
       return (
         <section className="grid items-center gap-8 py-10 md:grid-cols-2">
           {settings.image && (
-            <img src={settings.image} alt={settings.title || 'About us'} className="max-h-[440px] w-full rounded-3xl object-cover" loading="lazy" />
+            <img
+              src={settings.image}
+              alt={settings.title || 'About us'}
+              className="max-h-[440px] w-full rounded-3xl object-cover"
+              loading="lazy"
+            />
           )}
+
           <div>
-            <SectionHeading title={settings.title || 'About us'} subtitle={settings.subtitle} />
-            <p className="whitespace-pre-line text-sm leading-7 text-muted md:text-base">{settings.description}</p>
+            <SectionHeading
+              title={settings.title || 'About us'}
+              subtitle={settings.subtitle}
+            />
+            <p className="whitespace-pre-line text-sm leading-7 text-muted md:text-base">
+              {settings.description}
+            </p>
           </div>
         </section>
       );
@@ -628,10 +770,21 @@ function LegacySection({ section, context, editorMode, onSelectElement }) {
     case 'image_text':
       return (
         <section className="grid items-center gap-8 py-10 md:grid-cols-2">
-          <img src={settings.image} alt={settings.title || ''} className="max-h-[440px] w-full rounded-3xl object-cover" loading="lazy" />
+          <img
+            src={settings.image}
+            alt={settings.title || ''}
+            className="max-h-[440px] w-full rounded-3xl object-cover"
+            loading="lazy"
+          />
+
           <div>
-            <SectionHeading title={settings.title} subtitle={settings.subtitle} />
-            <p className="whitespace-pre-line text-sm leading-7 text-muted">{settings.description}</p>
+            <SectionHeading
+              title={settings.title}
+              subtitle={settings.subtitle}
+            />
+            <p className="whitespace-pre-line text-sm leading-7 text-muted">
+              {settings.description}
+            </p>
           </div>
         </section>
       );
@@ -640,7 +793,10 @@ function LegacySection({ section, context, editorMode, onSelectElement }) {
     case 'custom_content':
       return (
         <section className="py-8">
-          <SectionHeading title={settings.title} subtitle={settings.subtitle} />
+          <SectionHeading
+            title={settings.title}
+            subtitle={settings.subtitle}
+          />
           <div className="max-w-3xl whitespace-pre-line text-sm leading-7 text-muted">
             {settings.content || settings.description}
           </div>
@@ -650,12 +806,23 @@ function LegacySection({ section, context, editorMode, onSelectElement }) {
     case 'gallery':
       return (
         <section className="py-10">
-          <SectionHeading title={settings.title || 'Gallery'} subtitle={settings.subtitle} />
+          <SectionHeading
+            title={settings.title || 'Gallery'}
+            subtitle={settings.subtitle}
+          />
+
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
             {(settings.images || []).map((image, index) => {
               const src = typeof image === 'string' ? image : image?.url;
+
               return src ? (
-                <img key={`${src}-${index}`} src={src} alt={image?.alt || ''} className="aspect-square w-full rounded-2xl object-cover" loading="lazy" />
+                <img
+                  key={`${src}-${index}`}
+                  src={src}
+                  alt={image?.alt || ''}
+                  className="aspect-square w-full rounded-2xl object-cover"
+                  loading="lazy"
+                />
               ) : null;
             })}
           </div>
@@ -681,12 +848,20 @@ function LegacySection({ section, context, editorMode, onSelectElement }) {
     case 'faq':
       return (
         <section className="py-10">
-          <SectionHeading title={settings.title || 'Frequently asked questions'} />
+          <SectionHeading
+            title={settings.title || 'Frequently asked questions'}
+          />
+
           <div className="divide-y divide-line rounded-2xl border border-line bg-white px-5">
             {(settings.items || []).map((item, index) => (
               <details key={index} className="py-4">
-                <summary className="cursor-pointer font-medium">{item.question || item.title}</summary>
-                <p className="mt-3 whitespace-pre-line text-sm leading-6 text-muted">{item.answer || item.description}</p>
+                <summary className="cursor-pointer font-medium">
+                  {item.question || item.title}
+                </summary>
+
+                <p className="mt-3 whitespace-pre-line text-sm leading-6 text-muted">
+                  {item.answer || item.description}
+                </p>
               </details>
             ))}
           </div>
@@ -697,7 +872,13 @@ function LegacySection({ section, context, editorMode, onSelectElement }) {
       return (
         <section className="flex flex-wrap gap-4 py-8">
           {(settings.links || []).map((item, index) => (
-            <a key={index} href={item.url} target="_blank" rel="noreferrer" className="text-sm font-medium underline">
+            <a
+              key={index}
+              href={item.url}
+              target="_blank"
+              rel="noreferrer"
+              className="text-sm font-medium underline"
+            >
               {item.label || item.platform || 'Visit'}
             </a>
           ))}
@@ -706,7 +887,10 @@ function LegacySection({ section, context, editorMode, onSelectElement }) {
 
     case 'announcement':
       return settings.text ? (
-        <div className="mb-6 rounded-xl px-4 py-3 text-center text-sm font-medium text-white" style={{ background: context.color }}>
+        <div
+          className="mb-6 rounded-xl px-4 py-3 text-center text-sm font-medium text-white"
+          style={{ background: context.color }}
+        >
           {settings.text}
         </div>
       ) : null;
@@ -714,21 +898,37 @@ function LegacySection({ section, context, editorMode, onSelectElement }) {
     case 'navigation':
       return (
         <nav className="mb-6 flex flex-wrap gap-4 border-b border-line pb-4">
-          {(context.storefront.pages || []).filter((page) => page.visible).map((page) => (
-            <Link key={page.id} to={page.isHome ? context.storeBase || '/' : `${context.storeBase}/${page.slug}`} className="text-sm font-medium hover:underline">
-              {page.title}
-            </Link>
-          ))}
+          {(context.storefront.pages || [])
+            .filter((page) => page.visible)
+            .map((page) => (
+              <Link
+                key={page.id}
+                to={
+                  page.isHome
+                    ? context.storeBase || '/'
+                    : `${context.storeBase}/${page.slug}`
+                }
+                className="text-sm font-medium hover:underline"
+              >
+                {page.title}
+              </Link>
+            ))}
         </nav>
       );
 
     case 'categories':
       return (
         <section className="py-8">
-          <SectionHeading title={settings.title || 'Browse categories'} />
+          <SectionHeading
+            title={settings.title || 'Browse categories'}
+          />
+
           <div className="flex flex-wrap gap-2">
             {context.categories.map((category) => (
-              <span key={category._id} className="rounded-full border border-line px-4 py-2 text-sm">
+              <span
+                key={category._id}
+                className="rounded-full border border-line px-4 py-2 text-sm"
+              >
                 {category.name}
               </span>
             ))}
@@ -739,8 +939,16 @@ function LegacySection({ section, context, editorMode, onSelectElement }) {
     case 'booking':
       return context.capabilities.services ? (
         <section className="py-8">
-          <SectionHeading title={settings.title || 'Ready to book?'} subtitle={settings.subtitle} />
-          <Link className="btn-primary" style={{ background: context.color }} to={`${context.storeBase}/services`}>
+          <SectionHeading
+            title={settings.title || 'Ready to book?'}
+            subtitle={settings.subtitle}
+          />
+
+          <Link
+            className="btn-primary"
+            style={{ background: context.color }}
+            to={`${context.storeBase}/services`}
+          >
             {settings.buttonText || 'View available services'}
           </Link>
         </section>
@@ -773,34 +981,48 @@ function SectionRenderer({
     return null;
   }
 
-  const content = section.elements?.length
-    ? (
-      <div className="space-y-4 py-6">
-        {section.elements.map((element) => (
-          <ElementRenderer
-            key={element.id}
-            element={element}
-            context={context}
-            editorMode={editorMode}
-            onSelectElement={onSelectElement}
-          />
-        ))}
-      </div>
-    )
-    : (
-      <LegacySection
-        section={section}
-        context={context}
-        editorMode={editorMode}
-        onSelectElement={onSelectElement}
-      />
-    );
+  const content = section.elements?.length ? (
+    <div className="space-y-4 py-6">
+      {section.elements.map((element) => (
+        <ElementRenderer
+          key={element.id}
+          element={element}
+          context={context}
+          editorMode={editorMode}
+          onSelectElement={onSelectElement}
+          selectedElementId={selectedElementId}
+        />
+      ))}
+    </div>
+  ) : (
+    <LegacySection
+      section={section}
+      context={context}
+    />
+  );
 
   if (!editorMode) return content;
 
   return (
     <div
       onClickCapture={(event) => {
+        const elementWrapper = event.target.closest(
+          '[data-editor-element-wrapper]'
+        );
+
+        if (elementWrapper) {
+          const elementId = elementWrapper.getAttribute(
+            'data-editor-element-wrapper'
+          );
+
+          if (elementId) {
+            event.preventDefault();
+            event.stopPropagation();
+            onSelectElement?.(elementId);
+            return;
+          }
+        }
+
         event.preventDefault();
         event.stopPropagation();
         onSelectSection?.(section.id);
@@ -817,6 +1039,7 @@ function SectionRenderer({
           Selected section
         </div>
       )}
+
       {content}
     </div>
   );
@@ -843,8 +1066,12 @@ export function StorefrontRenderer({
   const categories = suppliedCategories || outletContext.categories || [];
   const cart = suppliedCart || outletContext.cart || null;
   const slug = suppliedSlug || outletContext.slug || biz.slug || '';
-  const color = suppliedColor || outletContext.color || biz.brandColor || '#0B3D2E';
-  const storeBase = suppliedStoreBase ?? outletContext.storeBase ?? `/store/${slug}`;
+  const color =
+    suppliedColor || outletContext.color || biz.brandColor || '#0B3D2E';
+
+  const storeBase =
+    suppliedStoreBase ?? outletContext.storeBase ?? `/store/${slug}`;
+
   const storefrontSource = suppliedStorefront || biz.storefront || {};
 
   const storefront = useMemo(
@@ -894,7 +1121,9 @@ export function StorefrontRenderer({
         ))
       ) : (
         <div className="py-16 text-center">
-          <h1 className="text-3xl font-bold">{page?.title || biz.name}</h1>
+          <h1 className="text-3xl font-bold">
+            {page?.title || biz.name}
+          </h1>
           <p className="mt-3 text-muted">{biz.description}</p>
         </div>
       )}
