@@ -129,10 +129,6 @@ const TOOL_ITEMS = [
   { id: 'pages', label: 'Pages', icon: FileText },
 ];
 
-/*
- * These are the app navigation destinations shown by the editor menu.
- * Keep these paths aligned with the routes registered in your app router.
- */
 const APP_NAVIGATION = [
   { label: 'Dashboard', path: '/app' },
   { label: 'Products', path: '/app/products' },
@@ -239,6 +235,7 @@ function Inspector({
               {element.type.replaceAll('_', ' ')}
             </p>
           </div>
+
           <button
             onClick={() => onRemoveElement(element.id)}
             className="rounded-xl p-2 text-red-500 hover:bg-red-50"
@@ -491,6 +488,7 @@ function Inspector({
           <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
             Section background
           </p>
+
           <Field
             label="Background colour"
             value={settings.backgroundColor || ''}
@@ -958,6 +956,7 @@ export default function StorefrontEditor() {
 
   const updatePageBackground = (value) => {
     if (!activePage) return;
+
     updatePage(activePage.id, {
       backgroundColor: value,
     });
@@ -1012,6 +1011,22 @@ export default function StorefrontEditor() {
 
     setNotice('Image selected. Upload integration will be connected in the media phase.');
     event.target.value = '';
+  };
+
+  const applyTemplate = (next) => {
+    if (!next) return;
+
+    commit(next);
+
+    const home = next.pages?.find((page) => page.isHome);
+
+    setActivePageId(home?.id || next.pages?.[0]?.id || '');
+    setSelectedSectionId('');
+    setSelectedElementId('');
+    setPanel('layers');
+    setActiveTool('elements');
+    setDrawerOpen(false);
+    setNotice('Template applied. Save to publish your new design.');
   };
 
   const storeUrl = business.slug ? `/store/${business.slug}` : '/';
@@ -1078,6 +1093,7 @@ export default function StorefrontEditor() {
           >
             <Undo2 size={17} />
           </button>
+
           <button
             onClick={redo}
             disabled={!future.length}
@@ -1175,24 +1191,41 @@ export default function StorefrontEditor() {
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
         {/* DESKTOP LEFT SIDEBAR */}
         <aside className="hidden w-[250px] shrink-0 flex-col border-r border-slate-200 bg-white md:flex">
-          <div className="grid grid-cols-2 border-b border-slate-100 p-2">
+          <div className="grid grid-cols-3 border-b border-slate-100 p-2">
             <button
               onClick={() => setPanel('layers')}
               className={`rounded-xl py-3 text-xs font-semibold ${
-                panel === 'layers' ? 'bg-emerald-50 text-emerald-800' : 'text-slate-500'
+                panel === 'layers' || panel === 'inspector'
+                  ? 'bg-emerald-50 text-emerald-800'
+                  : 'text-slate-500'
               }`}
             >
-              <Layers size={16} className="mr-2 inline" />
+              <Layers size={16} className="mr-1 inline" />
               Layers
             </button>
+
             <button
               onClick={() => setPanel('theme')}
               className={`rounded-xl py-3 text-xs font-semibold ${
-                panel === 'theme' ? 'bg-emerald-50 text-emerald-800' : 'text-slate-500'
+                panel === 'theme'
+                  ? 'bg-emerald-50 text-emerald-800'
+                  : 'text-slate-500'
               }`}
             >
-              <Palette size={16} className="mr-2 inline" />
+              <Palette size={16} className="mr-1 inline" />
               Brand
+            </button>
+
+            <button
+              onClick={() => setPanel('templates')}
+              className={`rounded-xl py-3 text-xs font-semibold ${
+                panel === 'templates'
+                  ? 'bg-emerald-50 text-emerald-800'
+                  : 'text-slate-500'
+              }`}
+            >
+              <LayoutTemplate size={16} className="mr-1 inline" />
+              Templates
             </button>
           </div>
 
@@ -1203,7 +1236,11 @@ export default function StorefrontEditor() {
                 activePage={activePage}
                 selectedSectionId={selectedSectionId}
                 selectedElementId={selectedElementId}
-                onPage={setActivePageId}
+                onPage={(id) => {
+                  setActivePageId(id);
+                  setSelectedSectionId('');
+                  setSelectedElementId('');
+                }}
                 onAddPage={addPage}
                 onAddSection={() => setShowSections(true)}
                 onAddElement={() => setShowElements(true)}
@@ -1225,6 +1262,16 @@ export default function StorefrontEditor() {
 
             {panel === 'theme' && (
               <ThemePanel theme={storefront.theme} onUpdate={updateTheme} />
+            )}
+
+            {panel === 'templates' && (
+              <StorefrontTemplatePanel
+                businessType={businessType}
+                businessName={business.name || ''}
+                currentConfig={storefront}
+                onClose={() => setPanel('layers')}
+                onApply={applyTemplate}
+              />
             )}
 
             {panel === 'inspector' && (
@@ -1320,9 +1367,23 @@ export default function StorefrontEditor() {
                 color={storefront.theme?.primaryColor || business.brandColor || '#0B3D2E'}
                 editorMode
                 selectedSectionId={selectedSectionId}
+                selectedElementId={selectedElementId}
                 onSelectSection={(id) => {
                   setSelectedSectionId(id);
                   setSelectedElementId('');
+                  setPanel('inspector');
+                  setDrawerOpen(true);
+                }}
+                onSelectElement={(elementId, sectionId) => {
+                  const parentSectionId =
+                    sectionId ||
+                    activePage?.sections?.find((section) =>
+                      section.elements?.some((element) => element.id === elementId)
+                    )?.id ||
+                    '';
+
+                  setSelectedSectionId(parentSectionId);
+                  setSelectedElementId(elementId);
                   setPanel('inspector');
                   setDrawerOpen(true);
                 }}
@@ -1382,16 +1443,21 @@ export default function StorefrontEditor() {
             <div className="mb-3 flex items-center justify-between">
               <div>
                 <p className="text-sm font-bold capitalize text-slate-900">
-                  {selectedElement
-                    ? 'Edit element'
-                    : selectedSection
-                      ? 'Edit section'
-                      : activeTool}
+                  {panel === 'templates'
+                    ? 'Template library'
+                    : selectedElement
+                      ? 'Edit element'
+                      : selectedSection
+                        ? 'Edit section'
+                        : activeTool}
                 </p>
+
                 <p className="text-[10px] text-slate-400">
-                  {selectedElement?.type?.replaceAll('_', ' ') ||
-                    (selectedSection && SECTION_LABELS[selectedSection.type]) ||
-                    'Choose a tool to get started'}
+                  {panel === 'templates'
+                    ? 'Choose a design for your storefront'
+                    : selectedElement?.type?.replaceAll('_', ' ') ||
+                      (selectedSection && SECTION_LABELS[selectedSection.type]) ||
+                      'Choose a tool to get started'}
                 </p>
               </div>
 
@@ -1478,30 +1544,18 @@ export default function StorefrontEditor() {
               </div>
             )}
 
-        {panel === 'templates' && (
-  <StorefrontTemplatePanel
-    businessType={businessType}
-    businessName={business.name || ''}
-    currentConfig={storefront}
-    onClose={() => {
-      setPanel('layers');
-      setDrawerOpen(false);
-    }}
-    onApply={(next) => {
-      commit(next);
-
-      const home = next.pages?.find((page) => page.isHome);
-
-      setActivePageId(home?.id || next.pages?.[0]?.id || '');
-      setSelectedSectionId('');
-      setSelectedElementId('');
-      setPanel('layers');
-      setActiveTool('elements');
-      setDrawerOpen(false);
-      setNotice('Template applied. Save to publish your new design.');
-    }}
-  />
-)}
+            {panel === 'templates' && (
+              <StorefrontTemplatePanel
+                businessType={businessType}
+                businessName={business.name || ''}
+                currentConfig={storefront}
+                onClose={() => {
+                  setPanel('layers');
+                  setDrawerOpen(false);
+                }}
+                onApply={applyTemplate}
+              />
+            )}
 
             {panel === 'layers' && (
               <LayersPanel
@@ -1509,7 +1563,11 @@ export default function StorefrontEditor() {
                 activePage={activePage}
                 selectedSectionId={selectedSectionId}
                 selectedElementId={selectedElementId}
-                onPage={setActivePageId}
+                onPage={(id) => {
+                  setActivePageId(id);
+                  setSelectedSectionId('');
+                  setSelectedElementId('');
+                }}
                 onAddPage={addPage}
                 onAddSection={() => setShowSections(true)}
                 onAddElement={() => setShowElements(true)}
@@ -1570,6 +1628,7 @@ export default function StorefrontEditor() {
                   Choose a section for this page.
                 </p>
               </div>
+
               <button
                 onClick={() => setShowSections(false)}
                 className="rounded-xl p-2 hover:bg-slate-100"
@@ -1609,6 +1668,7 @@ export default function StorefrontEditor() {
                   Choose what you want to add.
                 </p>
               </div>
+
               <button
                 onClick={() => setShowElements(false)}
                 className="rounded-xl p-2 hover:bg-slate-100"
@@ -1629,6 +1689,7 @@ export default function StorefrontEditor() {
                         setShowElements(false);
                         return;
                       }
+
                       addElement(type);
                     }}
                     className="flex items-center gap-3 rounded-2xl border border-slate-200 p-3 text-left hover:border-emerald-500 hover:bg-emerald-50"
@@ -1669,6 +1730,7 @@ function LayersPanel({
           <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
             Pages
           </p>
+
           <button
             onClick={onAddPage}
             className="rounded-lg p-2 text-emerald-700 hover:bg-emerald-50"
@@ -1699,6 +1761,7 @@ function LayersPanel({
           <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
             Sections
           </p>
+
           <button
             onClick={onAddSection}
             className="rounded-lg p-2 text-emerald-700 hover:bg-emerald-50"
@@ -1755,6 +1818,7 @@ function LayersPanel({
                   >
                     <ChevronUp size={14} />
                   </button>
+
                   <button
                     onClick={() => onMoveSection(section.id, 1)}
                     disabled={index === activePage.sections.length - 1}
@@ -1762,12 +1826,14 @@ function LayersPanel({
                   >
                     <ChevronDown size={14} />
                   </button>
+
                   <button
                     onClick={() => onDuplicateSection(section)}
                     className="rounded p-2 text-slate-400 hover:text-emerald-700"
                   >
                     <Copy size={14} />
                   </button>
+
                   <button
                     onClick={() => onRemoveSection(section.id)}
                     className="rounded p-2 text-slate-400 hover:text-red-600"
@@ -1810,11 +1876,13 @@ function ThemePanel({ theme = {}, onUpdate }) {
           <label className="text-xs font-semibold text-slate-600">
             {label}
           </label>
+
           <div className="flex items-center gap-2">
             <div
               className="h-10 w-10 shrink-0 rounded-xl border border-slate-200"
               style={{ backgroundColor: theme[key] || '#FFFFFF' }}
             />
+
             <input
               value={theme[key] || ''}
               onChange={(e) => onUpdate(key, e.target.value)}
