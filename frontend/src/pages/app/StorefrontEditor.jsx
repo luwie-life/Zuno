@@ -22,6 +22,8 @@ import {
   ELEMENT_TYPES,
 } from '../../lib/storefront.js';
 
+import StorefrontTemplatePanel from '../../components/storefront/StorefrontTemplatePanel.jsx';
+
 const SECTION_LABELS = {
   announcement: 'Announcement bar',
   navigation: 'Navigation',
@@ -1476,11 +1478,30 @@ export default function StorefrontEditor() {
               </div>
             )}
 
-            {panel === 'templates' && (
-              <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
-                Template selection will be connected to the storefront template library.
-              </div>
-            )}
+        {panel === 'templates' && (
+  <StorefrontTemplatePanel
+    businessType={businessType}
+    businessName={business.name || ''}
+    currentConfig={storefront}
+    onClose={() => {
+      setPanel('layers');
+      setDrawerOpen(false);
+    }}
+    onApply={(next) => {
+      commit(next);
+
+      const home = next.pages?.find((page) => page.isHome);
+
+      setActivePageId(home?.id || next.pages?.[0]?.id || '');
+      setSelectedSectionId('');
+      setSelectedElementId('');
+      setPanel('layers');
+      setActiveTool('elements');
+      setDrawerOpen(false);
+      setNotice('Template applied. Save to publish your new design.');
+    }}
+  />
+)}
 
             {panel === 'layers' && (
               <LayersPanel
