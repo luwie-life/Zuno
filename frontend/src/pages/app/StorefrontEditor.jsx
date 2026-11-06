@@ -774,6 +774,57 @@ export default function StorefrontEditor() {
     }));
   };
 
+  const moveElementAcrossSections = (
+  sourceSectionId,
+  elementId,
+  targetSectionId,
+  destinationIndex
+) => {
+  if (!activePage || sourceSectionId === targetSectionId) return;
+
+  commit((current) => ({
+    ...current,
+    pages: current.pages.map((page) => {
+      if (page.id !== activePage.id) return page;
+
+      const sections = page.sections.map((section) => ({
+        ...section,
+        elements: [...(section.elements || [])],
+      }));
+
+      const source = sections.find(
+        (section) => section.id === sourceSectionId
+      );
+
+      const target = sections.find(
+        (section) => section.id === targetSectionId
+      );
+
+      if (!source || !target) return page;
+
+      const sourceIndex = source.elements.findIndex(
+        (element) => element.id === elementId
+      );
+
+      if (sourceIndex < 0) return page;
+
+      const [moved] = source.elements.splice(sourceIndex, 1);
+
+      const safeIndex = Math.max(
+        0,
+        Math.min(destinationIndex, target.elements.length)
+      );
+
+      target.elements.splice(safeIndex, 0, moved);
+
+      return { ...page, sections };
+    }),
+  }));
+
+  setSelectedSectionId(targetSectionId);
+  setSelectedElementId(elementId);
+};
+  
   const toggleSection = (section) => {
     updatePage(activePage.id, {
       sections: activePage.sections.map((item) =>
@@ -1300,6 +1351,7 @@ export default function StorefrontEditor() {
   selectedElementId={selectedElementId}
   onReorderSections={reorderSections}
   onReorderElements={reorderElements}
+  onMoveElement={moveElementAcrossSections}
             onSelectSection={(id) => {
               setSelectedSectionId(id);
               setSelectedElementId('');
