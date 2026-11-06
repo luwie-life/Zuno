@@ -530,6 +530,7 @@ function ElementRenderer({
 
   return (
     <div
+      draggable={editorMode}
       onClickCapture={selectElement}
       className={`relative rounded-sm outline outline-1 transition ${
         selectedElementId === element.id
