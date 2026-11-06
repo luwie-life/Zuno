@@ -16,7 +16,7 @@ import {
   hslToHex,
   getContrastRatio,
   getContrastLabel,
-} from '../../lib/storefront.js';
+} from '../../../lib/storefront.js';
 
 const COLOR_ROLES = [
   { key: 'primaryColor', label: 'Primary', description: 'Main brand colour' },
