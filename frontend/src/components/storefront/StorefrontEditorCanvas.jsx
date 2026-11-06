@@ -151,132 +151,173 @@ export default function StorefrontEditorCanvas({
       }
     };
 
-    const handleDragOver = (event) => {
-      const dragged = dragRef.current;
-      if (!dragged) return;
+const handleDragOver = (event) => {
+  const dragged = dragRef.current;
+  if (!dragged) return;
 
-      const element = getElementWrapper(event.target);
-      const section = getSectionWrapper(event.target);
+  const element = getElementWrapper(event.target);
+  const section = getSectionWrapper(event.target);
 
-      if (dragged.type === 'element') {
-        if (
-          element &&
-          element.dataset.editorElementWrapper !== dragged.id &&
-          section?.dataset.editorSection === dragged.sectionId
-        ) {
-          event.preventDefault();
-          event.stopPropagation();
-          event.dataTransfer.dropEffect = 'move';
-        }
+  if (dragged.type === 'element') {
+    if (!section) return;
 
-        return;
-      }
+    const targetSectionId = section.dataset.editorSection;
+    const targetElementId = element?.dataset.editorElementWrapper;
 
-      if (
-        dragged.type === 'section' &&
-        section &&
-        section.dataset.editorSection !== dragged.id
-      ) {
-        event.preventDefault();
-        event.dataTransfer.dropEffect = 'move';
-      }
-    };
+    if (
+      targetSectionId &&
+      (
+        targetSectionId !== dragged.sectionId ||
+        targetElementId !== dragged.id
+      )
+    ) {
+      event.preventDefault();
+      event.stopPropagation();
+      event.dataTransfer.dropEffect = 'move';
+    }
+
+    return;
+  }
+
+  if (
+    dragged.type === 'section' &&
+    section &&
+    section.dataset.editorSection !== dragged.id
+  ) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+  }
+};
 
     const handleDrop = (event) => {
-      const dragged = dragRef.current;
-      if (!dragged) return;
+  const dragged = dragRef.current;
+  if (!dragged) return;
 
-      const element = getElementWrapper(event.target);
-      const section = getSectionWrapper(event.target);
+  const element = getElementWrapper(event.target);
+  const section = getSectionWrapper(event.target);
 
-      if (dragged.type === 'element') {
-        event.preventDefault();
-        event.stopPropagation();
+  if (dragged.type === 'element') {
+    if (!section) return;
 
-        if (!element || !section) return;
+    event.preventDefault();
+    event.stopPropagation();
 
-        const targetElementId = element.dataset.editorElementWrapper;
-        const targetSectionId = section.dataset.editorSection;
+    const targetSectionId = section.dataset.editorSection;
+    const targetElementId = element?.dataset.editorElementWrapper;
 
-        // Element reordering stays within its original section.
-        if (
-          !targetElementId ||
-          targetSectionId !== dragged.sectionId ||
-          targetElementId === dragged.id
-        ) {
-          return;
-        }
+    if (!targetSectionId) return;
 
-        const sourceSection = sections.find(
-          (item) => item.id === dragged.sectionId
-        );
+    const sourceSection = sections.find(
+      (item) => item.id === dragged.sectionId
+    );
 
-        if (!sourceSection) return;
+    const targetSection = sections.find(
+      (item) => item.id === targetSectionId
+    );
 
-        const elements = [...(sourceSection.elements || [])];
+    if (!sourceSection || !targetSection) return;
 
-        const sourceIndex = elements.findIndex(
-          (item) => item.id === dragged.id
-        );
+    const sourceElements = [...(sourceSection.elements || [])];
+    const targetElements = [...(targetSection.elements || [])];
 
-        const targetIndex = getInsertionIndex(
-          elements,
-          targetElementId,
-          element.getBoundingClientRect(),
-          event.clientY
-        );
+    const sourceIndex = sourceElements.findIndex(
+      (item) => item.id === dragged.id
+    );
 
-        if (sourceIndex < 0 || targetIndex < 0) return;
+    if (sourceIndex < 0) return;
 
-        const [moved] = elements.splice(sourceIndex, 1);
+    // Dropping an element onto itself does nothing.
+    if (
+      dragged.sectionId === targetSectionId &&
+      targetElementId === dragged.id
+    ) {
+      return;
+    }
 
-        const destinationIndex =
-          sourceIndex < targetIndex ? targetIndex - 1 : targetIndex;
+    const [moved] = sourceElements.splice(sourceIndex, 1);
 
-        elements.splice(destinationIndex, 0, moved);
+    let destinationIndex = targetElements.length;
 
-        onReorderElements(dragged.sectionId, elements);
-        onSelectElement(dragged.id, dragged.sectionId);
+    // If the drop is over another element, insert above or below it.
+    if (targetElementId) {
+      const targetIndex = targetElements.findIndex(
+        (item) => item.id === targetElementId
+      );
 
-        return;
+      if (targetIndex >= 0) {
+        const targetNode = element;
+        const rect = targetNode.getBoundingClientRect();
+
+        destinationIndex =
+          targetIndex +
+          (event.clientY > rect.top + rect.height / 2 ? 1 : 0);
       }
+    }
 
-      if (dragged.type === 'section') {
-        event.preventDefault();
+    // Same-section reordering.
+    if (dragged.sectionId === targetSectionId) {
+      const adjustedIndex =
+        sourceIndex < destinationIndex
+          ? destinationIndex - 1
+          : destinationIndex;
 
-        if (!section) return;
+      sourceElements.splice(
+        Math.max(0, Math.min(adjustedIndex, sourceElements.length)),
+        0,
+        moved
+      );
 
-        const targetSectionId = section.dataset.editorSection;
+      onReorderElements(dragged.sectionId, sourceElements);
+    } else {
+      // Cross-section movement.
+      onMoveElement(
+        dragged.sectionId,
+        dragged.id,
+        targetSectionId,
+        destinationIndex
+      );
+    }
 
-        if (!targetSectionId || targetSectionId === dragged.id) return;
+    onSelectElement(dragged.id, targetSectionId);
+    return;
+  }
 
-        const reordered = [...sections];
+  if (dragged.type === 'section') {
+    event.preventDefault();
 
-        const sourceIndex = reordered.findIndex(
-          (item) => item.id === dragged.id
-        );
+    if (!section) return;
 
-        const targetIndex = getInsertionIndex(
-          reordered,
-          targetSectionId,
-          section.getBoundingClientRect(),
-          event.clientY
-        );
+    const targetSectionId = section.dataset.editorSection;
 
-        if (sourceIndex < 0 || targetIndex < 0) return;
+    if (!targetSectionId || targetSectionId === dragged.id) return;
 
-        const [moved] = reordered.splice(sourceIndex, 1);
+    const reordered = [...sections];
 
-        const destinationIndex =
-          sourceIndex < targetIndex ? targetIndex - 1 : targetIndex;
+    const sourceIndex = reordered.findIndex(
+      (item) => item.id === dragged.id
+    );
 
-        reordered.splice(destinationIndex, 0, moved);
+    const targetIndex = getInsertionIndex(
+      reordered,
+      targetSectionId,
+      section.getBoundingClientRect(),
+      event.clientY
+    );
 
-        onReorderSections(reordered);
-        onSelectSection(dragged.id);
-      }
-    };
+    if (sourceIndex < 0 || targetIndex < 0) return;
 
+    const [moved] = reordered.splice(sourceIndex, 1);
+
+    const destinationIndex =
+      sourceIndex < targetIndex ? targetIndex - 1 : targetIndex;
+
+    reordered.splice(destinationIndex, 0, moved);
+
+    onReorderSections(reordered);
+    onSelectSection(dragged.id);
+  }
+};
+    
     const handleDragEnd = () => {
       root.querySelectorAll('.opacity-50').forEach((node) => {
         node.classList.remove(
