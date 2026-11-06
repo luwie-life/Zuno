@@ -1,18 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Monitor, Tablet, Smartphone, Plus, Save, Eye,
-  Trash2, Copy, ChevronUp, ChevronDown, Undo2, Redo2,
-  Layers, Type, Image as ImageIcon, MousePointer, Columns3,
-  Minus, Video, ShoppingBag, BriefcaseBusiness, CalendarDays,
-  Palette, X, Settings2, LayoutTemplate, Upload, ZoomIn,
-  ZoomOut, Maximize2, FileText, Paintbrush, Menu, Pencil,
-  Clipboard, ClipboardPaste, Files,
+  Menu, X, Save, Undo2, Redo2, Eye, Plus,
+  Layers, FileText, Palette, LayoutTemplate,
+  Settings2, Monitor, Tablet, Smartphone,
+  Upload, Type, Paintbrush, Image as ImageIcon,
+  MousePointer, Columns3, Minus, Video,
+  ShoppingBag, BriefcaseBusiness, CalendarDays,
+  ChevronDown, Trash2, Copy,
 } from 'lucide-react';
 
 import { api } from '../../lib/api.js';
 import { useAuth } from '../../lib/auth.jsx';
-import { StorefrontRenderer } from '../StorefrontHome.jsx';
 
 import {
   createSection,
@@ -23,7 +22,9 @@ import {
   ELEMENT_TYPES,
 } from '../../lib/storefront.js';
 
-import StorefrontTemplatePanel from '../../components/storefront/StorefrontTemplatePanel.jsx';
+import StorefrontEditorPanels from '../../components/storefront/StorefrontEditorPanels.jsx';
+import StorefrontEditorCanvas from '../../components/storefront/StorefrontEditorCanvas.jsx';
+import StorefrontSettingsPanel from '../../components/storefront/StorefrontSettingsPanel.jsx';
 
 const SECTION_LABELS = {
   announcement: 'Announcement bar',
@@ -120,40 +121,32 @@ const DEFAULT_SECTION_SETTINGS = {
   footer: { text: '' },
 };
 
-const TOOL_ITEMS = [
-  { id: 'templates', label: 'Templates', icon: LayoutTemplate },
-  { id: 'elements', label: 'Elements', icon: Layers },
-  { id: 'text', label: 'Text', icon: Type },
-  { id: 'uploads', label: 'Uploads', icon: Upload },
-  { id: 'brand', label: 'Brand', icon: Palette },
-  { id: 'background', label: 'Background', icon: Paintbrush },
-  { id: 'pages', label: 'Pages', icon: FileText },
-];
-
-const APP_NAVIGATION = [
-  { label: 'Dashboard', path: '/app' },
-  { label: 'Products', path: '/app/products' },
-  { label: 'Services', path: '/app/services' },
-  { label: 'Bookings', path: '/app/bookings' },
-  { label: 'Orders', path: '/app/orders' },
-  { label: 'POS', path: '/app/pos' },
-  { label: 'Inventory', path: '/app/inventory' },
-  { label: 'Customers', path: '/app/customers' },
-  { label: 'Reports', path: '/app/reports' },
-  { label: 'Billing', path: '/app/billing' },
-  { label: 'Settings', path: '/app/settings' },
+const NAVIGATION = [
+  ['Dashboard', '/app'],
+  ['Products', '/app/products'],
+  ['Services', '/app/services'],
+  ['Bookings', '/app/bookings'],
+  ['Orders', '/app/orders'],
+  ['POS', '/app/pos'],
+  ['Inventory', '/app/inventory'],
+  ['Customers', '/app/customers'],
+  ['Reports', '/app/reports'],
+  ['Billing', '/app/billing'],
+  ['Settings', '/app/settings'],
 ];
 
 const makeId = (prefix = 'item') =>
   `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
+const clone = (value) => JSON.parse(JSON.stringify(value));
+
 const cloneElement = (element) => ({
-  ...JSON.parse(JSON.stringify(element)),
+  ...clone(element),
   id: makeId('element'),
 });
 
 const cloneSection = (section) => ({
-  ...JSON.parse(JSON.stringify(section)),
+  ...clone(section),
   id: makeId('section'),
   elements: (section.elements || []).map(cloneElement),
 });
@@ -165,422 +158,41 @@ const slugify = (value) =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '') || 'page';
 
-function Field({ label, value, onChange, multiline = false, placeholder = '' }) {
-  const className =
-    'w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-800 outline-none focus:border-emerald-600';
-
-  return (
-    <label className="block space-y-1.5">
-      <span className="text-xs font-semibold text-slate-600">{label}</span>
-      {multiline ? (
-        <textarea
-          rows={4}
-          value={value ?? ''}
-          placeholder={placeholder}
-          onChange={(e) => onChange(e.target.value)}
-          className={className}
-        />
-      ) : (
-        <input
-          value={value ?? ''}
-          placeholder={placeholder}
-          onChange={(e) => onChange(e.target.value)}
-          className={className}
-        />
-      )}
-    </label>
-  );
-}
-
-function SelectField({ label, value, onChange, options }) {
-  return (
-    <label className="block space-y-1.5">
-      <span className="text-xs font-semibold text-slate-600">{label}</span>
-      <select
-        value={value ?? ''}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm"
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}
-
-function ColorField({ label, value, onChange }) {
-  return (
-    <Field
-      label={label}
-      value={value || ''}
-      onChange={onChange}
-      placeholder="#FFFFFF"
-    />
-  );
-}
-
-function Inspector({
-  element,
-  section,
-  onUpdateElement,
-  onUpdateSection,
-  onRemoveElement,
-  onDuplicateElement,
-  onCopyElement,
-}) {
-  if (element) {
-    const update = (key, value) =>
-      onUpdateElement(element.id, { [key]: value });
-
-    const updateStyle = (key, value) =>
-      onUpdateElement(element.id, {
-        style: { ...(element.style || {}), [key]: value },
-      });
-
-    const updateAction = (key, value) =>
-      onUpdateElement(element.id, {
-        action: { ...(element.action || {}), [key]: value },
-      });
-
-    const updateAnimation = (key, value) =>
-      onUpdateElement(element.id, {
-        animation: { ...(element.animation || {}), [key]: value },
-      });
-
-    return (
-      <div className="space-y-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-bold text-slate-900">Edit element</p>
-            <p className="text-xs capitalize text-slate-400">
-              {element.type.replaceAll('_', ' ')}
-            </p>
-          </div>
-
-          <button
-            onClick={() => onRemoveElement(element.id)}
-            className="rounded-xl p-2 text-red-500 hover:bg-red-50"
-            title="Delete element"
-          >
-            <Trash2 size={17} />
-          </button>
-        </div>
-
-        <div className="flex gap-2">
-          <button
-            onClick={() => onCopyElement(element)}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 py-2.5 text-xs font-semibold text-slate-600"
-          >
-            <Copy size={14} /> Copy
-          </button>
-          <button
-            onClick={() => onDuplicateElement(element)}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 py-2.5 text-xs font-semibold text-slate-600"
-          >
-            <Files size={14} /> Duplicate
-          </button>
-        </div>
-
-        {['heading', 'text', 'button', 'icon', 'booking_button'].includes(element.type) && (
-          <Field
-            label="Content"
-            value={element.content}
-            multiline={element.type === 'text'}
-            onChange={(value) => update('content', value)}
-          />
-        )}
-
-        {['image', 'video'].includes(element.type) && (
-          <Field
-            label={element.type === 'image' ? 'Image URL' : 'Video URL'}
-            value={element.src}
-            onChange={(value) => update('src', value)}
-            placeholder="https://..."
-          />
-        )}
-
-        {['columns', 'grid'].includes(element.type) && (
-          <SelectField
-            label="Columns"
-            value={element.settings?.columns || 2}
-            onChange={(value) =>
-              onUpdateElement(element.id, {
-                settings: {
-                  ...(element.settings || {}),
-                  columns: Number(value),
-                },
-              })
-            }
-            options={[1, 2, 3, 4].map((n) => ({
-              value: n,
-              label: `${n} columns`,
-            }))}
-          />
-        )}
-
-        <div className="space-y-3 border-t border-slate-100 pt-4">
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
-            Appearance
-          </p>
-
-          <ColorField
-            label="Text colour"
-            value={element.style?.color}
-            onChange={(value) => updateStyle('color', value)}
-          />
-
-          <ColorField
-            label="Background colour"
-            value={element.style?.backgroundColor}
-            onChange={(value) => updateStyle('backgroundColor', value)}
-          />
-
-          <Field
-            label="Font size (px)"
-            value={element.style?.fontSize || 16}
-            onChange={(value) => updateStyle('fontSize', Number(value))}
-          />
-
-          <SelectField
-            label="Font weight"
-            value={element.style?.fontWeight || 'normal'}
-            onChange={(value) => updateStyle('fontWeight', value)}
-            options={[
-              { value: 'normal', label: 'Regular' },
-              { value: 'medium', label: 'Medium' },
-              { value: 'semibold', label: 'Semibold' },
-              { value: 'bold', label: 'Bold' },
-            ]}
-          />
-
-          <SelectField
-            label="Text alignment"
-            value={element.style?.textAlign || 'left'}
-            onChange={(value) => updateStyle('textAlign', value)}
-            options={[
-              { value: 'left', label: 'Left' },
-              { value: 'center', label: 'Centre' },
-              { value: 'right', label: 'Right' },
-            ]}
-          />
-
-          <Field
-            label="Border radius"
-            value={element.style?.borderRadius || '0'}
-            onChange={(value) => updateStyle('borderRadius', value)}
-          />
-
-          <Field
-            label="Padding"
-            value={element.style?.padding || '0'}
-            onChange={(value) => updateStyle('padding', value)}
-          />
-        </div>
-
-        {['button', 'booking_button'].includes(element.type) && (
-          <div className="space-y-3 border-t border-slate-100 pt-4">
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              Button action
-            </p>
-
-            <SelectField
-              label="Action"
-              value={element.action?.type || 'none'}
-              onChange={(value) => updateAction('type', value)}
-              options={[
-                { value: 'none', label: 'No action' },
-                { value: 'page', label: 'Storefront page' },
-                { value: 'external', label: 'External URL' },
-                { value: 'whatsapp', label: 'WhatsApp' },
-                { value: 'phone', label: 'Phone call' },
-                { value: 'email', label: 'Email' },
-                { value: 'products', label: 'Products' },
-                { value: 'services', label: 'Services' },
-                { value: 'booking', label: 'Booking' },
-                { value: 'contact', label: 'Contact' },
-              ]}
-            />
-
-            {['page', 'external', 'whatsapp', 'phone', 'email'].includes(element.action?.type) && (
-              <Field
-                label="Destination"
-                value={element.action?.value || ''}
-                onChange={(value) => updateAction('value', value)}
-              />
-            )}
-          </div>
-        )}
-
-        <div className="space-y-3 border-t border-slate-100 pt-4">
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
-            Animation
-          </p>
-
-          <SelectField
-            label="Animation"
-            value={element.animation?.preset || 'none'}
-            onChange={(value) => updateAnimation('preset', value)}
-            options={[
-              { value: 'none', label: 'None' },
-              { value: 'fade', label: 'Fade' },
-              { value: 'fade_up', label: 'Fade up' },
-              { value: 'fade_down', label: 'Fade down' },
-              { value: 'slide_left', label: 'Slide left' },
-              { value: 'slide_right', label: 'Slide right' },
-              { value: 'zoom', label: 'Zoom' },
-            ]}
-          />
-
-          <Field
-            label="Duration (ms)"
-            value={element.animation?.duration || 500}
-            onChange={(value) => updateAnimation('duration', Number(value))}
-          />
-
-          <Field
-            label="Delay (ms)"
-            value={element.animation?.delay || 0}
-            onChange={(value) => updateAnimation('delay', Number(value))}
-          />
-        </div>
-      </div>
-    );
-  }
-
-  if (section) {
-    const settings = section.settings || {};
-    const set = (key, value) => onUpdateSection(section.id, key, value);
-
-    return (
-      <div className="space-y-5">
-        <div>
-          <p className="text-sm font-bold text-slate-900">Section settings</p>
-          <p className="text-xs text-slate-400">
-            {SECTION_LABELS[section.type] || section.type}
-          </p>
-        </div>
-
-        {settings.title !== undefined && (
-          <Field label="Title" value={settings.title} onChange={(v) => set('title', v)} />
-        )}
-
-        {settings.subtitle !== undefined && (
-          <Field label="Subtitle" value={settings.subtitle} multiline onChange={(v) => set('subtitle', v)} />
-        )}
-
-        {settings.description !== undefined && (
-          <Field label="Description" value={settings.description} multiline onChange={(v) => set('description', v)} />
-        )}
-
-        {settings.content !== undefined && (
-          <Field label="Content" value={settings.content} multiline onChange={(v) => set('content', v)} />
-        )}
-
-        {settings.buttonText !== undefined && (
-          <Field label="Button text" value={settings.buttonText} onChange={(v) => set('buttonText', v)} />
-        )}
-
-        {settings.buttonLink !== undefined && (
-          <Field label="Button link" value={settings.buttonLink} onChange={(v) => set('buttonLink', v)} />
-        )}
-
-        {settings.backgroundImage !== undefined && (
-          <Field label="Background image URL" value={settings.backgroundImage} onChange={(v) => set('backgroundImage', v)} />
-        )}
-
-        {settings.image !== undefined && (
-          <Field label="Image URL" value={settings.image} onChange={(v) => set('image', v)} />
-        )}
-
-        {settings.limit !== undefined && (
-          <Field label="Items to display" value={settings.limit} onChange={(v) => set('limit', Number(v))} />
-        )}
-
-        {settings.alignment !== undefined && (
-          <SelectField
-            label="Alignment"
-            value={settings.alignment}
-            onChange={(v) => set('alignment', v)}
-            options={[
-              { value: 'left', label: 'Left' },
-              { value: 'center', label: 'Centre' },
-            ]}
-          />
-        )}
-
-        {settings.height !== undefined && (
-          <SelectField
-            label="Section height"
-            value={settings.height}
-            onChange={(v) => set('height', v)}
-            options={[
-              { value: 'small', label: 'Short' },
-              { value: 'medium', label: 'Medium' },
-              { value: 'large', label: 'Tall' },
-            ]}
-          />
-        )}
-
-        <div className="space-y-3 border-t border-slate-100 pt-4">
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
-            Section background
-          </p>
-
-          <Field
-            label="Background colour"
-            value={settings.backgroundColor || ''}
-            onChange={(v) => set('backgroundColor', v)}
-            placeholder="#FFFFFF"
-          />
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="py-10 text-center">
-      <Settings2 className="mx-auto text-slate-300" size={28} />
-      <p className="mt-3 text-sm font-semibold text-slate-700">Nothing selected</p>
-      <p className="mt-1 text-xs text-slate-400">
-        Select an element or section to customize it.
-      </p>
-    </div>
-  );
-}
-
 export default function StorefrontEditor() {
   const { ctx } = useAuth();
+
   const business = ctx?.business || {};
   const businessType = business.businessType || 'product';
 
   const [storefront, setStorefront] = useState(null);
   const [activePageId, setActivePageId] = useState('');
+
   const [selectedSectionId, setSelectedSectionId] = useState('');
   const [selectedElementId, setSelectedElementId] = useState('');
 
+  const [panel, setPanel] = useState('layers');
   const [device, setDevice] = useState('desktop');
   const [zoom, setZoom] = useState(100);
 
-  const [panel, setPanel] = useState('layers');
-  const [activeTool, setActiveTool] = useState('elements');
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [appMenuOpen, setAppMenuOpen] = useState(false);
+  const [navigationOpen, setNavigationOpen] = useState(false);
 
   const [showSections, setShowSections] = useState(false);
   const [showElements, setShowElements] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
   const [savedSnapshot, setSavedSnapshot] = useState('');
   const [history, setHistory] = useState([]);
   const [future, setFuture] = useState([]);
+
   const [clipboardElement, setClipboardElement] = useState(null);
+
+  const [activeTool, setActiveTool] = useState('elements');
 
   const currentRef = useRef(null);
   const saveLock = useRef(false);
@@ -601,17 +213,20 @@ export default function StorefrontEditor() {
     (element) => element.id === selectedElementId
   );
 
+  const dirty =
+    !!storefront &&
+    JSON.stringify(storefront) !== savedSnapshot;
+
   const availableSections = useMemo(
     () => getAvailableSectionTypes(businessType),
     [businessType]
   );
 
-  const dirty = !!storefront && JSON.stringify(storefront) !== savedSnapshot;
-
   useEffect(() => {
     currentRef.current = storefront;
   }, [storefront]);
 
+  // LOAD STOREFRONT
   useEffect(() => {
     let cancelled = false;
 
@@ -620,7 +235,9 @@ export default function StorefrontEditor() {
       setError('');
 
       try {
-        const result = await api('/businesses/current/storefront', { biz: true });
+        const result = await api('/businesses/current/storefront', {
+          biz: true,
+        });
 
         if (cancelled) return;
 
@@ -631,7 +248,9 @@ export default function StorefrontEditor() {
 
         setStorefront(config);
         currentRef.current = config;
+
         setSavedSnapshot(JSON.stringify(config));
+
         setHistory([]);
         setFuture([]);
 
@@ -641,7 +260,9 @@ export default function StorefrontEditor() {
           ''
         );
       } catch (err) {
-        if (!cancelled) setError(err.message || 'Could not load your storefront.');
+        if (!cancelled) {
+          setError(err.message || 'Could not load your storefront.');
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -654,39 +275,218 @@ export default function StorefrontEditor() {
     };
   }, [business._id]);
 
-  useEffect(() => {
-    if (!appMenuOpen) return undefined;
-
-    const closeOnEscape = (event) => {
-      if (event.key === 'Escape') setAppMenuOpen(false);
-    };
-
-    window.addEventListener('keydown', closeOnEscape);
-    return () => window.removeEventListener('keydown', closeOnEscape);
-  }, [appMenuOpen]);
-
+  // HISTORY
   const commit = useCallback((updater) => {
     setStorefront((current) => {
       if (!current) return current;
 
-      const next = typeof updater === 'function' ? updater(current) : updater;
-      if (next === current) return current;
+      const next =
+        typeof updater === 'function'
+          ? updater(current)
+          : updater;
+
+      if (!next || next === current) return current;
 
       setHistory((items) => [...items.slice(-49), current]);
       setFuture([]);
+
       currentRef.current = next;
 
       return next;
     });
   }, []);
 
+  const undo = useCallback(() => {
+    const current = currentRef.current;
+
+    if (!history.length || !current) return;
+
+    const previous = history[history.length - 1];
+
+    setHistory((items) => items.slice(0, -1));
+    setFuture((items) => [...items, current]);
+
+    currentRef.current = previous;
+    setStorefront(previous);
+
+    setSelectedElementId('');
+    setSelectedSectionId('');
+
+    setNotice('Change undone.');
+  }, [history]);
+
+  const redo = useCallback(() => {
+    const current = currentRef.current;
+
+    if (!future.length || !current) return;
+
+    const next = future[future.length - 1];
+
+    setFuture((items) => items.slice(0, -1));
+    setHistory((items) => [...items, current]);
+
+    currentRef.current = next;
+    setStorefront(next);
+
+    setSelectedElementId('');
+    setSelectedSectionId('');
+
+    setNotice('Change restored.');
+  }, [future]);
+
+  // PAGE OPERATIONS
   const updatePage = (pageId, changes) => {
     commit((current) => ({
       ...current,
       pages: current.pages.map((page) =>
-        page.id === pageId ? { ...page, ...changes } : page
+        page.id === pageId
+          ? { ...page, ...changes }
+          : page
       ),
     }));
+  };
+
+  const addPage = (values = {}) => {
+    if (!storefront) return;
+
+    const number = storefront.pages.length + 1;
+
+    const title = values.title || `Page ${number}`;
+    const baseSlug = slugify(values.slug || title);
+
+    let slug = baseSlug;
+    let suffix = 2;
+
+    while (storefront.pages.some((page) => page.slug === slug)) {
+      slug = `${baseSlug}-${suffix++}`;
+    }
+
+    const page = createPage({
+      title,
+      slug,
+      visible: values.visible !== false,
+      sections: [
+        createSection('hero', {
+          title,
+          subtitle: 'Add content to this page.',
+        }),
+      ],
+    });
+
+    commit((current) => ({
+      ...current,
+      pages: [...current.pages, page],
+    }));
+
+    setActivePageId(page.id);
+    setSelectedSectionId('');
+    setSelectedElementId('');
+    setPanel('layers');
+    setDrawerOpen(true);
+
+    setNotice('Page created.');
+  };
+
+  const renamePage = (pageId, values) => {
+    updatePage(pageId, values);
+    setNotice('Page updated.');
+  };
+
+  const duplicatePage = (page) => {
+    if (!page || !storefront) return;
+
+    const title = `${page.title || 'Page'} copy`;
+    const baseSlug = slugify(title);
+
+    let slug = baseSlug;
+    let suffix = 2;
+
+    while (storefront.pages.some((item) => item.slug === slug)) {
+      slug = `${baseSlug}-${suffix++}`;
+    }
+
+    const duplicate = createPage({
+      title,
+      slug,
+      visible: page.visible !== false,
+      sections: (page.sections || []).map(cloneSection),
+    });
+
+    duplicate.isHome = false;
+
+    commit((current) => ({
+      ...current,
+      pages: [...current.pages, duplicate],
+    }));
+
+    setActivePageId(duplicate.id);
+    setSelectedSectionId('');
+    setSelectedElementId('');
+
+    setNotice('Page duplicated.');
+  };
+
+  const deletePage = (page) => {
+    if (!page || page.isHome || pages.length <= 1) return;
+
+    commit((current) => ({
+      ...current,
+      pages: current.pages.filter((item) => item.id !== page.id),
+    }));
+
+    if (activePageId === page.id) {
+      const remaining = pages.filter((item) => item.id !== page.id);
+      const next = remaining.find((item) => item.isHome) || remaining[0];
+
+      setActivePageId(next?.id || '');
+    }
+
+    setSelectedSectionId('');
+    setSelectedElementId('');
+
+    setNotice('Page deleted. Save to publish the change.');
+  };
+
+  const setHomePage = (page) => {
+    if (!page) return;
+
+    commit((current) => ({
+      ...current,
+      pages: current.pages.map((item) => ({
+        ...item,
+        isHome: item.id === page.id,
+      })),
+    }));
+
+    setNotice('Homepage updated.');
+  };
+
+  // SECTION OPERATIONS
+  const addSection = (type) => {
+    if (!activePage) return;
+
+    const settings = {
+      ...(DEFAULT_SECTION_SETTINGS[type] || {}),
+    };
+
+    if (type === 'hero') {
+      settings.title = business.name || 'Welcome to our business';
+      settings.buttonLink =
+        businessType === 'product' ? '/products' : '/services';
+    }
+
+    const section = createSection(type, settings);
+
+    updatePage(activePage.id, {
+      sections: [...(activePage.sections || []), section],
+    });
+
+    setSelectedSectionId(section.id);
+    setSelectedElementId('');
+
+    setShowSections(false);
+    setPanel('inspector');
+    setDrawerOpen(true);
   };
 
   const updateSection = (sectionId, key, value) => {
@@ -715,255 +515,84 @@ export default function StorefrontEditor() {
     }));
   };
 
-  const updateElement = (elementId, changes) => {
-    if (!activePage || !selectedSection) return;
+  const removeSection = (sectionId) => {
+    if (!activePage) return;
 
-    commit((current) => ({
-      ...current,
-      pages: current.pages.map((page) =>
-        page.id !== activePage.id
-          ? page
-          : {
-              ...page,
-              sections: page.sections.map((section) =>
-                section.id !== selectedSection.id
-                  ? section
-                  : {
-                      ...section,
-                      elements: (section.elements || []).map((element) =>
-                        element.id === elementId
-                          ? { ...element, ...changes }
-                          : element
-                      ),
-                    },
-              ),
-            }
+    updatePage(activePage.id, {
+      sections: activePage.sections.filter(
+        (section) => section.id !== sectionId
       ),
-    }));
-  };
-
-  const save = async () => {
-    const data = currentRef.current;
-    if (!data || saveLock.current) return;
-
-    saveLock.current = true;
-    setSaving(true);
-    setError('');
-    setNotice('');
-
-    const savingSnapshot = JSON.stringify(data);
-
-    try {
-      await api('/businesses/current/storefront', {
-        method: 'PUT',
-        biz: true,
-        body: data,
-      });
-
-      setSavedSnapshot(savingSnapshot);
-      setNotice(
-        JSON.stringify(currentRef.current) === savingSnapshot
-          ? 'All changes saved'
-          : 'Saved. You have newer unsaved changes.'
-      );
-    } catch (err) {
-      setError(err.message || 'Could not save your changes.');
-    } finally {
-      saveLock.current = false;
-      setSaving(false);
-    }
-  };
-
-  const undo = useCallback(() => {
-    const current = currentRef.current;
-    if (!history.length || !current) return;
-
-    const previous = history[history.length - 1];
-
-    setHistory((items) => items.slice(0, -1));
-    setFuture((items) => [...items, current]);
-    currentRef.current = previous;
-    setStorefront(previous);
+    });
 
     setSelectedSectionId('');
     setSelectedElementId('');
-    setNotice('Change undone.');
-  }, [history]);
-
-  const redo = useCallback(() => {
-    const current = currentRef.current;
-    if (!future.length || !current) return;
-
-    const next = future[future.length - 1];
-
-    setFuture((items) => items.slice(0, -1));
-    setHistory((items) => [...items, current]);
-    currentRef.current = next;
-    setStorefront(next);
-
-    setSelectedSectionId('');
-    setSelectedElementId('');
-    setNotice('Change restored.');
-  }, [future]);
-
-  const copyElement = (element) => {
-    if (!element) return;
-    setClipboardElement(JSON.parse(JSON.stringify(element)));
-    setNotice('Element copied. Select a section and paste it.');
   };
 
-  const pasteElement = (targetSectionId = selectedSectionId) => {
-    if (!clipboardElement || !activePage || !targetSectionId) {
-      setNotice('Copy an element and select a section before pasting.');
+  const duplicateSection = (section) => {
+    if (!activePage || !section) return;
+
+    const duplicate = cloneSection(section);
+    const sections = [...activePage.sections];
+
+    const index = sections.findIndex(
+      (item) => item.id === section.id
+    );
+
+    sections.splice(index + 1, 0, duplicate);
+
+    updatePage(activePage.id, { sections });
+
+    setSelectedSectionId(duplicate.id);
+    setSelectedElementId('');
+
+    setNotice('Section duplicated.');
+  };
+
+  const moveSection = (sectionId, direction) => {
+    if (!activePage) return;
+
+    const sections = [...activePage.sections];
+
+    const index = sections.findIndex(
+      (section) => section.id === sectionId
+    );
+
+    const target = index + direction;
+
+    if (index < 0 || target < 0 || target >= sections.length) return;
+
+    [sections[index], sections[target]] = [
+      sections[target],
+      sections[index],
+    ];
+
+    updatePage(activePage.id, { sections });
+  };
+
+  const reorderSections = (sections) => {
+    if (!activePage) return;
+
+    updatePage(activePage.id, { sections });
+    setNotice('Section order updated.');
+  };
+
+  // ELEMENT OPERATIONS
+  const addElement = (type) => {
+    if (!activePage || !selectedSection) {
+      setError('Select a section before adding an element.');
       return;
     }
 
-    const pasted = cloneElement(clipboardElement);
-
-    commit((current) => ({
-      ...current,
-      pages: current.pages.map((page) =>
-        page.id !== activePage.id
-          ? page
-          : {
-              ...page,
-              sections: page.sections.map((section) =>
-                section.id !== targetSectionId
-                  ? section
-                  : {
-                      ...section,
-                      elements: [...(section.elements || []), pasted],
-                    }
-              ),
-            }
-      ),
-    }));
-
-    setSelectedSectionId(targetSectionId);
-    setSelectedElementId(pasted.id);
-    setPanel('inspector');
-    setDrawerOpen(true);
-    setNotice('Element pasted.');
-  };
-
-  const duplicateElement = (element) => {
-    if (!element || !selectedSection || !activePage) return;
-
-    const duplicate = cloneElement(element);
-    const elements = [...(selectedSection.elements || [])];
-    const index = elements.findIndex((item) => item.id === element.id);
-
-    elements.splice(index + 1, 0, duplicate);
-
-    commit((current) => ({
-      ...current,
-      pages: current.pages.map((page) =>
-        page.id !== activePage.id
-          ? page
-          : {
-              ...page,
-              sections: page.sections.map((section) =>
-                section.id !== selectedSection.id
-                  ? section
-                  : { ...section, elements },
-              ),
-            }
-      ),
-    }));
-
-    setSelectedElementId(duplicate.id);
-    setNotice('Element duplicated.');
-  };
-
-  const removeElement = (elementId) => {
-    if (!activePage || !selectedSection) return;
-
-    commit((current) => ({
-      ...current,
-      pages: current.pages.map((page) =>
-        page.id !== activePage.id
-          ? page
-          : {
-              ...page,
-              sections: page.sections.map((section) =>
-                section.id !== selectedSection.id
-                  ? section
-                  : {
-                      ...section,
-                      elements: (section.elements || []).filter(
-                        (item) => item.id !== elementId
-                      ),
-                    }
-              ),
-            }
-      ),
-    }));
-
-    setSelectedElementId('');
-    setNotice('Element deleted.');
-  };
-
-  const moveElement = (elementId, direction) => {
-    if (!selectedSection || !activePage) return;
-
-    const elements = [...(selectedSection.elements || [])];
-    const index = elements.findIndex((item) => item.id === elementId);
-    const target = index + direction;
-
-    if (index < 0 || target < 0 || target >= elements.length) return;
-
-    [elements[index], elements[target]] = [elements[target], elements[index]];
-
-    commit((current) => ({
-      ...current,
-      pages: current.pages.map((page) =>
-        page.id !== activePage.id
-          ? page
-          : {
-              ...page,
-              sections: page.sections.map((section) =>
-                section.id === selectedSection.id
-                  ? { ...section, elements }
-                  : section
-              ),
-            }
-      ),
-    }));
-  };
-
-  const addSection = (type) => {
-    if (!activePage) return;
-
-    const settings = { ...(DEFAULT_SECTION_SETTINGS[type] || {}) };
-
-    if (type === 'hero') {
-      settings.title = business.name || 'Welcome to our business';
-      settings.buttonLink = businessType === 'product' ? '/products' : '/services';
-    }
-
-    const section = createSection(type, settings);
-
-    updatePage(activePage.id, {
-      sections: [...(activePage.sections || []), section],
-    });
-
-    setSelectedSectionId(section.id);
-    setSelectedElementId('');
-    setShowSections(false);
-    setPanel('inspector');
-    setDrawerOpen(true);
-  };
-
-  const addElement = (type) => {
-    if (!activePage || !selectedSection || !ELEMENT_TYPES.includes(type)) return;
+    if (!ELEMENT_TYPES.includes(type)) return;
 
     const element = createElement(type, {
       content: DEFAULT_ELEMENT_CONTENT[type] || '',
-      settings: type === 'spacer'
-        ? { height: 40 }
-        : type === 'columns' || type === 'grid'
-          ? { columns: 2 }
-          : {},
+      settings:
+        type === 'spacer'
+          ? { height: 40 }
+          : ['columns', 'grid'].includes(type)
+            ? { columns: 2 }
+            : {},
       style: {
         fontSize: type === 'heading' ? 32 : 16,
         fontWeight: type === 'heading' ? 'bold' : 'normal',
@@ -982,7 +611,10 @@ export default function StorefrontEditor() {
                   ? section
                   : {
                       ...section,
-                      elements: [...(section.elements || []), element],
+                      elements: [
+                        ...(section.elements || []),
+                        element,
+                      ],
                     }
               ),
             }
@@ -992,253 +624,250 @@ export default function StorefrontEditor() {
     setSelectedElementId(element.id);
     setShowElements(false);
     setPanel('inspector');
-    setActiveTool('elements');
     setDrawerOpen(true);
   };
 
-  const removeSection = (sectionId) => {
+  const updateElement = (elementId, changes) => {
     if (!activePage) return;
 
+    commit((current) => ({
+      ...current,
+      pages: current.pages.map((page) =>
+        page.id !== activePage.id
+          ? page
+          : {
+              ...page,
+              sections: page.sections.map((section) =>
+                section.id !== selectedSectionId
+                  ? section
+                  : {
+                      ...section,
+                      elements: (section.elements || []).map((element) =>
+                        element.id === elementId
+                          ? { ...element, ...changes }
+                          : element
+                      ),
+                    }
+              ),
+            }
+      ),
+    }));
+  };
+
+  const removeElement = (sectionId, elementId) => {
+    if (!activePage) return;
+
+    commit((current) => ({
+      ...current,
+      pages: current.pages.map((page) =>
+        page.id !== activePage.id
+          ? page
+          : {
+              ...page,
+              sections: page.sections.map((section) =>
+                section.id !== sectionId
+                  ? section
+                  : {
+                      ...section,
+                      elements: (section.elements || []).filter(
+                        (element) => element.id !== elementId
+                      ),
+                    }
+              ),
+            }
+      ),
+    }));
+
+    setSelectedElementId('');
+  };
+
+  const duplicateElement = (sectionId, element) => {
+    if (!activePage || !element) return;
+
+    const duplicate = cloneElement(element);
+
+    commit((current) => ({
+      ...current,
+      pages: current.pages.map((page) =>
+        page.id !== activePage.id
+          ? page
+          : {
+              ...page,
+              sections: page.sections.map((section) => {
+                if (section.id !== sectionId) return section;
+
+                const elements = [...(section.elements || [])];
+                const index = elements.findIndex(
+                  (item) => item.id === element.id
+                );
+
+                elements.splice(index + 1, 0, duplicate);
+
+                return { ...section, elements };
+              }),
+            }
+      ),
+    }));
+
+    setSelectedSectionId(sectionId);
+    setSelectedElementId(duplicate.id);
+  };
+
+  const moveElement = (elementId, direction, sectionId = selectedSectionId) => {
+    if (!activePage) return;
+
+    commit((current) => ({
+      ...current,
+      pages: current.pages.map((page) =>
+        page.id !== activePage.id
+          ? page
+          : {
+              ...page,
+              sections: page.sections.map((section) => {
+                if (section.id !== sectionId) return section;
+
+                const elements = [...(section.elements || [])];
+
+                const index = elements.findIndex(
+                  (element) => element.id === elementId
+                );
+
+                const target = index + direction;
+
+                if (
+                  index < 0 ||
+                  target < 0 ||
+                  target >= elements.length
+                ) {
+                  return section;
+                }
+
+                [elements[index], elements[target]] = [
+                  elements[target],
+                  elements[index],
+                ];
+
+                return { ...section, elements };
+              }),
+            }
+      ),
+    }));
+  };
+
+  const reorderElements = (sectionId, elements) => {
+    if (!activePage) return;
+
+    commit((current) => ({
+      ...current,
+      pages: current.pages.map((page) =>
+        page.id !== activePage.id
+          ? page
+          : {
+              ...page,
+              sections: page.sections.map((section) =>
+                section.id === sectionId
+                  ? { ...section, elements }
+                  : section
+              ),
+            }
+      ),
+    }));
+  };
+
+  const toggleSection = (section) => {
     updatePage(activePage.id, {
-      sections: activePage.sections.filter((section) => section.id !== sectionId),
+      sections: activePage.sections.map((item) =>
+        item.id === section.id
+          ? { ...item, visible: item.visible === false }
+          : item
+      ),
     });
-
-    setSelectedSectionId('');
-    setSelectedElementId('');
-    setPanel('layers');
   };
 
-  const moveSection = (sectionId, direction) => {
+  const toggleElement = (sectionId, element) => {
     if (!activePage) return;
 
-    const sections = [...activePage.sections];
-    const index = sections.findIndex((section) => section.id === sectionId);
-    const target = index + direction;
-
-    if (index < 0 || target < 0 || target >= sections.length) return;
-
-    [sections[index], sections[target]] = [sections[target], sections[index]];
-    updatePage(activePage.id, { sections });
+    commit((current) => ({
+      ...current,
+      pages: current.pages.map((page) =>
+        page.id !== activePage.id
+          ? page
+          : {
+              ...page,
+              sections: page.sections.map((section) =>
+                section.id !== sectionId
+                  ? section
+                  : {
+                      ...section,
+                      elements: section.elements.map((item) =>
+                        item.id === element.id
+                          ? { ...item, visible: item.visible === false }
+                          : item
+                      ),
+                    }
+              ),
+            }
+      ),
+    }));
   };
 
-  const duplicateSection = (section) => {
-    if (!activePage) return;
+  // COPY / PASTE
+  const copyElement = (element) => {
+    if (!element) return;
 
-    const copy = cloneSection(section);
-    const next = [...activePage.sections];
-    const index = next.findIndex((item) => item.id === section.id);
-
-    next.splice(index + 1, 0, copy);
-
-    updatePage(activePage.id, { sections: next });
-    setSelectedSectionId(copy.id);
-    setSelectedElementId('');
-    setNotice('Section duplicated.');
+    setClipboardElement(clone(element));
+    setNotice('Element copied.');
   };
 
-  const addPage = () => {
-    if (!storefront) return;
+  const pasteElement = () => {
+    if (!clipboardElement || !selectedSection) return;
 
-    const number = storefront.pages.length + 1;
-    let slug = `page-${number}`;
-    let suffix = 2;
-
-    while (storefront.pages.some((page) => page.slug === slug)) {
-      slug = `page-${number}-${suffix++}`;
-    }
-
-    const page = createPage({
-      title: `Page ${number}`,
-      slug,
-      sections: [
-        createSection('hero', {
-          title: `Page ${number}`,
-          subtitle: 'Add content to this page.',
-        }),
-      ],
-    });
+    const pasted = cloneElement(clipboardElement);
 
     commit((current) => ({
       ...current,
-      pages: [...current.pages, page],
-      activePage: page.slug,
+      pages: current.pages.map((page) =>
+        page.id !== activePage.id
+          ? page
+          : {
+              ...page,
+              sections: page.sections.map((section) =>
+                section.id !== selectedSection.id
+                  ? section
+                  : {
+                      ...section,
+                      elements: [
+                        ...(section.elements || []),
+                        pasted,
+                      ],
+                    }
+              ),
+            }
+      ),
     }));
 
-    setActivePageId(page.id);
-    setSelectedSectionId('');
-    setSelectedElementId('');
-    setPanel('layers');
-    setActiveTool('pages');
-    setDrawerOpen(true);
-    setNotice('Page created.');
+    setSelectedElementId(pasted.id);
+    setNotice('Element pasted.');
   };
 
-  const renamePage = (page) => {
-    if (!page || page.isHome) {
-      setNotice('The Home page keeps its original name.');
-      return;
-    }
-
-    const title = window.prompt('Enter a new page name:', page.title || '');
-
-    if (title === null) return;
-
-    const cleanTitle = title.trim();
-
-    if (!cleanTitle) {
-      setNotice('Page name cannot be empty.');
-      return;
-    }
-
-    const baseSlug = slugify(cleanTitle);
-    let slug = baseSlug;
-    let suffix = 2;
-
-    while (storefront.pages.some((item) => item.id !== page.id && item.slug === slug)) {
-      slug = `${baseSlug}-${suffix++}`;
-    }
-
-    updatePage(page.id, { title: cleanTitle, slug });
-    setNotice('Page renamed.');
-  };
-
-  const duplicatePage = (page) => {
-    if (!page || !storefront) return;
-
-    const baseTitle = `${page.title || 'Page'} copy`;
-    let title = baseTitle;
-    let count = 2;
-
-    while (storefront.pages.some((item) => item.title === title)) {
-      title = `${baseTitle} ${count++}`;
-    }
-
-    const baseSlug = slugify(title);
-    let slug = baseSlug;
-    let suffix = 2;
-
-    while (storefront.pages.some((item) => item.slug === slug)) {
-      slug = `${baseSlug}-${suffix++}`;
-    }
-
-    const duplicate = createPage({
-      title,
-      slug,
-      sections: (page.sections || []).map(cloneSection),
-    });
-
-    duplicate.isHome = false;
-
-    commit((current) => ({
-      ...current,
-      pages: [...current.pages, duplicate],
-    }));
-
-    setActivePageId(duplicate.id);
-    setSelectedSectionId('');
-    setSelectedElementId('');
-    setPanel('layers');
-    setNotice('Page duplicated.');
-  };
-
-  const deletePage = (page) => {
-    if (!page || page.isHome) {
-      setNotice('The Home page cannot be deleted.');
-      return;
-    }
-
-    if (pages.length <= 1) {
-      setNotice('Your storefront must have at least one page.');
-      return;
-    }
-
-    const confirmed = window.confirm(
-      `Delete "${page.title}"? This will remove the page and its sections.`
-    );
-
-    if (!confirmed) return;
-
-    const remaining = pages.filter((item) => item.id !== page.id);
-
-    commit((current) => ({
-      ...current,
-      pages: remaining,
-    }));
-
-    if (activePageId === page.id) {
-      const home = remaining.find((item) => item.isHome) || remaining[0];
-      setActivePageId(home?.id || '');
-    }
-
-    setSelectedSectionId('');
-    setSelectedElementId('');
-    setPanel('layers');
-    setNotice('Page deleted. Save to publish the change.');
-  };
-
+  // THEME
   const updateTheme = (key, value) => {
     commit((current) => ({
       ...current,
-      theme: { ...current.theme, [key]: value },
+      theme: {
+        ...(current.theme || {}),
+        [key]: value,
+      },
     }));
   };
 
-  const updatePageBackground = (value) => {
-    if (!activePage) return;
-
-    updatePage(activePage.id, {
-      backgroundColor: value,
-    });
+  // SETTINGS
+  const updateStorefrontSettings = (next) => {
+    commit(next);
+    setNotice('Store settings updated. Save to publish.');
   };
 
-  const updateSelectedBackground = (value) => {
-    if (selectedElement) {
-      updateElement(selectedElement.id, {
-        style: {
-          ...(selectedElement.style || {}),
-          backgroundColor: value,
-        },
-      });
-    } else if (selectedSection) {
-      updateSection(selectedSection.id, 'backgroundColor', value);
-    } else {
-      updatePageBackground(value);
-    }
-  };
-
-  const handleTool = (id) => {
-    setActiveTool(id);
-    setDrawerOpen(true);
-
-    if (id === 'elements' || id === 'text') {
-      setPanel('layers');
-      setShowElements(true);
-    } else if (id === 'brand') {
-      setPanel('theme');
-    } else if (id === 'background') {
-      setPanel('background');
-    } else if (id === 'pages') {
-      setPanel('pages');
-    } else if (id === 'templates') {
-      setPanel('templates');
-    } else if (id === 'uploads') {
-      uploadRef.current?.click();
-    }
-  };
-
-  const handleUpload = (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith('image/')) {
-      setError('Please choose an image file.');
-      return;
-    }
-
-    setNotice('Image selected. Upload integration will be connected in the media phase.');
-    event.target.value = '';
-  };
-
+  // TEMPLATE
   const applyTemplate = (next) => {
     if (!next) return;
 
@@ -1249,13 +878,49 @@ export default function StorefrontEditor() {
     setActivePageId(home?.id || next.pages?.[0]?.id || '');
     setSelectedSectionId('');
     setSelectedElementId('');
+
     setPanel('layers');
-    setActiveTool('elements');
     setDrawerOpen(false);
-    setNotice('Template applied. Save to publish your new design.');
+
+    setNotice('Template applied. Save to publish your design.');
   };
 
-  // Keyboard shortcuts
+  // SAVE
+  const save = async () => {
+    const data = currentRef.current;
+
+    if (!data || saveLock.current) return;
+
+    saveLock.current = true;
+    setSaving(true);
+    setError('');
+    setNotice('');
+
+    const snapshot = JSON.stringify(data);
+
+    try {
+      await api('/businesses/current/storefront', {
+        method: 'PUT',
+        biz: true,
+        body: data,
+      });
+
+      setSavedSnapshot(snapshot);
+
+      setNotice(
+        JSON.stringify(currentRef.current) === snapshot
+          ? 'All changes saved.'
+          : 'Saved. You have newer unsaved changes.'
+      );
+    } catch (err) {
+      setError(err.message || 'Could not save your storefront.');
+    } finally {
+      saveLock.current = false;
+      setSaving(false);
+    }
+  };
+
+  // KEYBOARD SHORTCUTS
   useEffect(() => {
     const handleKeyboard = (event) => {
       const target = event.target;
@@ -1267,7 +932,10 @@ export default function StorefrontEditor() {
         tag === 'select' ||
         target?.isContentEditable;
 
+      if (typing) return;
+
       const modifier = event.ctrlKey || event.metaKey;
+
       if (!modifier) return;
 
       const key = event.key.toLowerCase();
@@ -1275,84 +943,90 @@ export default function StorefrontEditor() {
       if (key === 'z' && !event.shiftKey) {
         event.preventDefault();
         undo();
-        return;
-      }
-
-      if (key === 'y' || (key === 'z' && event.shiftKey)) {
+      } else if (key === 'y' || (key === 'z' && event.shiftKey)) {
         event.preventDefault();
         redo();
-        return;
-      }
-
-      if (typing) return;
-
-      if (key === 'c' && selectedElement) {
+      } else if (key === 'c' && selectedElement) {
         event.preventDefault();
         copyElement(selectedElement);
-      }
-
-      if (key === 'v' && clipboardElement) {
+      } else if (key === 'v' && clipboardElement) {
         event.preventDefault();
         pasteElement();
-      }
-
-      if (key === 'd' && selectedElement) {
-        event.preventDefault();
-        duplicateElement(selectedElement);
       }
     };
 
     window.addEventListener('keydown', handleKeyboard);
 
     return () => window.removeEventListener('keydown', handleKeyboard);
-  }, [
-    undo,
-    redo,
-    selectedElement,
-    clipboardElement,
-    selectedSectionId,
-    activePageId,
-    storefront,
-  ]);
+  }, [undo, redo, selectedElement, clipboardElement]);
 
-  const storeUrl = business.slug ? `/store/${business.slug}` : '/';
+  // TOOLBAR
+  const handleTool = (tool) => {
+    setActiveTool(tool);
+    setDrawerOpen(true);
 
-  const previewWidth = {
-    desktop: '100%',
-    tablet: '768px',
-    mobile: '390px',
-  }[device];
+    if (tool === 'pages') setPanel('pages');
+    if (tool === 'brand') setPanel('theme');
+    if (tool === 'templates') setPanel('templates');
 
-  if (loading) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center text-sm text-slate-500">
-        Loading your editor…
-      </div>
+    if (tool === 'elements' || tool === 'text') {
+      setPanel('layers');
+      setShowElements(true);
+    }
+
+    if (tool === 'uploads') uploadRef.current?.click();
+    if (tool === 'settings') setPanel('settings');
+  };
+
+  const handleUpload = (event) => {
+    const file = event.target.files?.[0];
+
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setError('Please select an image file.');
+      event.target.value = '';
+      return;
+    }
+
+    setNotice(
+      'Image selected. Cloudinary upload integration is the next media phase.'
     );
-  }
 
-  if (!storefront) {
-    return (
-      <div className="p-8 text-center">
-        <p className="text-sm text-red-600">
-          {error || 'Could not load editor.'}
-        </p>
-      </div>
-    );
-  }
+    event.target.value = '';
+  };
 
-  const layerProps = {
-    pages,
-    activePage,
-    selectedSectionId,
-    selectedElementId,
+  // PANEL PROPS
+  const pageManagerProps = {
+    onSelectPage: (id) => {
+      setActivePageId(id);
+      setSelectedSectionId('');
+      setSelectedElementId('');
+    },
+    onCreatePage: addPage,
+    onUpdatePage: renamePage,
+    onDuplicatePage: duplicatePage,
+    onDeletePage: deletePage,
+    onSetHomePage: setHomePage,
+  };
+
+  const layerManagerProps = {
     onPage: (id) => {
       setActivePageId(id);
       setSelectedSectionId('');
       setSelectedElementId('');
     },
-    onAddPage: addPage,
-    onRenamePage: renamePage,
+    onAddPage: () => addPage(),
+    onRenamePage: (page) => {
+      const title = window.prompt('New page name:', page.title);
+
+      if (title?.trim()) {
+        renamePage(page.id, {
+          title: title.trim(),
+          slug: slugify(title),
+        });
+      }
+    },
     onDuplicatePage: duplicatePage,
     onDeletePage: deletePage,
     onAddSection: () => setShowSections(true),
@@ -1370,43 +1044,88 @@ export default function StorefrontEditor() {
       setDrawerOpen(true);
     },
     onMoveSection: moveSection,
+    onMoveElement: moveElement,
     onDuplicateSection: duplicateSection,
+    onDuplicateElement: duplicateElement,
     onRemoveSection: removeSection,
+    onRemoveElement: removeElement,
+    onToggleSection: toggleSection,
+    onToggleElement: toggleElement,
+    onReorderSections: reorderSections,
+    onReorderElements: reorderElements,
   };
 
-  const inspectorProps = {
-    element: selectedElement,
-    section: selectedSection,
+  const elementInspectorProps = {
     onUpdateElement: updateElement,
-    onUpdateSection: updateSection,
-    onRemoveElement: removeElement,
-    onDuplicateElement: duplicateElement,
+    onRemoveElement: (id) => removeElement(selectedSectionId, id),
+    onDuplicateElement: (element) =>
+      duplicateElement(selectedSectionId, element),
     onCopyElement: copyElement,
   };
 
+  const sectionInspectorProps = {
+    onUpdateSection: updateSection,
+    onRemoveSection: removeSection,
+    onDuplicateSection: duplicateSection,
+  };
+
+  const templateProps = {
+    businessType,
+    businessName: business.name || '',
+    currentConfig: storefront,
+    onApply: applyTemplate,
+    onClose: () => setPanel('layers'),
+  };
+
+  const settingsPanel = panel === 'settings';
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center text-sm text-slate-500">
+        Loading your editor…
+      </div>
+    );
+  }
+
+  if (!storefront) {
+    return (
+      <div className="p-8 text-center">
+        <p className="text-sm text-red-600">
+          {error || 'Could not load your storefront.'}
+        </p>
+      </div>
+    );
+  }
+
+  const tools = [
+    ['layers', 'Layers', Layers],
+    ['pages', 'Pages', FileText],
+    ['theme', 'Brand', Palette],
+    ['templates', 'Templates', LayoutTemplate],
+    ['settings', 'Settings', Settings2],
+  ];
+
   return (
     <div className="fixed inset-0 z-[60] flex flex-col overflow-hidden bg-[#f1f2f5]">
+
       {/* TOP BAR */}
-      <header className="relative z-[90] flex min-h-[58px] shrink-0 items-center justify-between gap-2 border-b border-slate-200 bg-white px-3 md:px-5">
+      <header className="z-[90] flex min-h-[60px] shrink-0 items-center justify-between gap-2 border-b border-slate-200 bg-white px-3 sm:px-5">
+
         <div className="flex min-w-0 items-center gap-2">
           <button
             type="button"
-            onClick={() => setAppMenuOpen((open) => !open)}
-            aria-label="Open main navigation"
-            aria-expanded={appMenuOpen}
-            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition ${
-              appMenuOpen
-                ? 'bg-emerald-50 text-emerald-800'
-                : 'text-slate-600 hover:bg-slate-100'
-            }`}
+            onClick={() => setNavigationOpen((value) => !value)}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100"
+            aria-label="Toggle navigation"
           >
-            {appMenuOpen ? <X size={21} /> : <Menu size={21} />}
+            {navigationOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
 
           <div className="min-w-0">
             <p className="truncate text-sm font-bold text-slate-900">
               {business.name || 'Your storefront'}
             </p>
+
             <p className="text-[10px] text-slate-400">
               {dirty ? 'Unsaved changes' : 'All changes saved'}
             </p>
@@ -1415,19 +1134,21 @@ export default function StorefrontEditor() {
 
         <div className="hidden items-center gap-1 sm:flex">
           <button
+            type="button"
             onClick={undo}
             disabled={!history.length}
-            className="rounded-lg p-2 text-slate-600 disabled:opacity-30"
-            title="Undo (Ctrl/Cmd + Z)"
+            title="Undo"
+            className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 disabled:opacity-30"
           >
             <Undo2 size={17} />
           </button>
 
           <button
+            type="button"
             onClick={redo}
             disabled={!future.length}
-            className="rounded-lg p-2 text-slate-600 disabled:opacity-30"
-            title="Redo (Ctrl/Cmd + Y)"
+            title="Redo"
+            className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 disabled:opacity-30"
           >
             <Redo2 size={17} />
           </button>
@@ -1435,7 +1156,7 @@ export default function StorefrontEditor() {
 
         <div className="flex items-center gap-2">
           <a
-            href={storeUrl}
+            href={business.slug ? `/store/${business.slug}` : '/'}
             target="_blank"
             rel="noreferrer"
             className="hidden rounded-xl border border-slate-200 p-2 text-slate-600 sm:block"
@@ -1445,310 +1166,191 @@ export default function StorefrontEditor() {
           </a>
 
           <button
+            type="button"
             onClick={save}
             disabled={saving || !dirty}
-            className="flex min-h-10 items-center gap-2 rounded-xl bg-emerald-700 px-3 py-2 text-xs font-bold text-white disabled:opacity-40"
+            className="flex min-h-10 items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2 text-xs font-bold text-white disabled:opacity-40"
           >
             <Save size={15} />
-            <span>{saving ? 'Saving' : 'Save'}</span>
+            {saving ? 'Saving…' : 'Save'}
           </button>
         </div>
       </header>
 
-      {/* MAIN APP NAVIGATION */}
-      {appMenuOpen && (
+      {/* MAIN NAVIGATION */}
+      {navigationOpen && (
         <>
           <button
             type="button"
-            aria-label="Close navigation"
-            onClick={() => setAppMenuOpen(false)}
+            onClick={() => setNavigationOpen(false)}
             className="fixed inset-0 z-[95] bg-slate-950/30"
+            aria-label="Close navigation"
           />
 
-          <nav className="fixed left-3 top-[66px] z-[100] max-h-[calc(100svh-90px)] w-[min(300px,calc(100vw-24px))] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-3 shadow-2xl">
-            <div className="border-b border-slate-100 px-3 pb-3">
-              <p className="text-sm font-bold text-slate-900">
-                {business.name || 'Zuno'}
-              </p>
-              <p className="mt-1 text-[11px] text-slate-400">
-                Main navigation
-              </p>
-            </div>
+          <nav className="fixed left-3 top-[68px] z-[100] max-h-[80svh] w-[min(300px,calc(100vw-24px))] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-3 shadow-2xl">
+            <p className="border-b border-slate-100 px-3 pb-3 text-sm font-bold text-slate-900">
+              {business.name || 'Zuno'}
+            </p>
 
-            <div className="mt-2 space-y-1">
-              {APP_NAVIGATION.map((item) => (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  onClick={() => setAppMenuOpen(false)}
-                  className={`block rounded-xl px-3 py-3 text-sm font-medium transition ${
-                    item.path === '/app'
-                      ? 'bg-emerald-50 text-emerald-800'
-                      : 'text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </div>
-
-            <div className="mt-3 border-t border-slate-100 pt-3">
-              <button
-                type="button"
-                onClick={() => setAppMenuOpen(false)}
-                className="w-full rounded-xl bg-slate-100 px-3 py-3 text-sm font-semibold text-slate-600"
+            {NAVIGATION.map(([label, path]) => (
+              <Link
+                key={path}
+                to={path}
+                onClick={() => setNavigationOpen(false)}
+                className="mt-1 block rounded-xl px-3 py-3 text-sm text-slate-600 hover:bg-slate-50"
               >
-                Return to editor
-              </button>
-            </div>
+                {label}
+              </Link>
+            ))}
           </nav>
         </>
       )}
 
+      {/* FEEDBACK */}
       {(error || notice) && (
-        <div className={`z-30 flex shrink-0 items-center justify-between px-4 py-2 text-xs ${
-          error ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-800'
-        }`}>
+        <div
+          className={`z-30 flex shrink-0 items-center justify-between gap-3 px-4 py-2 text-xs ${
+            error
+              ? 'bg-red-50 text-red-700'
+              : 'bg-emerald-50 text-emerald-800'
+          }`}
+        >
           <span>{error || notice}</span>
-          <button onClick={() => { setError(''); setNotice(''); }}>
+
+          <button
+            type="button"
+            onClick={() => {
+              setError('');
+              setNotice('');
+            }}
+          >
             <X size={15} />
           </button>
         </div>
       )}
 
       {/* WORKSPACE */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
-        {/* DESKTOP LEFT SIDEBAR */}
-        <aside className="hidden w-[250px] shrink-0 flex-col border-r border-slate-200 bg-white md:flex">
-          <div className="grid grid-cols-3 border-b border-slate-100 p-2">
-            <button
-              onClick={() => setPanel('layers')}
-              className={`rounded-xl py-3 text-xs font-semibold ${
-                panel === 'layers' || panel === 'inspector'
-                  ? 'bg-emerald-50 text-emerald-800'
-                  : 'text-slate-500'
-              }`}
-            >
-              <Layers size={16} className="mr-1 inline" />
-              Layers
-            </button>
+      <div className="flex min-h-0 flex-1 overflow-hidden">
 
-            <button
-              onClick={() => setPanel('theme')}
-              className={`rounded-xl py-3 text-xs font-semibold ${
-                panel === 'theme'
-                  ? 'bg-emerald-50 text-emerald-800'
-                  : 'text-slate-500'
-              }`}
-            >
-              <Palette size={16} className="mr-1 inline" />
-              Brand
-            </button>
+        {/* DESKTOP LEFT PANEL */}
+        <aside className="hidden w-[310px] shrink-0 flex-col border-r border-slate-200 bg-white md:flex">
 
-            <button
-              onClick={() => setPanel('templates')}
-              className={`rounded-xl py-3 text-xs font-semibold ${
-                panel === 'templates'
-                  ? 'bg-emerald-50 text-emerald-800'
-                  : 'text-slate-500'
-              }`}
-            >
-              <LayoutTemplate size={16} className="mr-1 inline" />
-              Templates
-            </button>
+          <div className="grid grid-cols-5 gap-1 border-b border-slate-100 p-2">
+            {tools.map(([id, label, Icon]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setPanel(id)}
+                className={`flex flex-col items-center gap-1 rounded-xl px-1 py-3 text-[9px] font-semibold ${
+                  panel === id || (id === 'layers' && panel === 'inspector')
+                    ? 'bg-emerald-50 text-emerald-800'
+                    : 'text-slate-500 hover:bg-slate-50'
+                }`}
+              >
+                <Icon size={17} />
+                {label}
+              </button>
+            ))}
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto p-4">
-            {panel === 'layers' && <LayersPanel {...layerProps} />}
-
-            {panel === 'theme' && (
-              <ThemePanel theme={storefront.theme} onUpdate={updateTheme} />
-            )}
-
-            {panel === 'templates' && (
-              <StorefrontTemplatePanel
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {settingsPanel ? (
+              <StorefrontSettingsPanel
+                storefront={storefront}
+                business={business}
+                onUpdate={updateStorefrontSettings}
+              />
+            ) : (
+              <StorefrontEditorPanels
+                panel={panel}
+                setPanel={setPanel}
+                pages={pages}
+                activePage={activePage}
+                activePageId={activePage?.id || ''}
+                selectedElement={selectedElement}
+                selectedSection={selectedSection}
+                theme={storefront.theme || {}}
+                onUpdateTheme={updateTheme}
+                pageManagerProps={pageManagerProps}
+                layerManagerProps={layerManagerProps}
+                elementInspectorProps={elementInspectorProps}
+                sectionInspectorProps={sectionInspectorProps}
+                templateProps={templateProps}
                 businessType={businessType}
                 businessName={business.name || ''}
                 currentConfig={storefront}
-                onClose={() => setPanel('layers')}
-                onApply={applyTemplate}
+                onApplyTemplate={applyTemplate}
+                onCloseTemplates={() => setPanel('layers')}
               />
             )}
-
-            {panel === 'inspector' && <Inspector {...inspectorProps} />}
           </div>
         </aside>
 
-        {/* CANVAS AREA */}
-        <main className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-          <div className="z-10 flex min-h-12 shrink-0 items-center justify-between gap-2 border-b border-slate-200 bg-white px-3">
-            <p className="min-w-0 truncate text-xs font-bold text-slate-700">
-              {activePage?.title || 'Your page'}
-            </p>
+        {/* CANVAS */}
+        <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <StorefrontEditorCanvas
+            business={business}
+            storefront={storefront}
+            activePage={activePage}
+            device={device}
+            setDevice={setDevice}
+            zoom={zoom}
+            setZoom={setZoom}
+            selectedSectionId={selectedSectionId}
+            selectedElementId={selectedElementId}
+            onSelectSection={(id) => {
+              setSelectedSectionId(id);
+              setSelectedElementId('');
+              setPanel('inspector');
+              setDrawerOpen(true);
+            }}
+            onSelectElement={(elementId, sectionId) => {
+              const parent =
+                sectionId ||
+                activePage?.sections?.find((section) =>
+                  section.elements?.some(
+                    (element) => element.id === elementId
+                  )
+                )?.id ||
+                '';
 
-            <div className="flex items-center gap-1">
-              <div className="hidden items-center gap-1 sm:flex">
-                {[
-                  ['desktop', Monitor],
-                  ['tablet', Tablet],
-                  ['mobile', Smartphone],
-                ].map(([value, Icon]) => (
-                  <button
-                    key={value}
-                    onClick={() => setDevice(value)}
-                    className={`rounded-lg p-2 ${
-                      device === value
-                        ? 'bg-emerald-50 text-emerald-700'
-                        : 'text-slate-500'
-                    }`}
-                  >
-                    <Icon size={16} />
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex items-center rounded-lg bg-slate-100">
-                <button
-                  onClick={() => setZoom((v) => Math.max(40, v - 10))}
-                  className="rounded-lg p-2 text-slate-600"
-                  title="Zoom out"
-                >
-                  <ZoomOut size={15} />
-                </button>
-
-                <span className="min-w-10 text-center text-[10px] font-semibold text-slate-600">
-                  {zoom}%
-                </span>
-
-                <button
-                  onClick={() => setZoom((v) => Math.min(150, v + 10))}
-                  className="rounded-lg p-2 text-slate-600"
-                  title="Zoom in"
-                >
-                  <ZoomIn size={15} />
-                </button>
-              </div>
-
-              <button
-                onClick={() => setZoom(100)}
-                className="rounded-lg p-2 text-slate-500"
-                title="Reset zoom"
-              >
-                <Maximize2 size={15} />
-              </button>
-            </div>
-          </div>
-
-          {/* CANVAS */}
-          <div className="min-h-0 flex-1 overflow-auto overscroll-contain p-3 sm:p-5">
-            <div
-              className="mx-auto bg-white shadow-xl transition-all duration-200"
-              style={{
-                width: previewWidth,
-                maxWidth: '100%',
-                transform: `scale(${zoom / 100})`,
-                transformOrigin: 'top center',
-                marginBottom: `${Math.max(0, (zoom - 100) * 4)}px`,
-              }}
-            >
-              <StorefrontRenderer
-                pageSlug={activePage?.isHome ? 'home' : activePage?.slug || 'home'}
-                biz={business}
-                storefront={storefront}
-                slug={business.slug || ''}
-                storeBase={business.slug ? `/store/${business.slug}` : ''}
-                color={storefront.theme?.primaryColor || business.brandColor || '#0B3D2E'}
-                editorMode
-                selectedSectionId={selectedSectionId}
-                selectedElementId={selectedElementId}
-                onSelectSection={(id) => {
-                  setSelectedSectionId(id);
-                  setSelectedElementId('');
-                  setPanel('inspector');
-                  setDrawerOpen(true);
-                }}
-                onSelectElement={(elementId, sectionId) => {
-                  const parentSectionId =
-                    sectionId ||
-                    activePage?.sections?.find((section) =>
-                      section.elements?.some((element) => element.id === elementId)
-                    )?.id ||
-                    '';
-
-                  setSelectedSectionId(parentSectionId);
-                  setSelectedElementId(elementId);
-                  setPanel('inspector');
-                  setDrawerOpen(true);
-                }}
-              />
-
-              {!activePage?.sections?.length && (
-                <div className="px-8 py-24 text-center">
-                  <h2 className="text-xl font-bold">Start building your page</h2>
-                  <p className="mt-2 text-sm text-slate-500">
-                    Add a section to begin designing your storefront.
-                  </p>
-                  <button
-                    onClick={() => setShowSections(true)}
-                    className="mt-5 rounded-xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white"
-                  >
-                    Add your first section
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
+              setSelectedSectionId(parent);
+              setSelectedElementId(elementId);
+              setPanel('inspector');
+              setDrawerOpen(true);
+            }}
+            onAddSection={() => setShowSections(true)}
+            onPreview={() => {
+              window.open(
+                business.slug ? `/store/${business.slug}` : '/',
+                '_blank',
+                'noopener,noreferrer'
+              );
+            }}
+          />
         </main>
-
-        {/* DESKTOP RIGHT INSPECTOR */}
-        <aside className="hidden w-[290px] shrink-0 overflow-y-auto border-l border-slate-200 bg-white p-4 xl:block">
-          <Inspector {...inspectorProps} />
-
-          {selectedElement && (
-            <div className="mt-5 flex gap-2 border-t border-slate-100 pt-4">
-              <button
-                onClick={() => moveElement(selectedElement.id, -1)}
-                className="flex-1 rounded-xl border border-slate-200 py-3 text-xs font-semibold"
-              >
-                Move up
-              </button>
-              <button
-                onClick={() => moveElement(selectedElement.id, 1)}
-                className="flex-1 rounded-xl border border-slate-200 py-3 text-xs font-semibold"
-              >
-                Move down
-              </button>
-            </div>
-          )}
-        </aside>
       </div>
 
-      {/* MOBILE EDITING DRAWER */}
-      <div className="relative z-40 shrink-0 border-t border-slate-200 bg-white md:hidden">
+      {/* MOBILE EDITOR */}
+      <div className="z-40 shrink-0 border-t border-slate-200 bg-white md:hidden">
+
         {drawerOpen && (
-          <div className="max-h-[38svh] overflow-y-auto overscroll-contain border-b border-slate-100 px-4 pb-4 pt-3">
+          <div className="max-h-[42svh] overflow-y-auto border-b border-slate-100 p-3">
             <div className="mb-3 flex items-center justify-between">
               <div>
                 <p className="text-sm font-bold capitalize text-slate-900">
-                  {panel === 'templates'
-                    ? 'Template library'
-                    : selectedElement
+                  {panel === 'inspector'
+                    ? selectedElement
                       ? 'Edit element'
-                      : selectedSection
-                        ? 'Edit section'
-                        : activeTool}
-                </p>
-
-                <p className="text-[10px] text-slate-400">
-                  {panel === 'templates'
-                    ? 'Choose a design for your storefront'
-                    : selectedElement?.type?.replaceAll('_', ' ') ||
-                      (selectedSection && SECTION_LABELS[selectedSection.type]) ||
-                      'Choose a tool to get started'}
+                      : 'Edit section'
+                    : panel === 'settings'
+                      ? 'Store settings'
+                      : panel}
                 </p>
               </div>
 
               <button
+                type="button"
                 onClick={() => setDrawerOpen(false)}
                 className="rounded-full bg-slate-100 p-2 text-slate-600"
               >
@@ -1756,85 +1358,86 @@ export default function StorefrontEditor() {
               </button>
             </div>
 
-            {panel === 'inspector' && <Inspector {...inspectorProps} />}
-
-            {panel === 'theme' && (
-              <ThemePanel theme={storefront.theme} onUpdate={updateTheme} />
-            )}
-
-            {panel === 'background' && (
-              <div className="space-y-4">
-                <p className="text-xs text-slate-500">
-                  Apply a background to the selected element, section or page.
-                </p>
-
-                <Field
-                  label="Background colour"
-                  value={
-                    selectedElement?.style?.backgroundColor ||
-                    selectedSection?.settings?.backgroundColor ||
-                    activePage?.backgroundColor ||
-                    ''
-                  }
-                  onChange={updateSelectedBackground}
-                  placeholder="#FFFFFF"
-                />
-
-                <div className="flex flex-wrap gap-2">
-                  {['#FFFFFF', '#F8FAFC', '#111827', '#0B3D2E', '#E8D8C8'].map((color) => (
-                    <button
-                      key={color}
-                      onClick={() => updateSelectedBackground(color)}
-                      className="h-9 w-9 rounded-full border border-slate-300"
-                      style={{ backgroundColor: color }}
-                      title={color}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {panel === 'pages' && (
-              <LayersPanel {...layerProps} />
-            )}
-
-            {panel === 'templates' && (
-              <StorefrontTemplatePanel
+            {settingsPanel ? (
+              <StorefrontSettingsPanel
+                storefront={storefront}
+                business={business}
+                onUpdate={updateStorefrontSettings}
+                mobile
+              />
+            ) : (
+              <StorefrontEditorPanels
+                panel={panel}
+                setPanel={setPanel}
+                pages={pages}
+                activePage={activePage}
+                activePageId={activePage?.id || ''}
+                selectedElement={selectedElement}
+                selectedSection={selectedSection}
+                theme={storefront.theme || {}}
+                onUpdateTheme={updateTheme}
+                pageManagerProps={pageManagerProps}
+                layerManagerProps={layerManagerProps}
+                elementInspectorProps={elementInspectorProps}
+                sectionInspectorProps={sectionInspectorProps}
+                templateProps={templateProps}
                 businessType={businessType}
                 businessName={business.name || ''}
                 currentConfig={storefront}
-                onClose={() => {
-                  setPanel('layers');
-                  setDrawerOpen(false);
-                }}
-                onApply={applyTemplate}
+                onApplyTemplate={applyTemplate}
+                onClose={() => setDrawerOpen(false)}
+                onCloseTemplates={() => setPanel('layers')}
+                mobile
               />
             )}
-
-            {panel === 'layers' && <LayersPanel {...layerProps} />}
           </div>
         )}
 
-        {/* CANVA-STYLE TOOLBAR */}
         <div className="flex items-center gap-1 overflow-x-auto px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2">
-          {TOOL_ITEMS.map(({ id, label, icon: Icon }) => (
+          {[
+            ['layers', 'Layers', Layers],
+            ['pages', 'Pages', FileText],
+            ['theme', 'Brand', Palette],
+            ['templates', 'Templates', LayoutTemplate],
+            ['settings', 'Settings', Settings2],
+          ].map(([id, label, Icon]) => (
             <button
               key={id}
-              onClick={() => handleTool(id)}
-              className={`flex min-w-[76px] shrink-0 flex-col items-center gap-1 rounded-xl px-2 py-2 text-[10px] font-semibold ${
-                activeTool === id
+              type="button"
+              onClick={() => {
+                setPanel(id);
+                setDrawerOpen(true);
+              }}
+              className={`flex min-w-[70px] shrink-0 flex-col items-center gap-1 rounded-xl px-2 py-2 text-[10px] font-semibold ${
+                panel === id
                   ? 'bg-emerald-50 text-emerald-800'
                   : 'text-slate-500'
               }`}
             >
-              <Icon size={21} />
-              <span>{label}</span>
+              <Icon size={19} />
+              {label}
             </button>
           ))}
+
+          <button
+            type="button"
+            onClick={() => {
+              setPanel('inspector');
+              setDrawerOpen(true);
+            }}
+            className={`flex min-w-[70px] shrink-0 flex-col items-center gap-1 rounded-xl px-2 py-2 text-[10px] font-semibold ${
+              panel === 'inspector'
+                ? 'bg-emerald-50 text-emerald-800'
+                : 'text-slate-500'
+            }`}
+          >
+            <Paintbrush size={19} />
+            Inspect
+          </button>
         </div>
       </div>
 
-      {/* HIDDEN UPLOAD INPUT */}
+      {/* HIDDEN IMAGE INPUT */}
       <input
         ref={uploadRef}
         type="file"
@@ -1849,13 +1452,16 @@ export default function StorefrontEditor() {
           <div className="max-h-[82svh] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl">
             <div className="mb-5 flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-bold text-slate-900">Add a section</h2>
+                <h2 className="text-lg font-bold text-slate-900">
+                  Add a section
+                </h2>
                 <p className="mt-1 text-xs text-slate-500">
                   Choose a section for this page.
                 </p>
               </div>
 
               <button
+                type="button"
                 onClick={() => setShowSections(false)}
                 className="rounded-xl p-2 hover:bg-slate-100"
               >
@@ -1867,6 +1473,7 @@ export default function StorefrontEditor() {
               {availableSections.map((type) => (
                 <button
                   key={type}
+                  type="button"
                   onClick={() => addSection(type)}
                   className="rounded-2xl border border-slate-200 p-4 text-left hover:border-emerald-500 hover:bg-emerald-50"
                 >
@@ -1889,13 +1496,16 @@ export default function StorefrontEditor() {
           <div className="max-h-[82svh] w-full max-w-xl overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl">
             <div className="mb-5 flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-bold text-slate-900">Add an element</h2>
+                <h2 className="text-lg font-bold text-slate-900">
+                  Add an element
+                </h2>
                 <p className="mt-1 text-xs text-slate-500">
                   Choose what you want to add.
                 </p>
               </div>
 
               <button
+                type="button"
                 onClick={() => setShowElements(false)}
                 className="rounded-xl p-2 hover:bg-slate-100"
               >
@@ -1905,19 +1515,15 @@ export default function StorefrontEditor() {
 
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {ELEMENT_OPTIONS
-                .filter(({ type }) => activeTool !== 'text' || ['heading', 'text', 'button'].includes(type))
+                .filter(({ type }) =>
+                  activeTool !== 'text' ||
+                  ['heading', 'text', 'button'].includes(type)
+                )
                 .map(({ type, label, icon: Icon }) => (
                   <button
                     key={type}
-                    onClick={() => {
-                      if (!selectedSection) {
-                        setError('Select a section first, then add an element.');
-                        setShowElements(false);
-                        return;
-                      }
-
-                      addElement(type);
-                    }}
+                    type="button"
+                    onClick={() => addElement(type)}
                     className="flex items-center gap-3 rounded-2xl border border-slate-200 p-3 text-left hover:border-emerald-500 hover:bg-emerald-50"
                   >
                     <Icon size={18} className="text-emerald-700" />
@@ -1930,258 +1536,6 @@ export default function StorefrontEditor() {
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-function LayersPanel({
-  pages,
-  activePage,
-  selectedSectionId,
-  selectedElementId,
-  onPage,
-  onAddPage,
-  onRenamePage,
-  onDuplicatePage,
-  onDeletePage,
-  onAddSection,
-  onAddElement,
-  onSelectSection,
-  onSelectElement,
-  onMoveSection,
-  onDuplicateSection,
-  onRemoveSection,
-}) {
-  return (
-    <div className="space-y-5">
-      {/* PAGES */}
-      <div>
-        <div className="mb-2 flex items-center justify-between">
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
-            Pages
-          </p>
-
-          <button
-            onClick={onAddPage}
-            className="rounded-lg p-2 text-emerald-700 hover:bg-emerald-50"
-            title="Add page"
-          >
-            <Plus size={16} />
-          </button>
-        </div>
-
-        <div className="space-y-2">
-          {pages.map((page) => (
-            <div
-              key={page.id}
-              className={`rounded-xl border p-2 ${
-                activePage?.id === page.id
-                  ? 'border-emerald-200 bg-emerald-50/60'
-                  : 'border-transparent'
-              }`}
-            >
-              <button
-                onClick={() => onPage(page.id)}
-                className="w-full truncate px-2 py-2 text-left text-xs"
-              >
-                <span className={activePage?.id === page.id ? 'font-bold text-emerald-800' : 'text-slate-600'}>
-                  {page.title} {page.isHome ? '(Home)' : ''}
-                </span>
-              </button>
-
-              {activePage?.id === page.id && (
-                <div className="mt-1 flex items-center gap-1 border-t border-slate-200/70 pt-2">
-                  <button
-                    onClick={() => onRenamePage(page)}
-                    disabled={page.isHome}
-                    className="flex flex-1 items-center justify-center gap-1 rounded-lg px-2 py-2 text-[10px] font-semibold text-slate-600 hover:bg-white disabled:opacity-30"
-                    title="Rename page"
-                  >
-                    <Pencil size={12} /> Rename
-                  </button>
-
-                  <button
-                    onClick={() => onDuplicatePage(page)}
-                    className="flex flex-1 items-center justify-center gap-1 rounded-lg px-2 py-2 text-[10px] font-semibold text-slate-600 hover:bg-white"
-                    title="Duplicate page"
-                  >
-                    <Copy size={12} /> Duplicate
-                  </button>
-
-                  <button
-                    onClick={() => onDeletePage(page)}
-                    disabled={page.isHome}
-                    className="flex items-center justify-center rounded-lg px-2 py-2 text-red-500 hover:bg-red-50 disabled:opacity-30"
-                    title="Delete page"
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* SECTIONS */}
-      <div className="border-t border-slate-100 pt-4">
-        <div className="mb-2 flex items-center justify-between">
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
-            Sections
-          </p>
-
-          <button
-            onClick={onAddSection}
-            className="rounded-lg p-2 text-emerald-700 hover:bg-emerald-50"
-          >
-            <Plus size={16} />
-          </button>
-        </div>
-
-        <div className="space-y-2">
-          {(activePage?.sections || []).map((section, index) => (
-            <div key={section.id} className="rounded-xl">
-              <button
-                onClick={() => onSelectSection(section.id)}
-                className={`w-full rounded-xl px-3 py-3 text-left text-xs ${
-                  selectedSectionId === section.id
-                    ? 'bg-emerald-50 font-bold text-emerald-800'
-                    : 'text-slate-600 hover:bg-slate-50'
-                }`}
-              >
-                {SECTION_LABELS[section.type] || section.type}
-              </button>
-
-              {selectedSectionId === section.id && (
-                <div className="ml-3 mt-2 space-y-1 border-l border-slate-200 pl-2">
-                  {(section.elements || []).map((element) => (
-                    <button
-                      key={element.id}
-                      onClick={() => onSelectElement(section.id, element.id)}
-                      className={`w-full truncate rounded-lg px-2 py-2 text-left text-[11px] ${
-                        selectedElementId === element.id
-                          ? 'bg-emerald-100 font-bold text-emerald-900'
-                          : 'text-slate-500 hover:bg-slate-50'
-                      }`}
-                    >
-                      {element.type.replaceAll('_', ' ')} — {element.content || 'Element'}
-                    </button>
-                  ))}
-
-                  <button
-                    onClick={onAddElement}
-                    className="flex w-full items-center gap-1 rounded-lg px-2 py-2 text-left text-[11px] font-semibold text-emerald-700"
-                  >
-                    <Plus size={13} /> Add element
-                  </button>
-                </div>
-              )}
-
-              {selectedSectionId === section.id && (
-                <div className="mt-2 flex items-center gap-1 px-2">
-                  <button
-                    onClick={() => onMoveSection(section.id, -1)}
-                    disabled={index === 0}
-                    className="rounded p-2 text-slate-400 disabled:opacity-20"
-                    title="Move section up"
-                  >
-                    <ChevronUp size={14} />
-                  </button>
-
-                  <button
-                    onClick={() => onMoveSection(section.id, 1)}
-                    disabled={index === activePage.sections.length - 1}
-                    className="rounded p-2 text-slate-400 disabled:opacity-20"
-                    title="Move section down"
-                  >
-                    <ChevronDown size={14} />
-                  </button>
-
-                  <button
-                    onClick={() => onDuplicateSection(section)}
-                    className="rounded p-2 text-slate-400 hover:text-emerald-700"
-                    title="Duplicate section"
-                  >
-                    <Copy size={14} />
-                  </button>
-
-                  <button
-                    onClick={() => onRemoveSection(section.id)}
-                    className="rounded p-2 text-slate-400 hover:text-red-600"
-                    title="Delete section"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ThemePanel({ theme = {}, onUpdate }) {
-  const colors = [
-    ['primaryColor', 'Primary colour'],
-    ['secondaryColor', 'Secondary colour'],
-    ['accentColor', 'Accent colour'],
-    ['backgroundColor', 'Background'],
-    ['surfaceColor', 'Surface'],
-    ['textColor', 'Text'],
-    ['mutedColor', 'Muted text'],
-    ['borderColor', 'Borders'],
-  ];
-
-  return (
-    <div className="space-y-5">
-      <div>
-        <p className="text-sm font-bold text-slate-900">Brand colours</p>
-        <p className="mt-1 text-xs text-slate-500">
-          Manage the appearance of your storefront.
-        </p>
-      </div>
-
-      {colors.map(([key, label]) => (
-        <div key={key} className="space-y-1.5">
-          <label className="text-xs font-semibold text-slate-600">
-            {label}
-          </label>
-
-          <div className="flex items-center gap-2">
-            <div
-              className="h-10 w-10 shrink-0 rounded-xl border border-slate-200"
-              style={{ backgroundColor: theme[key] || '#FFFFFF' }}
-            />
-
-            <input
-              value={theme[key] || ''}
-              onChange={(e) => onUpdate(key, e.target.value)}
-              placeholder="#FFFFFF"
-              className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-3 text-xs uppercase"
-            />
-          </div>
-        </div>
-      ))}
-
-      <SelectField
-        label="Border radius"
-        value={theme.borderRadius || 'medium'}
-        onChange={(value) => onUpdate('borderRadius', value)}
-        options={[
-          { value: 'none', label: 'Square' },
-          { value: 'small', label: 'Small' },
-          { value: 'medium', label: 'Medium' },
-          { value: 'large', label: 'Large' },
-          { value: 'full', label: 'Pill' },
-        ]}
-      />
-
-      <p className="rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-800">
-        The advanced Zuno Color Studio with spectrum selection, RGB, HSL,
-        opacity and saved palettes is part of the next colour-system phase.
-      </p>
     </div>
   );
 }
