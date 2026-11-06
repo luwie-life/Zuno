@@ -32,9 +32,10 @@ export default function StorefrontEditorCanvas({
   selectedElementId = '',
   onSelectSection = () => {},
   onSelectElement = () => {},
-  onReorderSections = () => {},
-  onReorderElements = () => {},
-  onAddSection = () => {},
+onReorderSections = () => {},
+onReorderElements = () => {},
+onMoveElement = () => {},
+onAddSection = () => {},
   onPreview = () => {},
 }) {
   const canvasRef = useRef(null);
@@ -347,6 +348,7 @@ const handleDragOver = (event) => {
     sections,
     onReorderSections,
     onReorderElements,
+    onMoveElement,
     onSelectElement,
     onSelectSection,
   ]);
