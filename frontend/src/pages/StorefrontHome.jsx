@@ -982,25 +982,49 @@ function SectionRenderer({
     return null;
   }
 
-  const content = section.elements?.length ? (
-    <div className="space-y-4 py-6">
-      {section.elements.map((element) => (
-        <ElementRenderer
-          key={element.id}
-          element={element}
-          context={context}
-          editorMode={editorMode}
-          onSelectElement={onSelectElement}
-          selectedElementId={selectedElementId}
-        />
-      ))}
-    </div>
-  ) : (
+  
+  const legacyContent = (
     <LegacySection
       section={section}
       context={context}
     />
   );
+
+  const editableElements = (
+    <div
+      className={`relative min-h-8 ${
+        section.elements?.length ? 'space-y-4 py-6' : ''
+      }`}
+      data-editor-element-dropzone={section.id}
+    >
+      {(section.elements || []).map((element) => (
+        <ElementRenderer
+          key={element.id}
+          element={element}
+          context={context}
+          editorMode={editorMode}
+          onSelectElement={(elementId) =>
+            onSelectElement?.(elementId, section.id)
+          }
+          selectedElementId={selectedElementId}
+        />
+      ))}
+
+      {editorMode && !section.elements?.length && (
+        <div className="pointer-events-none flex min-h-12 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50/70 px-3 text-[11px] text-slate-400">
+          Drop elements into this section
+        </div>
+      )}
+    </div>
+  );
+
+  const content = (
+    <>
+      {legacyContent}
+      {editableElements}
+    </>
+  );
+
 
   if (!editorMode) return content;
 
