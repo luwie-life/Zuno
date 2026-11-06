@@ -1,3 +1,4 @@
+
 import { useEffect, useRef } from 'react';
 import {
   Monitor,
@@ -32,10 +33,10 @@ export default function StorefrontEditorCanvas({
   selectedElementId = '',
   onSelectSection = () => {},
   onSelectElement = () => {},
-onReorderSections = () => {},
-onReorderElements = () => {},
-onMoveElement = () => {},
-onAddSection = () => {},
+  onReorderSections = () => {},
+  onReorderElements = () => {},
+  onMoveElement = () => {},
+  onAddSection = () => {},
   onPreview = () => {},
 }) {
   const canvasRef = useRef(null);
@@ -70,23 +71,60 @@ onAddSection = () => {},
         ? target.closest('[data-editor-section]')
         : null;
 
-    const getInsertionIndex = (items, targetId, rect, clientY) => {
-      const index = items.findIndex((item) => item.id === targetId);
+    const clearDragStyles = () => {
+      root
+        .querySelectorAll('.zuno-dragging, .zuno-drop-target')
+        .forEach((node) => {
+          node.classList.remove(
+            'zuno-dragging',
+            'zuno-drop-target',
+            'opacity-50',
+            'ring-2',
+            'ring-emerald-500',
+            'ring-emerald-300',
+            'ring-offset-2'
+          );
+        });
+    };
 
-      if (index < 0) return -1;
+    const getElementInsertionIndex = (
+      targetElements,
+      targetElementId,
+      targetNode,
+      clientX,
+      clientY
+    ) => {
+      if (!targetElementId || !targetNode) {
+        return targetElements.length;
+      }
 
-      return index + (clientY > rect.top + rect.height / 2 ? 1 : 0);
+      const targetIndex = targetElements.findIndex(
+        (item) => item.id === targetElementId
+      );
+
+      if (targetIndex < 0) return targetElements.length;
+
+      const rect = targetNode.getBoundingClientRect();
+
+      // Use the dominant axis of the target element.
+      const horizontal = rect.width > rect.height * 1.35;
+
+      const insertAfter = horizontal
+        ? clientX > rect.left + rect.width / 2
+        : clientY > rect.top + rect.height / 2;
+
+      return targetIndex + (insertAfter ? 1 : 0);
     };
 
     const handlePointerDown = (event) => {
       const element = getElementWrapper(event.target);
       const section = getSectionWrapper(event.target);
 
-      // Elements take priority over their parent section.
       if (element) {
         element.setAttribute('draggable', 'true');
 
         const parentSection = getSectionWrapper(element);
+
         if (parentSection) {
           parentSection.removeAttribute('draggable');
         }
@@ -105,7 +143,8 @@ onAddSection = () => {},
 
       if (element) {
         const elementId = element.dataset.editorElementWrapper;
-        const sectionId = getSectionWrapper(element)?.dataset.editorSection;
+        const sectionId =
+          getSectionWrapper(element)?.dataset.editorSection;
 
         if (!elementId || !sectionId) {
           event.preventDefault();
@@ -125,7 +164,13 @@ onAddSection = () => {},
           JSON.stringify(dragRef.current)
         );
 
-        element.classList.add('opacity-50', 'ring-2', 'ring-emerald-500');
+        element.classList.add(
+          'zuno-dragging',
+          'opacity-50',
+          'ring-2',
+          'ring-emerald-500'
+        );
+
         return;
       }
 
@@ -148,186 +193,215 @@ onAddSection = () => {},
           JSON.stringify(dragRef.current)
         );
 
-        section.classList.add('opacity-50', 'ring-2', 'ring-emerald-500');
-      }
-    };
-
-const handleDragOver = (event) => {
-  const dragged = dragRef.current;
-  if (!dragged) return;
-
-  const element = getElementWrapper(event.target);
-  const section = getSectionWrapper(event.target);
-
-  if (dragged.type === 'element') {
-    if (!section) return;
-
-    const targetSectionId = section.dataset.editorSection;
-    const targetElementId = element?.dataset.editorElementWrapper;
-
-    if (
-      targetSectionId &&
-      (
-        targetSectionId !== dragged.sectionId ||
-        targetElementId !== dragged.id
-      )
-    ) {
-      event.preventDefault();
-      event.stopPropagation();
-      event.dataTransfer.dropEffect = 'move';
-    }
-
-    return;
-  }
-
-  if (
-    dragged.type === 'section' &&
-    section &&
-    section.dataset.editorSection !== dragged.id
-  ) {
-    event.preventDefault();
-    event.dataTransfer.dropEffect = 'move';
-  }
-};
-
-    const handleDrop = (event) => {
-  const dragged = dragRef.current;
-  if (!dragged) return;
-
-  const element = getElementWrapper(event.target);
-  const section = getSectionWrapper(event.target);
-
-  if (dragged.type === 'element') {
-    if (!section) return;
-
-    event.preventDefault();
-    event.stopPropagation();
-
-    const targetSectionId = section.dataset.editorSection;
-    const targetElementId = element?.dataset.editorElementWrapper;
-
-    if (!targetSectionId) return;
-
-    const sourceSection = sections.find(
-      (item) => item.id === dragged.sectionId
-    );
-
-    const targetSection = sections.find(
-      (item) => item.id === targetSectionId
-    );
-
-    if (!sourceSection || !targetSection) return;
-
-    const sourceElements = [...(sourceSection.elements || [])];
-    const targetElements = [...(targetSection.elements || [])];
-
-    const sourceIndex = sourceElements.findIndex(
-      (item) => item.id === dragged.id
-    );
-
-    if (sourceIndex < 0) return;
-
-    // Dropping an element onto itself does nothing.
-    if (
-      dragged.sectionId === targetSectionId &&
-      targetElementId === dragged.id
-    ) {
-      return;
-    }
-
-    const [moved] = sourceElements.splice(sourceIndex, 1);
-
-    let destinationIndex = targetElements.length;
-
-    // If the drop is over another element, insert above or below it.
-    if (targetElementId) {
-      const targetIndex = targetElements.findIndex(
-        (item) => item.id === targetElementId
-      );
-
-      if (targetIndex >= 0) {
-        const targetNode = element;
-        const rect = targetNode.getBoundingClientRect();
-
-        destinationIndex =
-          targetIndex +
-          (event.clientY > rect.top + rect.height / 2 ? 1 : 0);
-      }
-    }
-
-    // Same-section reordering.
-    if (dragged.sectionId === targetSectionId) {
-      const adjustedIndex =
-        sourceIndex < destinationIndex
-          ? destinationIndex - 1
-          : destinationIndex;
-
-      sourceElements.splice(
-        Math.max(0, Math.min(adjustedIndex, sourceElements.length)),
-        0,
-        moved
-      );
-
-      onReorderElements(dragged.sectionId, sourceElements);
-    } else {
-      // Cross-section movement.
-      onMoveElement(
-        dragged.sectionId,
-        dragged.id,
-        targetSectionId,
-        destinationIndex
-      );
-    }
-
-    onSelectElement(dragged.id, targetSectionId);
-    return;
-  }
-
-  if (dragged.type === 'section') {
-    event.preventDefault();
-
-    if (!section) return;
-
-    const targetSectionId = section.dataset.editorSection;
-
-    if (!targetSectionId || targetSectionId === dragged.id) return;
-
-    const reordered = [...sections];
-
-    const sourceIndex = reordered.findIndex(
-      (item) => item.id === dragged.id
-    );
-
-    const targetIndex = getInsertionIndex(
-      reordered,
-      targetSectionId,
-      section.getBoundingClientRect(),
-      event.clientY
-    );
-
-    if (sourceIndex < 0 || targetIndex < 0) return;
-
-    const [moved] = reordered.splice(sourceIndex, 1);
-
-    const destinationIndex =
-      sourceIndex < targetIndex ? targetIndex - 1 : targetIndex;
-
-    reordered.splice(destinationIndex, 0, moved);
-
-    onReorderSections(reordered);
-    onSelectSection(dragged.id);
-  }
-};
-    
-    const handleDragEnd = () => {
-      root.querySelectorAll('.opacity-50').forEach((node) => {
-        node.classList.remove(
+        section.classList.add(
+          'zuno-dragging',
           'opacity-50',
           'ring-2',
           'ring-emerald-500'
         );
-      });
+      }
+    };
 
+    const handleDragOver = (event) => {
+      const dragged = dragRef.current;
+      if (!dragged) return;
+
+      const element = getElementWrapper(event.target);
+      const section = getSectionWrapper(event.target);
+
+      if (!section) return;
+
+      const targetSectionId = section.dataset.editorSection;
+      if (!targetSectionId) return;
+
+      if (dragged.type === 'element') {
+        const targetElementId =
+          element?.dataset.editorElementWrapper;
+
+        if (
+          targetSectionId === dragged.sectionId &&
+          targetElementId === dragged.id
+        ) {
+          return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+        event.dataTransfer.dropEffect = 'move';
+
+        root
+          .querySelectorAll('.zuno-drop-target')
+          .forEach((node) => {
+            if (node !== section) {
+              node.classList.remove(
+                'zuno-drop-target',
+                'ring-2',
+                'ring-emerald-300',
+                'ring-offset-2'
+              );
+            }
+          });
+
+        section.classList.add(
+          'zuno-drop-target',
+          'ring-2',
+          'ring-emerald-300',
+          'ring-offset-2'
+        );
+
+        return;
+      }
+
+      if (
+        dragged.type === 'section' &&
+        targetSectionId !== dragged.id
+      ) {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'move';
+      }
+    };
+
+    const handleDrop = (event) => {
+      const dragged = dragRef.current;
+      if (!dragged) return;
+
+      const element = getElementWrapper(event.target);
+      const section = getSectionWrapper(event.target);
+
+      if (!section) return;
+
+      const targetSectionId = section.dataset.editorSection;
+      if (!targetSectionId) return;
+
+      if (dragged.type === 'element') {
+        event.preventDefault();
+        event.stopPropagation();
+
+        const sourceSection = sections.find(
+          (item) => item.id === dragged.sectionId
+        );
+
+        const targetSection = sections.find(
+          (item) => item.id === targetSectionId
+        );
+
+        if (!sourceSection || !targetSection) return;
+
+        const sourceElements = [
+          ...(sourceSection.elements || []),
+        ];
+
+        const targetElements = [
+          ...(targetSection.elements || []),
+        ];
+
+        const sourceIndex = sourceElements.findIndex(
+          (item) => item.id === dragged.id
+        );
+
+        if (sourceIndex < 0) return;
+
+        const targetElementId =
+          element?.dataset.editorElementWrapper;
+
+        if (
+          dragged.sectionId === targetSectionId &&
+          targetElementId === dragged.id
+        ) {
+          return;
+        }
+
+        const destinationIndex = getElementInsertionIndex(
+          targetElements,
+          targetElementId,
+          element,
+          event.clientX,
+          event.clientY
+        );
+
+        const [movedElement] = sourceElements.splice(
+          sourceIndex,
+          1
+        );
+
+        if (dragged.sectionId === targetSectionId) {
+          const adjustedIndex =
+            sourceIndex < destinationIndex
+              ? destinationIndex - 1
+              : destinationIndex;
+
+          sourceElements.splice(
+            Math.max(
+              0,
+              Math.min(adjustedIndex, sourceElements.length)
+            ),
+            0,
+            movedElement
+          );
+
+          onReorderElements(
+            dragged.sectionId,
+            sourceElements
+          );
+        } else {
+          onMoveElement(
+            dragged.sectionId,
+            dragged.id,
+            targetSectionId,
+            destinationIndex
+          );
+        }
+
+        onSelectElement(dragged.id, targetSectionId);
+        return;
+      }
+
+      if (dragged.type === 'section') {
+        event.preventDefault();
+        event.stopPropagation();
+
+        if (targetSectionId === dragged.id) return;
+
+        const reordered = [...sections];
+
+        const sourceIndex = reordered.findIndex(
+          (item) => item.id === dragged.id
+        );
+
+        const targetIndex = reordered.findIndex(
+          (item) => item.id === targetSectionId
+        );
+
+        if (sourceIndex < 0 || targetIndex < 0) return;
+
+        const targetRect = section.getBoundingClientRect();
+
+        const insertAfter =
+          event.clientY > targetRect.top + targetRect.height / 2;
+
+        const destinationIndex =
+          targetIndex + (insertAfter ? 1 : 0);
+
+        const [movedSection] = reordered.splice(sourceIndex, 1);
+
+        const adjustedIndex =
+          sourceIndex < destinationIndex
+            ? destinationIndex - 1
+            : destinationIndex;
+
+        reordered.splice(
+          Math.max(0, Math.min(adjustedIndex, reordered.length)),
+          0,
+          movedSection
+        );
+
+        onReorderSections(reordered);
+        onSelectSection(dragged.id);
+      }
+    };
+
+    const handleDragEnd = () => {
+      clearDragStyles();
       dragRef.current = null;
     };
 
@@ -355,13 +429,11 @@ const handleDragOver = (event) => {
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[#f1f2f5]">
-      {/* CANVAS TOOLBAR */}
       <div className="z-10 flex min-h-[52px] shrink-0 items-center justify-between gap-2 border-b border-slate-200 bg-white px-3 sm:px-4">
         <div className="min-w-0 flex-1">
           <p className="truncate text-xs font-bold text-slate-800">
             {activePage?.title || 'Your storefront'}
           </p>
-
           <p className="mt-0.5 truncate text-[10px] text-slate-400">
             {activePage?.isHome ? 'Homepage' : `/${activePage?.slug || ''}`}
           </p>
@@ -444,7 +516,6 @@ const handleDragOver = (event) => {
         </button>
       </div>
 
-      {/* MOBILE DEVICE SELECTOR */}
       <div className="flex shrink-0 items-center justify-center gap-2 border-b border-slate-200 bg-white px-3 py-2 sm:hidden">
         {DEVICES.map(({ id, label, icon: Icon }) => (
           <button
@@ -464,7 +535,6 @@ const handleDragOver = (event) => {
         ))}
       </div>
 
-      {/* CANVAS WORKSPACE */}
       <div className="relative min-h-0 flex-1 overflow-auto overscroll-contain">
         <div className="flex min-h-full min-w-full items-start justify-center p-3 sm:p-5 md:p-8">
           <div
@@ -488,7 +558,6 @@ const handleDragOver = (event) => {
               </span>
             </div>
 
-            {/* STOREFRONT FRAME */}
             <div
               ref={canvasRef}
               className="relative origin-top overflow-hidden bg-white shadow-[0_8px_40px_rgba(15,23,42,0.10)] ring-1 ring-slate-200 transition-transform duration-200"
