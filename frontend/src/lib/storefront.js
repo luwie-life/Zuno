@@ -1,4 +1,4 @@
-It's not/**
+/**
  * ZUNO STOREFRONT FOUNDATION
  * Version 4
  *
