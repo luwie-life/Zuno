@@ -1288,16 +1288,18 @@ export default function StorefrontEditor() {
 
         {/* CANVAS */}
         <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <StorefrontEditorCanvas
-            business={business}
-            storefront={storefront}
-            activePage={activePage}
-            device={device}
-            setDevice={setDevice}
-            zoom={zoom}
-            setZoom={setZoom}
-            selectedSectionId={selectedSectionId}
-            selectedElementId={selectedElementId}
+<StorefrontEditorCanvas
+  business={business}
+  storefront={storefront}
+  activePage={activePage}
+  device={device}
+  setDevice={setDevice}
+  zoom={zoom}
+  setZoom={setZoom}
+  selectedSectionId={selectedSectionId}
+  selectedElementId={selectedElementId}
+  onReorderSections={reorderSections}
+  onReorderElements={reorderElements}
             onSelectSection={(id) => {
               setSelectedSectionId(id);
               setSelectedElementId('');
