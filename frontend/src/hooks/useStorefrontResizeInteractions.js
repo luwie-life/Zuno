@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 const MIN_WIDTH = 24;
 const MIN_HEIGHT = 24;
@@ -21,42 +21,74 @@ export default function useStorefrontResizeInteractions({
   zoom = 100,
   onResizeElement = () => {},
 }) {
+  const callbackRef = useRef(onResizeElement);
+
+  callbackRef.current = onResizeElement;
+
+  const elementType = selectedElement?.type || '';
+
   useEffect(() => {
     const root = rootRef?.current;
 
-    if (!root || !selectedElementId || !selectedElement) {
+    if (!root || !selectedElementId || !elementType) {
       return undefined;
     }
 
-    const elementNode = Array.from(
-      root.querySelectorAll('[data-editor-element]')
-    ).find(
-      (node) =>
-        node.getAttribute('data-editor-element') ===
+    const wrapper = root.querySelector(
+      `[data-editor-element-wrapper="${CSS.escape(
         String(selectedElementId)
+      )}"]`
     );
 
-    if (!elementNode) return undefined;
+    if (!wrapper) return undefined;
+
+    // Resize the actual rendered object, not its outer editor wrapper.
+    const elementNode = wrapper.firstElementChild || wrapper;
+
+    const isText =
+      elementType === 'heading' ||
+      elementType === 'text';
+
+    const isImage = elementType === 'image';
 
     const scale = Math.max(0.1, zoom / 100);
+
+    const getVisualRect = () => {
+      if (isText && elementNode.textContent?.trim()) {
+        const range = document.createRange();
+
+        range.selectNodeContents(elementNode);
+
+        const rect = range.getBoundingClientRect();
+
+        if (rect.width && rect.height) {
+          return rect;
+        }
+      }
+
+      return elementNode.getBoundingClientRect();
+    };
+
     const rootRect = root.getBoundingClientRect();
-    const elementRect = elementNode.getBoundingClientRect();
+    const elementRect = getVisualRect();
 
     const initialWidth = elementRect.width / scale;
     const initialHeight = elementRect.height / scale;
 
-    if (!initialWidth || !initialHeight) return undefined;
+    if (!initialWidth || !initialHeight) {
+      return undefined;
+    }
 
     const initialFontSize =
       Number.parseFloat(
         window.getComputedStyle(elementNode).fontSize
       ) || 16;
 
-    const isText =
-      selectedElement.type === 'heading' ||
-      selectedElement.type === 'text';
-
-    const isImage = selectedElement.type === 'image';
+    const initialInlineStyles = {
+      width: elementNode.style.width,
+      height: elementNode.style.height,
+      fontSize: elementNode.style.fontSize,
+    };
 
     const overlay = document.createElement('div');
 
@@ -72,6 +104,7 @@ export default function useStorefrontResizeInteractions({
       boxSizing: 'border-box',
       zIndex: '999',
       pointerEvents: 'none',
+      touchAction: 'none',
     });
 
     const label = document.createElement('div');
@@ -90,31 +123,47 @@ export default function useStorefrontResizeInteractions({
       pointerEvents: 'none',
     });
 
-    label.textContent = `${Math.round(initialWidth)} × ${Math.round(
-      initialHeight
-    )}`;
+    label.textContent =
+      `${Math.round(initialWidth)} × ${Math.round(initialHeight)}`;
 
     overlay.appendChild(label);
 
     let activeInteraction = null;
 
     const updateLabel = (width, height) => {
-      label.textContent = `${Math.round(width)} × ${Math.round(height)}`;
+      label.textContent =
+        `${Math.round(width)} × ${Math.round(height)}`;
+    };
+
+    const updateOverlay = (width, height) => {
+      overlay.style.width = `${width}px`;
+      overlay.style.height = `${height}px`;
+
+      updateLabel(width, height);
     };
 
     const createHandle = (handle) => {
       const button = document.createElement('button');
 
       button.type = 'button';
-      button.setAttribute('aria-label', `Resize ${handle.id}`);
+
+      button.setAttribute(
+        'aria-label',
+        `Resize ${handle.id}`
+      );
+
+      button.setAttribute(
+        'data-zuno-resize-handle',
+        'true'
+      );
 
       Object.assign(button.style, {
         position: 'absolute',
-        width: '12px',
-        height: '12px',
+        width: '14px',
+        height: '14px',
         padding: '0',
         border: '2px solid #047857',
-        borderRadius: '3px',
+        borderRadius: '4px',
         background: '#ffffff',
         pointerEvents: 'auto',
         touchAction: 'none',
@@ -123,27 +172,27 @@ export default function useStorefrontResizeInteractions({
       });
 
       const positions = {
-        nw: { left: '-6px', top: '-6px' },
+        nw: { left: '-7px', top: '-7px' },
         n: {
           left: '50%',
-          top: '-6px',
+          top: '-7px',
           transform: 'translateX(-50%)',
         },
-        ne: { right: '-6px', top: '-6px' },
+        ne: { right: '-7px', top: '-7px' },
         e: {
-          right: '-6px',
+          right: '-7px',
           top: '50%',
           transform: 'translateY(-50%)',
         },
-        se: { right: '-6px', bottom: '-6px' },
+        se: { right: '-7px', bottom: '-7px' },
         s: {
           left: '50%',
-          bottom: '-6px',
+          bottom: '-7px',
           transform: 'translateX(-50%)',
         },
-        sw: { left: '-6px', bottom: '-6px' },
+        sw: { left: '-7px', bottom: '-7px' },
         w: {
-          left: '-6px',
+          left: '-7px',
           top: '50%',
           transform: 'translateY(-50%)',
         },
@@ -155,7 +204,7 @@ export default function useStorefrontResizeInteractions({
         event.preventDefault();
         event.stopPropagation();
 
-        const currentStyle = elementNode.style;
+        if (activeInteraction) return;
 
         activeInteraction = {
           pointerId: event.pointerId,
@@ -165,12 +214,16 @@ export default function useStorefrontResizeInteractions({
           width: initialWidth,
           height: initialHeight,
           fontSize: initialFontSize,
-          startInlineWidth: currentStyle.width,
-          startInlineHeight: currentStyle.height,
-          startInlineFontSize: currentStyle.fontSize,
+          startInlineWidth: elementNode.style.width,
+          startInlineHeight: elementNode.style.height,
+          startInlineFontSize: elementNode.style.fontSize,
         };
 
-        button.setPointerCapture?.(event.pointerId);
+        try {
+          root.setPointerCapture(event.pointerId);
+        } catch {
+          // Ignore unsupported pointer capture.
+        }
       });
 
       return button;
@@ -183,22 +236,27 @@ export default function useStorefrontResizeInteractions({
     root.appendChild(overlay);
 
     const handlePointerMove = (event) => {
-      if (!activeInteraction) return;
+      const interaction = activeInteraction;
 
-      if (event.pointerId !== activeInteraction.pointerId) return;
+      if (!interaction) return;
+
+      if (event.pointerId !== interaction.pointerId) {
+        return;
+      }
 
       event.preventDefault();
 
-      const interaction = activeInteraction;
+      const dx =
+        (event.clientX - interaction.startX) / scale;
 
-      const dx = (event.clientX - interaction.startX) / scale;
-      const dy = (event.clientY - interaction.startY) / scale;
+      const dy =
+        (event.clientY - interaction.startY) / scale;
+
+      const handle = interaction.handle;
 
       let width = interaction.width;
       let height = interaction.height;
       let fontSize = interaction.fontSize;
-
-      const handle = interaction.handle;
 
       if (handle.x !== 0) {
         width = Math.max(
@@ -214,21 +272,20 @@ export default function useStorefrontResizeInteractions({
         );
       }
 
-      // Images preserve their original proportions when corner-resized.
+      // Preserve image proportions during corner resizing.
       if (
         isImage &&
         handle.x !== 0 &&
         handle.y !== 0
       ) {
-        const ratio = interaction.width / interaction.height;
+        const ratio =
+          interaction.width / interaction.height;
 
-        const widthChange = Math.abs(
-          width - interaction.width
-        );
+        const widthChange =
+          Math.abs(width - interaction.width);
 
-        const heightChange = Math.abs(
-          height - interaction.height
-        );
+        const heightChange =
+          Math.abs(height - interaction.height);
 
         if (widthChange >= heightChange) {
           height = width / ratio;
@@ -240,7 +297,7 @@ export default function useStorefrontResizeInteractions({
         height = Math.max(MIN_HEIGHT, height);
       }
 
-      // Corner resizing on text changes its font size.
+      // Scale text size when using corner handles.
       if (
         isText &&
         handle.x !== 0 &&
@@ -250,37 +307,44 @@ export default function useStorefrontResizeInteractions({
           0.5,
           Math.min(
             3,
-            (width / interaction.width +
-              height / interaction.height) /
-              2
+            (
+              width / interaction.width +
+              height / interaction.height
+            ) / 2
           )
         );
 
         fontSize = Math.max(
           8,
-          Math.min(160, interaction.fontSize * ratio)
+          Math.min(
+            160,
+            interaction.fontSize * ratio
+          )
         );
       }
 
       elementNode.style.width = `${width}px`;
       elementNode.style.height = `${height}px`;
 
-      if (isText && handle.x !== 0 && handle.y !== 0) {
+      if (
+        isText &&
+        handle.x !== 0 &&
+        handle.y !== 0
+      ) {
         elementNode.style.fontSize = `${fontSize}px`;
       }
 
-      overlay.style.width = `${width}px`;
-      overlay.style.height = `${height}px`;
-
-      updateLabel(width, height);
+      updateOverlay(width, height);
     };
 
     const handlePointerUp = (event) => {
-      if (!activeInteraction) return;
-
-      if (event.pointerId !== activeInteraction.pointerId) return;
-
       const interaction = activeInteraction;
+
+      if (!interaction) return;
+
+      if (event.pointerId !== interaction.pointerId) {
+        return;
+      }
 
       activeInteraction = null;
 
@@ -301,43 +365,98 @@ export default function useStorefrontResizeInteractions({
         height: `${Math.round(finalHeight)}px`,
       };
 
-      if (isText && interaction.handle.x !== 0 && interaction.handle.y !== 0) {
+      if (
+        isText &&
+        interaction.handle.x !== 0 &&
+        interaction.handle.y !== 0
+      ) {
         dimensions.fontSize = Math.round(finalFontSize);
       }
 
-      onResizeElement(selectedElementId, dimensions);
+      callbackRef.current(
+        selectedElementId,
+        dimensions
+      );
     };
 
-    const handlePointerCancel = () => {
-      if (!activeInteraction) return;
+    const handlePointerCancel = (event) => {
+      const interaction = activeInteraction;
+
+      if (!interaction) return;
+
+      if (
+        event?.pointerId !== undefined &&
+        interaction.pointerId !== event.pointerId
+      ) {
+        return;
+      }
 
       activeInteraction = null;
 
-      elementNode.style.width = '';
-      elementNode.style.height = '';
-      elementNode.style.fontSize = '';
+      elementNode.style.width =
+        interaction.startInlineWidth;
+
+      elementNode.style.height =
+        interaction.startInlineHeight;
+
+      elementNode.style.fontSize =
+        interaction.startInlineFontSize;
+
+      updateOverlay(
+        interaction.width,
+        interaction.height
+      );
     };
 
-    root.addEventListener('pointermove', handlePointerMove, {
-      passive: false,
-    });
+    root.addEventListener(
+      'pointermove',
+      handlePointerMove,
+      { passive: false }
+    );
 
-    root.addEventListener('pointerup', handlePointerUp);
+    root.addEventListener(
+      'pointerup',
+      handlePointerUp
+    );
 
-    root.addEventListener('pointercancel', handlePointerCancel);
+    root.addEventListener(
+      'pointercancel',
+      handlePointerCancel
+    );
 
     return () => {
-      root.removeEventListener('pointermove', handlePointerMove);
-      root.removeEventListener('pointerup', handlePointerUp);
-      root.removeEventListener('pointercancel', handlePointerCancel);
+      root.removeEventListener(
+        'pointermove',
+        handlePointerMove
+      );
+
+      root.removeEventListener(
+        'pointerup',
+        handlePointerUp
+      );
+
+      root.removeEventListener(
+        'pointercancel',
+        handlePointerCancel
+      );
+
+      if (activeInteraction) {
+        elementNode.style.width =
+          activeInteraction.startInlineWidth;
+
+        elementNode.style.height =
+          activeInteraction.startInlineHeight;
+
+        elementNode.style.fontSize =
+          activeInteraction.startInlineFontSize;
+      }
 
       overlay.remove();
     };
   }, [
     rootRef,
     selectedElementId,
-    selectedElement,
+    elementType,
     zoom,
-    onResizeElement,
   ]);
 }
