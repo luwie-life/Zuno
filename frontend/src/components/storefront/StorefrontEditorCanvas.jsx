@@ -1,5 +1,4 @@
-
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import {
   Monitor,
   Tablet,
@@ -14,6 +13,7 @@ import {
 } from 'lucide-react';
 
 import { StorefrontRenderer } from '../../pages/StorefrontHome.jsx';
+import useStorefrontPointerInteractions from '../../hooks/useStorefrontPointerInteractions.js';
 
 const DEVICES = [
   { id: 'desktop', label: 'Desktop', icon: Monitor, width: 1200 },
@@ -40,7 +40,6 @@ export default function StorefrontEditorCanvas({
   onPreview = () => {},
 }) {
   const canvasRef = useRef(null);
-  const dragRef = useRef(null);
 
   const currentDevice =
     DEVICES.find((item) => item.id === device) || DEVICES[0];
@@ -51,394 +50,39 @@ export default function StorefrontEditorCanvas({
 
   const sections = activePage?.sections || [];
 
+  useStorefrontPointerInteractions({
+    rootRef: canvasRef,
+    sections,
+    selectedSectionId,
+    selectedElementId,
+    onSelectSection,
+    onSelectElement,
+    onReorderSections,
+    onReorderElements,
+    onMoveElement,
+  });
+
   const changeZoom = (amount) => {
     setZoom((current) => Math.min(150, Math.max(40, current + amount)));
   };
 
   const resetZoom = () => setZoom(100);
 
-  useEffect(() => {
-    const root = canvasRef.current;
-    if (!root) return undefined;
-
-    const getElementWrapper = (target) =>
-      target instanceof Element
-        ? target.closest('[data-editor-element-wrapper]')
-        : null;
-
-    const getSectionWrapper = (target) =>
-      target instanceof Element
-        ? target.closest('[data-editor-section]')
-        : null;
-
-    const clearDragStyles = () => {
-      root
-        .querySelectorAll('.zuno-dragging, .zuno-drop-target')
-        .forEach((node) => {
-          node.classList.remove(
-            'zuno-dragging',
-            'zuno-drop-target',
-            'opacity-50',
-            'ring-2',
-            'ring-emerald-500',
-            'ring-emerald-300',
-            'ring-offset-2'
-          );
-        });
-    };
-
-    const getElementInsertionIndex = (
-      targetElements,
-      targetElementId,
-      targetNode,
-      clientX,
-      clientY
-    ) => {
-      if (!targetElementId || !targetNode) {
-        return targetElements.length;
-      }
-
-      const targetIndex = targetElements.findIndex(
-        (item) => item.id === targetElementId
-      );
-
-      if (targetIndex < 0) return targetElements.length;
-
-      const rect = targetNode.getBoundingClientRect();
-
-      // Use the dominant axis of the target element.
-      const horizontal = rect.width > rect.height * 1.35;
-
-      const insertAfter = horizontal
-        ? clientX > rect.left + rect.width / 2
-        : clientY > rect.top + rect.height / 2;
-
-      return targetIndex + (insertAfter ? 1 : 0);
-    };
-
-    const handlePointerDown = (event) => {
-      const element = getElementWrapper(event.target);
-      const section = getSectionWrapper(event.target);
-
-      if (element) {
-        element.setAttribute('draggable', 'true');
-
-        const parentSection = getSectionWrapper(element);
-
-        if (parentSection) {
-          parentSection.removeAttribute('draggable');
-        }
-
-        return;
-      }
-
-      if (section) {
-        section.setAttribute('draggable', 'true');
-      }
-    };
-
-    const handleDragStart = (event) => {
-      const element = getElementWrapper(event.target);
-      const section = getSectionWrapper(event.target);
-
-      if (element) {
-        const elementId = element.dataset.editorElementWrapper;
-        const sectionId =
-          getSectionWrapper(element)?.dataset.editorSection;
-
-        if (!elementId || !sectionId) {
-          event.preventDefault();
-          return;
-        }
-
-        dragRef.current = {
-          type: 'element',
-          id: elementId,
-          sectionId,
-        };
-
-        event.stopPropagation();
-        event.dataTransfer.effectAllowed = 'move';
-        event.dataTransfer.setData(
-          'text/plain',
-          JSON.stringify(dragRef.current)
-        );
-
-        element.classList.add(
-          'zuno-dragging',
-          'opacity-50',
-          'ring-2',
-          'ring-emerald-500'
-        );
-
-        return;
-      }
-
-      if (section) {
-        const sectionId = section.dataset.editorSection;
-
-        if (!sectionId) {
-          event.preventDefault();
-          return;
-        }
-
-        dragRef.current = {
-          type: 'section',
-          id: sectionId,
-        };
-
-        event.dataTransfer.effectAllowed = 'move';
-        event.dataTransfer.setData(
-          'text/plain',
-          JSON.stringify(dragRef.current)
-        );
-
-        section.classList.add(
-          'zuno-dragging',
-          'opacity-50',
-          'ring-2',
-          'ring-emerald-500'
-        );
-      }
-    };
-
-    const handleDragOver = (event) => {
-      const dragged = dragRef.current;
-      if (!dragged) return;
-
-      const element = getElementWrapper(event.target);
-      const section = getSectionWrapper(event.target);
-
-      if (!section) return;
-
-      const targetSectionId = section.dataset.editorSection;
-      if (!targetSectionId) return;
-
-      if (dragged.type === 'element') {
-        const targetElementId =
-          element?.dataset.editorElementWrapper;
-
-        if (
-          targetSectionId === dragged.sectionId &&
-          targetElementId === dragged.id
-        ) {
-          return;
-        }
-
-        event.preventDefault();
-        event.stopPropagation();
-        event.dataTransfer.dropEffect = 'move';
-
-        root
-          .querySelectorAll('.zuno-drop-target')
-          .forEach((node) => {
-            if (node !== section) {
-              node.classList.remove(
-                'zuno-drop-target',
-                'ring-2',
-                'ring-emerald-300',
-                'ring-offset-2'
-              );
-            }
-          });
-
-        section.classList.add(
-          'zuno-drop-target',
-          'ring-2',
-          'ring-emerald-300',
-          'ring-offset-2'
-        );
-
-        return;
-      }
-
-      if (
-        dragged.type === 'section' &&
-        targetSectionId !== dragged.id
-      ) {
-        event.preventDefault();
-        event.dataTransfer.dropEffect = 'move';
-      }
-    };
-
-    const handleDrop = (event) => {
-      const dragged = dragRef.current;
-      if (!dragged) return;
-
-      const element = getElementWrapper(event.target);
-      const section = getSectionWrapper(event.target);
-
-      if (!section) return;
-
-      const targetSectionId = section.dataset.editorSection;
-      if (!targetSectionId) return;
-
-      if (dragged.type === 'element') {
-        event.preventDefault();
-        event.stopPropagation();
-
-        const sourceSection = sections.find(
-          (item) => item.id === dragged.sectionId
-        );
-
-        const targetSection = sections.find(
-          (item) => item.id === targetSectionId
-        );
-
-        if (!sourceSection || !targetSection) return;
-
-        const sourceElements = [
-          ...(sourceSection.elements || []),
-        ];
-
-        const targetElements = [
-          ...(targetSection.elements || []),
-        ];
-
-        const sourceIndex = sourceElements.findIndex(
-          (item) => item.id === dragged.id
-        );
-
-        if (sourceIndex < 0) return;
-
-        const targetElementId =
-          element?.dataset.editorElementWrapper;
-
-        if (
-          dragged.sectionId === targetSectionId &&
-          targetElementId === dragged.id
-        ) {
-          return;
-        }
-
-        const destinationIndex = getElementInsertionIndex(
-          targetElements,
-          targetElementId,
-          element,
-          event.clientX,
-          event.clientY
-        );
-
-        const [movedElement] = sourceElements.splice(
-          sourceIndex,
-          1
-        );
-
-        if (dragged.sectionId === targetSectionId) {
-          const adjustedIndex =
-            sourceIndex < destinationIndex
-              ? destinationIndex - 1
-              : destinationIndex;
-
-          sourceElements.splice(
-            Math.max(
-              0,
-              Math.min(adjustedIndex, sourceElements.length)
-            ),
-            0,
-            movedElement
-          );
-
-          onReorderElements(
-            dragged.sectionId,
-            sourceElements
-          );
-        } else {
-          onMoveElement(
-            dragged.sectionId,
-            dragged.id,
-            targetSectionId,
-            destinationIndex
-          );
-        }
-
-        onSelectElement(dragged.id, targetSectionId);
-        return;
-      }
-
-      if (dragged.type === 'section') {
-        event.preventDefault();
-        event.stopPropagation();
-
-        if (targetSectionId === dragged.id) return;
-
-        const reordered = [...sections];
-
-        const sourceIndex = reordered.findIndex(
-          (item) => item.id === dragged.id
-        );
-
-        const targetIndex = reordered.findIndex(
-          (item) => item.id === targetSectionId
-        );
-
-        if (sourceIndex < 0 || targetIndex < 0) return;
-
-        const targetRect = section.getBoundingClientRect();
-
-        const insertAfter =
-          event.clientY > targetRect.top + targetRect.height / 2;
-
-        const destinationIndex =
-          targetIndex + (insertAfter ? 1 : 0);
-
-        const [movedSection] = reordered.splice(sourceIndex, 1);
-
-        const adjustedIndex =
-          sourceIndex < destinationIndex
-            ? destinationIndex - 1
-            : destinationIndex;
-
-        reordered.splice(
-          Math.max(0, Math.min(adjustedIndex, reordered.length)),
-          0,
-          movedSection
-        );
-
-        onReorderSections(reordered);
-        onSelectSection(dragged.id);
-      }
-    };
-
-    const handleDragEnd = () => {
-      clearDragStyles();
-      dragRef.current = null;
-    };
-
-    root.addEventListener('pointerdown', handlePointerDown, true);
-    root.addEventListener('dragstart', handleDragStart, true);
-    root.addEventListener('dragover', handleDragOver, true);
-    root.addEventListener('drop', handleDrop, true);
-    root.addEventListener('dragend', handleDragEnd, true);
-
-    return () => {
-      root.removeEventListener('pointerdown', handlePointerDown, true);
-      root.removeEventListener('dragstart', handleDragStart, true);
-      root.removeEventListener('dragover', handleDragOver, true);
-      root.removeEventListener('drop', handleDrop, true);
-      root.removeEventListener('dragend', handleDragEnd, true);
-    };
-  }, [
-    sections,
-    onReorderSections,
-    onReorderElements,
-    onMoveElement,
-    onSelectElement,
-    onSelectSection,
-  ]);
-
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[#f1f2f5]">
+      {/* TOP TOOLBAR */}
       <div className="z-10 flex min-h-[52px] shrink-0 items-center justify-between gap-2 border-b border-slate-200 bg-white px-3 sm:px-4">
         <div className="min-w-0 flex-1">
           <p className="truncate text-xs font-bold text-slate-800">
             {activePage?.title || 'Your storefront'}
           </p>
+
           <p className="mt-0.5 truncate text-[10px] text-slate-400">
             {activePage?.isHome ? 'Homepage' : `/${activePage?.slug || ''}`}
           </p>
         </div>
 
+        {/* DESKTOP DEVICE SELECTOR */}
         <div className="hidden shrink-0 items-center gap-1 rounded-xl bg-slate-100 p-1 sm:flex">
           {DEVICES.map(({ id, label, icon: Icon }) => (
             <button
@@ -455,6 +99,7 @@ export default function StorefrontEditorCanvas({
               }`}
             >
               <Icon size={15} />
+
               <span className="hidden text-[10px] font-semibold lg:inline">
                 {label}
               </span>
@@ -462,6 +107,7 @@ export default function StorefrontEditorCanvas({
           ))}
         </div>
 
+        {/* ZOOM CONTROLS */}
         <div className="flex shrink-0 items-center gap-1">
           <button
             type="button"
@@ -505,6 +151,7 @@ export default function StorefrontEditorCanvas({
           </button>
         </div>
 
+        {/* PREVIEW */}
         <button
           type="button"
           onClick={onPreview}
@@ -516,6 +163,7 @@ export default function StorefrontEditorCanvas({
         </button>
       </div>
 
+      {/* MOBILE DEVICE SELECTOR */}
       <div className="flex shrink-0 items-center justify-center gap-2 border-b border-slate-200 bg-white px-3 py-2 sm:hidden">
         {DEVICES.map(({ id, label, icon: Icon }) => (
           <button
@@ -535,6 +183,7 @@ export default function StorefrontEditorCanvas({
         ))}
       </div>
 
+      {/* CANVAS SCROLL AREA */}
       <div className="relative min-h-0 flex-1 overflow-auto overscroll-contain">
         <div className="flex min-h-full min-w-full items-start justify-center p-3 sm:p-5 md:p-8">
           <div
@@ -544,11 +193,13 @@ export default function StorefrontEditorCanvas({
               maxWidth: '100%',
             }}
           >
+            {/* CANVAS INFORMATION */}
             <div className="mb-3 flex items-center justify-between">
               <div className="flex items-center gap-2 text-[10px] font-semibold text-slate-400">
                 <span className="rounded-md bg-white px-2 py-1 shadow-sm">
                   {currentDevice.label}
                 </span>
+
                 <span>{currentDevice.width}px preview</span>
               </div>
 
@@ -558,6 +209,7 @@ export default function StorefrontEditorCanvas({
               </span>
             </div>
 
+            {/* STOREFRONT CANVAS */}
             <div
               ref={canvasRef}
               className="relative origin-top overflow-hidden bg-white shadow-[0_8px_40px_rgba(15,23,42,0.10)] ring-1 ring-slate-200 transition-transform duration-200"
@@ -588,6 +240,7 @@ export default function StorefrontEditorCanvas({
                 onSelectElement={onSelectElement}
               />
 
+              {/* EMPTY PAGE STATE */}
               {!sections.length && (
                 <div className="flex min-h-[420px] flex-col items-center justify-center px-6 py-20 text-center">
                   <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
@@ -615,10 +268,12 @@ export default function StorefrontEditorCanvas({
               )}
             </div>
 
+            {/* EDITOR INSTRUCTIONS */}
             <div className="py-5 text-center">
               <p className="inline-flex items-center gap-1.5 text-[10px] text-slate-400">
                 <GripVertical size={12} />
-                Drag sections or elements to change their order
+                Tap an element to select it, then drag to move it.
+                Select a section before dragging it.
               </p>
             </div>
           </div>
