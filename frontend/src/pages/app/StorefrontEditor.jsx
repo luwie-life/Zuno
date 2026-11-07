@@ -1352,6 +1352,20 @@ export default function StorefrontEditor() {
   onReorderSections={reorderSections}
   onReorderElements={reorderElements}
   onMoveElement={moveElementAcrossSections}
+  onResizeElement={(elementId, dimensions) => {
+  const element = activePage?.sections
+    ?.find((section) => section.id === selectedSectionId)
+    ?.elements?.find((item) => item.id === elementId);
+
+  if (!element) return;
+
+  updateElement(elementId, {
+    style: {
+      ...(element.style || {}),
+      ...dimensions,
+    },
+  });
+}}
             onSelectSection={(id) => {
               setSelectedSectionId(id);
               setSelectedElementId('');
