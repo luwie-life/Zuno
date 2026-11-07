@@ -15,6 +15,45 @@ export default function useStorefrontPointerInteractions({
 }) {
   const interactionRef = useRef(null);
 
+  // Keep the latest data and callbacks without recreating event listeners.
+  const latestRef = useRef({});
+
+  latestRef.current = {
+    sections,
+    selectedSectionId,
+    selectedElementId,
+    onSelectSection,
+    onSelectElement,
+    onReorderSections,
+    onReorderElements,
+    onMoveElement,
+  };
+
+  // Apply touch handling to the currently selected item.
+  useEffect(() => {
+    const root = rootRef?.current;
+    if (!root) return undefined;
+
+    const selected = selectedElementId
+      ? root.querySelector(
+          `[data-editor-element-wrapper="${CSS.escape(selectedElementId)}"]`
+        )
+      : selectedSectionId
+        ? root.querySelector(
+            `[data-editor-section="${CSS.escape(selectedSectionId)}"]`
+          )
+        : null;
+
+    if (!selected) return undefined;
+
+    const previousTouchAction = selected.style.touchAction;
+    selected.style.touchAction = 'none';
+
+    return () => {
+      selected.style.touchAction = previousTouchAction;
+    };
+  }, [rootRef, selectedElementId, selectedSectionId]);
+
   useEffect(() => {
     const root = rootRef?.current;
     if (!root) return undefined;
@@ -29,17 +68,7 @@ export default function useStorefrontPointerInteractions({
         ? target.closest('[data-editor-section]')
         : null;
 
-    const clearVisualState = (interaction) => {
-      if (!interaction?.node) return;
-
-      interaction.node.style.transform = '';
-      interaction.node.style.zIndex = '';
-      interaction.node.style.position = '';
-      interaction.node.style.willChange = '';
-      interaction.node.style.transition = '';
-    };
-
-    const getDropTargets = (x, y, draggedNode) => {
+    const getDropTargets = (x, y, interaction) => {
       const nodes = document.elementsFromPoint(x, y);
 
       let targetElement = null;
@@ -51,68 +80,72 @@ export default function useStorefrontPointerInteractions({
         const element = getElement(node);
         const section = getSection(node);
 
+        // Ignore the item currently being moved and its children.
         if (
+          interaction.node === node ||
+          interaction.node.contains(node)
+        ) {
+          continue;
+        }
+
+        if (
+          interaction.type === 'element' &&
           element &&
-          element !== draggedNode &&
-          !draggedNode?.contains(element)
+          element !== interaction.node &&
+          !interaction.node.contains(element)
         ) {
           targetElement = element;
         }
 
-        if (section && !targetSection) {
+        if (
+          section &&
+          section.dataset.editorSection !== interaction.id
+        ) {
           targetSection = section;
         }
 
-        if (targetElement && targetSection) break;
+        if (
+          interaction.type === 'section' &&
+          targetSection
+        ) {
+          break;
+        }
+
+        if (
+          interaction.type === 'element' &&
+          targetElement &&
+          targetSection
+        ) {
+          break;
+        }
       }
 
       return { targetElement, targetSection };
     };
 
-    const getElementDestination = (
-      targetSectionId,
-      targetElement,
-      x,
-      y
-    ) => {
-      const targetSection = sections.find(
-        (section) => section.id === targetSectionId
+    const clearVisualState = (interaction) => {
+      if (!interaction?.node) return;
+
+      interaction.node.style.transform = '';
+      interaction.node.style.zIndex = '';
+      interaction.node.style.willChange = '';
+      interaction.node.style.transition = '';
+
+      interaction.node.classList.remove(
+        'zuno-pointer-moving'
       );
-
-      if (!targetSection) return null;
-
-      const elements = [...(targetSection.elements || [])];
-
-      if (!targetElement) {
-        return elements.length;
-      }
-
-      const targetId =
-        targetElement.dataset.editorElementWrapper;
-
-      const targetIndex = elements.findIndex(
-        (element) => element.id === targetId
-      );
-
-      if (targetIndex < 0) return elements.length;
-
-      const rect = targetElement.getBoundingClientRect();
-
-      const horizontal = rect.width > rect.height * 1.35;
-
-      const insertAfter = horizontal
-        ? x > rect.left + rect.width / 2
-        : y > rect.top + rect.height / 2;
-
-      return targetIndex + (insertAfter ? 1 : 0);
     };
 
     const finishElementMove = (interaction, x, y) => {
-      const { targetElement, targetSection } = getDropTargets(
-        x,
-        y,
-        interaction.node
-      );
+      const {
+        sections: currentSections,
+        onMoveElement,
+        onReorderElements,
+        onSelectElement,
+      } = latestRef.current;
+
+      const { targetElement, targetSection } =
+        getDropTargets(x, y, interaction);
 
       if (!targetSection) return;
 
@@ -122,11 +155,11 @@ export default function useStorefrontPointerInteractions({
 
       if (!targetSectionId) return;
 
-      const sourceSection = sections.find(
+      const sourceSection = currentSections.find(
         (section) => section.id === sourceSectionId
       );
 
-      const targetSectionData = sections.find(
+      const targetSectionData = currentSections.find(
         (section) => section.id === targetSectionId
       );
 
@@ -142,14 +175,32 @@ export default function useStorefrontPointerInteractions({
 
       if (sourceIndex < 0) return;
 
-      const destinationIndex = getElementDestination(
-        targetSectionId,
-        targetElement,
-        x,
-        y
-      );
+      let destinationIndex = (
+        targetSectionData.elements || []
+      ).length;
 
-      if (destinationIndex === null) return;
+      if (targetElement) {
+        const targetId =
+          targetElement.dataset.editorElementWrapper;
+
+        const targetIndex = (
+          targetSectionData.elements || []
+        ).findIndex((element) => element.id === targetId);
+
+        if (targetIndex >= 0) {
+          const rect = targetElement.getBoundingClientRect();
+
+          const horizontal =
+            rect.width > rect.height * 1.35;
+
+          const insertAfter = horizontal
+            ? x > rect.left + rect.width / 2
+            : y > rect.top + rect.height / 2;
+
+          destinationIndex =
+            targetIndex + (insertAfter ? 1 : 0);
+        }
+      }
 
       if (sourceSectionId === targetSectionId) {
         const [movedElement] = sourceElements.splice(
@@ -185,19 +236,26 @@ export default function useStorefrontPointerInteractions({
     };
 
     const finishSectionMove = (interaction, x, y) => {
+      const {
+        sections: currentSections,
+        onReorderSections,
+        onSelectSection,
+      } = latestRef.current;
+
       const { targetSection } = getDropTargets(
         x,
         y,
-        interaction.node
+        interaction
       );
 
       if (!targetSection) return;
 
-      const targetId = targetSection.dataset.editorSection;
+      const targetId =
+        targetSection.dataset.editorSection;
 
       if (!targetId || targetId === interaction.id) return;
 
-      const reordered = [...sections];
+      const reordered = [...currentSections];
 
       const sourceIndex = reordered.findIndex(
         (section) => section.id === interaction.id
@@ -211,7 +269,8 @@ export default function useStorefrontPointerInteractions({
 
       const rect = targetSection.getBoundingClientRect();
 
-      const insertAfter = y > rect.top + rect.height / 2;
+      const insertAfter =
+        y > rect.top + rect.height / 2;
 
       const destinationIndex =
         targetIndex + (insertAfter ? 1 : 0);
@@ -241,10 +300,25 @@ export default function useStorefrontPointerInteractions({
 
     const handlePointerDown = (event) => {
       if (!event.isPrimary) return;
-      if (event.pointerType === 'mouse' && event.button !== 0) return;
+
+      if (
+        event.pointerType === 'mouse' &&
+        event.button !== 0
+      ) {
+        return;
+      }
+
+      if (interactionRef.current) return;
 
       const element = getElement(event.target);
       const section = getSection(event.target);
+
+      const {
+        selectedElementId,
+        selectedSectionId,
+        onSelectElement,
+        onSelectSection,
+      } = latestRef.current;
 
       if (element) {
         const elementId =
@@ -255,6 +329,7 @@ export default function useStorefrontPointerInteractions({
 
         if (!elementId || !sectionId) return;
 
+        // First tap selects. A subsequent drag moves it.
         if (elementId !== selectedElementId) {
           onSelectElement(elementId, sectionId);
           return;
@@ -268,10 +343,14 @@ export default function useStorefrontPointerInteractions({
           pointerId: event.pointerId,
           startX: event.clientX,
           startY: event.clientY,
-          lastX: event.clientX,
-          lastY: event.clientY,
           started: false,
         };
+
+        try {
+          root.setPointerCapture(event.pointerId);
+        } catch {
+          // Pointer capture may be unavailable in some browsers.
+        }
 
         return;
       }
@@ -294,10 +373,14 @@ export default function useStorefrontPointerInteractions({
           pointerId: event.pointerId,
           startX: event.clientX,
           startY: event.clientY,
-          lastX: event.clientX,
-          lastY: event.clientY,
           started: false,
         };
+
+        try {
+          root.setPointerCapture(event.pointerId);
+        } catch {
+          // Pointer capture may be unavailable in some browsers.
+        }
       }
     };
 
@@ -309,9 +392,6 @@ export default function useStorefrontPointerInteractions({
 
       const dx = event.clientX - interaction.startX;
       const dy = event.clientY - interaction.startY;
-
-      interaction.lastX = event.clientX;
-      interaction.lastY = event.clientY;
 
       if (
         !interaction.started &&
@@ -335,11 +415,13 @@ export default function useStorefrontPointerInteractions({
       node.classList.add('zuno-pointer-moving');
     };
 
-    const handlePointerUp = (event) => {
+    const finishInteraction = (event) => {
       const interaction = interactionRef.current;
 
       if (!interaction) return;
       if (interaction.pointerId !== event.pointerId) return;
+
+      interactionRef.current = null;
 
       if (interaction.started) {
         if (interaction.type === 'element') {
@@ -361,25 +443,29 @@ export default function useStorefrontPointerInteractions({
 
       clearVisualState(interaction);
 
-      interaction.node.classList.remove(
-        'zuno-pointer-moving'
-      );
-
-      interactionRef.current = null;
+      try {
+        if (root.hasPointerCapture(event.pointerId)) {
+          root.releasePointerCapture(event.pointerId);
+        }
+      } catch {
+        // Ignore unsupported pointer capture.
+      }
     };
 
-    const handlePointerCancel = () => {
+    const handlePointerCancel = (event) => {
       const interaction = interactionRef.current;
 
       if (!interaction) return;
 
-      clearVisualState(interaction);
-
-      interaction.node.classList.remove(
-        'zuno-pointer-moving'
-      );
+      if (
+        event?.pointerId !== undefined &&
+        interaction.pointerId !== event.pointerId
+      ) {
+        return;
+      }
 
       interactionRef.current = null;
+      clearVisualState(interaction);
     };
 
     root.addEventListener(
@@ -391,12 +477,12 @@ export default function useStorefrontPointerInteractions({
     root.addEventListener(
       'pointermove',
       handlePointerMove,
-      true
+      { capture: true, passive: false }
     );
 
     root.addEventListener(
       'pointerup',
-      handlePointerUp,
+      finishInteraction,
       true
     );
 
@@ -421,7 +507,7 @@ export default function useStorefrontPointerInteractions({
 
       root.removeEventListener(
         'pointerup',
-        handlePointerUp,
+        finishInteraction,
         true
       );
 
@@ -433,15 +519,5 @@ export default function useStorefrontPointerInteractions({
 
       handlePointerCancel();
     };
-  }, [
-    rootRef,
-    sections,
-    selectedSectionId,
-    selectedElementId,
-    onSelectSection,
-    onSelectElement,
-    onReorderSections,
-    onReorderElements,
-    onMoveElement,
-  ]);
+  }, [rootRef]);
 }
