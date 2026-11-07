@@ -14,6 +14,7 @@ import {
 
 import { StorefrontRenderer } from '../../pages/StorefrontHome.jsx';
 import useStorefrontPointerInteractions from '../../hooks/useStorefrontPointerInteractions.js';
+import useStorefrontResizeInteractions from '../../hooks/useStorefrontResizeInteractions.js';
 
 const DEVICES = [
   { id: 'desktop', label: 'Desktop', icon: Monitor, width: 1200 },
@@ -36,6 +37,7 @@ export default function StorefrontEditorCanvas({
   onReorderSections = () => {},
   onReorderElements = () => {},
   onMoveElement = () => {},
+  onResizeElement = () => {},
   onAddSection = () => {},
   onPreview = () => {},
 }) {
@@ -50,6 +52,15 @@ export default function StorefrontEditorCanvas({
 
   const sections = activePage?.sections || [];
 
+  const selectedElement = sections
+    .flatMap((section) =>
+      (section.elements || []).map((element) => ({
+        ...element,
+        __sectionId: section.id,
+      }))
+    )
+    .find((element) => element.id === selectedElementId);
+
   useStorefrontPointerInteractions({
     rootRef: canvasRef,
     sections,
@@ -60,6 +71,14 @@ export default function StorefrontEditorCanvas({
     onReorderSections,
     onReorderElements,
     onMoveElement,
+  });
+
+  useStorefrontResizeInteractions({
+    rootRef: canvasRef,
+    selectedElementId,
+    selectedElement,
+    zoom,
+    onResizeElement,
   });
 
   const changeZoom = (amount) => {
@@ -272,8 +291,8 @@ export default function StorefrontEditorCanvas({
             <div className="py-5 text-center">
               <p className="inline-flex items-center gap-1.5 text-[10px] text-slate-400">
                 <GripVertical size={12} />
-                Tap an element to select it, then drag to move it.
-                Select a section before dragging it.
+                Select an element to resize it. Drag the handles to adjust
+                its dimensions.
               </p>
             </div>
           </div>
