@@ -530,7 +530,6 @@ function ElementRenderer({
 
   return (
     <div
-      draggable={editorMode}
       onClickCapture={selectElement}
       className={`relative rounded-sm outline outline-1 transition ${
         selectedElementId === element.id
@@ -982,7 +981,6 @@ function SectionRenderer({
     return null;
   }
 
-  
   const legacyContent = (
     <LegacySection
       section={section}
@@ -1024,7 +1022,6 @@ function SectionRenderer({
       {editableElements}
     </>
   );
-
 
   if (!editorMode) return content;
 
