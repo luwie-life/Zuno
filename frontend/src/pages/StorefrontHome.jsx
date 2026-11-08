@@ -981,12 +981,14 @@ function SectionRenderer({
     return null;
   }
 
-  const legacyContent = (
-    <LegacySection
-      section={section}
-      context={context}
-    />
-  );
+  const legacyContent = section.settings?.editableContent
+  ? null
+  : (
+      <LegacySection
+        section={section}
+        context={context}
+      />
+    );
 
   const editableElements = (
     <div
