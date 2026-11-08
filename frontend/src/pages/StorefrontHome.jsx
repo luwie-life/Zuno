@@ -336,7 +336,10 @@ function ElementRenderer({
   };
 
   const commonProps = {
-    style,
+    style: {
+      ...style,
+      ...animation.style,
+    },
     className: `${animation.className} ${editorMode ? 'cursor-pointer' : ''}`,
     'data-editor-element': element.id,
   };
@@ -544,7 +547,7 @@ function ElementRenderer({
   );
 }
 
-function HeroSection({ settings, context }) {
+function HeroSection({ settings, context, children }) {
   const image = settings.backgroundImage || settings.image;
   const buttonLink = settings.buttonLink || settings.ctaLink || '';
   const buttonText = settings.buttonText || settings.ctaText || '';
@@ -580,40 +583,46 @@ function HeroSection({ settings, context }) {
             : 'items-start text-left'
         }`}
       >
-        {settings.eyebrow && (
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/70">
-            {settings.eyebrow}
-          </p>
-        )}
+        {children !== undefined ? (
+          children
+        ) : (
+          <>
+            {settings.eyebrow && (
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/70">
+                {settings.eyebrow}
+              </p>
+            )}
 
-        <h1 className="mt-3 max-w-3xl text-3xl font-bold leading-tight md:text-5xl">
-          {settings.title || context.biz.name}
-        </h1>
+            <h1 className="mt-3 max-w-3xl text-3xl font-bold leading-tight md:text-5xl">
+              {settings.title || context.biz.name}
+            </h1>
 
-        {settings.subtitle && (
-          <p className="mt-4 max-w-2xl text-sm leading-relaxed text-white/80 md:text-lg">
-            {settings.subtitle}
-          </p>
-        )}
+            {settings.subtitle && (
+              <p className="mt-4 max-w-2xl text-sm leading-relaxed text-white/80 md:text-lg">
+                {settings.subtitle}
+              </p>
+            )}
 
-        {buttonText && buttonLink && (
-          external ? (
-            <a
-              href={destination}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-7 inline-flex rounded-full bg-white px-6 py-3 text-sm font-semibold text-gray-900"
-            >
-              {buttonText}
-            </a>
-          ) : (
-            <Link
-              to={destination}
-              className="mt-7 inline-flex rounded-full bg-white px-6 py-3 text-sm font-semibold text-gray-900"
-            >
-              {buttonText}
-            </Link>
-          )
+            {buttonText && buttonLink && (
+              external ? (
+                <a
+                  href={destination}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-7 inline-flex rounded-full bg-white px-6 py-3 text-sm font-semibold text-gray-900"
+                >
+                  {buttonText}
+                </a>
+              ) : (
+                <Link
+                  to={destination}
+                  className="mt-7 inline-flex rounded-full bg-white px-6 py-3 text-sm font-semibold text-gray-900"
+                >
+                  {buttonText}
+                </Link>
+              )
+            )}
+          </>
         )}
       </div>
     </section>
@@ -982,13 +991,27 @@ function SectionRenderer({
   }
 
   const legacyContent = section.settings?.editableContent
-  ? null
-  : (
-      <LegacySection
-        section={section}
+    ? null
+    : (
+        <LegacySection
+          section={section}
+          context={context}
+        />
+      );
+
+  const renderElementList = (elements) =>
+    (elements || []).map((element) => (
+      <ElementRenderer
+        key={element.id}
+        element={element}
         context={context}
+        editorMode={editorMode}
+        onSelectElement={(elementId) =>
+          onSelectElement?.(elementId, section.id)
+        }
+        selectedElementId={selectedElementId}
       />
-    );
+    ));
 
   const editableElements = (
     <div
@@ -997,18 +1020,7 @@ function SectionRenderer({
       }`}
       data-editor-element-dropzone={section.id}
     >
-      {(section.elements || []).map((element) => (
-        <ElementRenderer
-          key={element.id}
-          element={element}
-          context={context}
-          editorMode={editorMode}
-          onSelectElement={(elementId) =>
-            onSelectElement?.(elementId, section.id)
-          }
-          selectedElementId={selectedElementId}
-        />
-      ))}
+      {renderElementList(section.elements)}
 
       {editorMode && !section.elements?.length && (
         <div className="pointer-events-none flex min-h-12 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50/70 px-3 text-[11px] text-slate-400">
@@ -1018,12 +1030,116 @@ function SectionRenderer({
     </div>
   );
 
-  const content = (
-    <>
-      {legacyContent}
-      {editableElements}
-    </>
-  );
+  const editableTemplateContent = (() => {
+    if (!section.settings?.editableContent) return null;
+
+    switch (section.type) {
+      case 'hero':
+        return (
+          <HeroSection settings={section.settings} context={context}>
+            {editableElements}
+          </HeroSection>
+        );
+
+      case 'about':
+      case 'image_text': {
+        const images = (section.elements || []).filter(
+          (element) => element.type === 'image'
+        );
+
+        const contentElements = (section.elements || []).filter(
+          (element) => element.type !== 'image'
+        );
+
+        const imageOnRight = section.settings.imagePosition === 'right';
+
+        return (
+          <section
+            className="grid items-center gap-8 py-10 md:grid-cols-2"
+            data-editor-element-dropzone={section.id}
+          >
+            <div className={imageOnRight ? 'order-2' : 'order-1'}>
+              {renderElementList(images)}
+            </div>
+
+            <div className={imageOnRight ? 'order-1' : 'order-2'}>
+              {renderElementList(contentElements)}
+            </div>
+
+            {editorMode && !section.elements?.length && (
+              <div className="col-span-full flex min-h-12 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50/70 px-3 text-[11px] text-slate-400">
+                Drop elements into this section
+              </div>
+            )}
+          </section>
+        );
+      }
+
+      case 'rich_text':
+      case 'custom_content':
+        return (
+          <section className="py-8">
+            <div
+              className="max-w-3xl"
+              data-editor-element-dropzone={section.id}
+            >
+              {renderElementList(section.elements)}
+
+              {editorMode && !section.elements?.length && (
+                <div className="flex min-h-12 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50/70 px-3 text-[11px] text-slate-400">
+                  Drop elements into this section
+                </div>
+              )}
+            </div>
+          </section>
+        );
+
+      case 'announcement':
+        return (
+          <div
+            className="mb-6 rounded-xl px-4 py-3 text-center text-sm font-medium text-white"
+            style={{ background: context.color }}
+            data-editor-element-dropzone={section.id}
+          >
+            {renderElementList(section.elements)}
+
+            {editorMode && !section.elements?.length && (
+              <div className="flex min-h-8 items-center justify-center text-[11px] text-white/70">
+                Drop elements into this banner
+              </div>
+            )}
+          </div>
+        );
+
+      case 'footer':
+        return (
+          <div
+            className="border-t border-line py-8 text-center text-sm text-muted"
+            data-editor-element-dropzone={section.id}
+          >
+            {renderElementList(section.elements)}
+
+            {editorMode && !section.elements?.length && (
+              <div className="flex min-h-8 items-center justify-center text-[11px] text-muted">
+                Drop elements into this footer
+              </div>
+            )}
+          </div>
+        );
+
+      default:
+        return editableElements;
+    }
+  })();
+
+  const content = section.settings?.editableContent
+    ? editableTemplateContent
+    : (
+        <>
+          {legacyContent}
+          {editableElements}
+        </>
+      );
 
   if (!editorMode) return content;
 
