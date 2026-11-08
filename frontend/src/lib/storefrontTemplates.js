@@ -15,6 +15,8 @@ import {
   normalizeTheme,
 } from './storefront.js';
 
+import { createEditableTemplateSection } from './storefrontTemplateElements.js';
+
 const section = (type, settings = {}) => ({ type, settings });
 
 const template = ({
@@ -787,9 +789,18 @@ export function applyStorefrontTemplate(
 
   const templatePages = selected.pages.map((page) => {
     const sections = page.sections
-      .filter((item) => canUseSection(item.type, type))
-      .map((item) => createSection(item.type, item.settings));
+  .filter((item) => canUseSection(item.type, type))
+  .map((item) => {
+    const editableSection = createEditableTemplateSection(item);
 
+    return {
+      ...createSection(
+        editableSection.type,
+        editableSection.settings
+      ),
+      elements: editableSection.elements || [],
+    };
+  });
     return createDefaultPage({
       title: page.title,
       slug: page.slug,
