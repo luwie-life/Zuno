@@ -37,6 +37,7 @@ export default function StorefrontEditorCanvas({
   onReorderSections = () => {},
   onReorderElements = () => {},
   onMoveElement = () => {},
+  onPositionElement = () => {},
   onResizeElement = () => {},
   onAddSection = () => {},
   onPreview = () => {},
@@ -61,12 +62,6 @@ export default function StorefrontEditorCanvas({
     )
     .find((element) => element.id === selectedElementId);
 
-  // Route pixel-position updates through the editor's existing
-  // element-style updater so they are included in save/history.
-  const handlePositionElement = (elementId, sectionId, position) => {
-    onResizeElement(elementId, position, sectionId);
-  };
-
   useStorefrontPointerInteractions({
     rootRef: canvasRef,
     sections,
@@ -77,7 +72,7 @@ export default function StorefrontEditorCanvas({
     onReorderSections,
     onReorderElements,
     onMoveElement,
-    onPositionElement: handlePositionElement,
+    onPositionElement,
   });
 
   useStorefrontResizeInteractions({
@@ -85,17 +80,26 @@ export default function StorefrontEditorCanvas({
     selectedElementId,
     selectedElement,
     zoom,
-    onResizeElement,
+    onResizeElement: (elementId, dimensions) => {
+      onResizeElement(
+        elementId,
+        dimensions,
+        selectedElement?.__sectionId || selectedSectionId
+      );
+    },
   });
 
   const changeZoom = (amount) => {
-    setZoom((current) => Math.min(150, Math.max(40, current + amount)));
+    setZoom((current) =>
+      Math.min(150, Math.max(40, current + amount))
+    );
   };
 
   const resetZoom = () => setZoom(100);
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[#f1f2f5]">
+      {/* TOP TOOLBAR */}
       <div className="z-10 flex min-h-[52px] shrink-0 items-center justify-between gap-2 border-b border-slate-200 bg-white px-3 sm:px-4">
         <div className="min-w-0 flex-1">
           <p className="truncate text-xs font-bold text-slate-800">
@@ -103,7 +107,9 @@ export default function StorefrontEditorCanvas({
           </p>
 
           <p className="mt-0.5 truncate text-[10px] text-slate-400">
-            {activePage?.isHome ? 'Homepage' : `/${activePage?.slug || ''}`}
+            {activePage?.isHome
+              ? 'Homepage'
+              : `/${activePage?.slug || ''}`}
           </p>
         </div>
 
@@ -184,6 +190,7 @@ export default function StorefrontEditorCanvas({
         </button>
       </div>
 
+      {/* MOBILE DEVICE SELECTOR */}
       <div className="flex shrink-0 items-center justify-center gap-2 border-b border-slate-200 bg-white px-3 py-2 sm:hidden">
         {DEVICES.map(({ id, label, icon: Icon }) => (
           <button
@@ -203,6 +210,7 @@ export default function StorefrontEditorCanvas({
         ))}
       </div>
 
+      {/* CANVAS AREA */}
       <div className="relative min-h-0 flex-1 overflow-auto overscroll-contain">
         <div className="flex min-h-full min-w-full items-start justify-center p-3 sm:p-5 md:p-8">
           <div
@@ -217,6 +225,7 @@ export default function StorefrontEditorCanvas({
                 <span className="rounded-md bg-white px-2 py-1 shadow-sm">
                   {currentDevice.label}
                 </span>
+
                 <span>{currentDevice.width}px preview</span>
               </div>
 
@@ -233,7 +242,10 @@ export default function StorefrontEditorCanvas({
                 width: '100%',
                 transform: `scale(${zoom / 100})`,
                 transformOrigin: 'top center',
-                marginBottom: `${Math.max(0, (zoom - 100) * 8)}px`,
+                marginBottom: `${Math.max(
+                  0,
+                  (zoom - 100) * 8
+                )}px`,
               }}
             >
               <StorefrontRenderer
@@ -242,7 +254,9 @@ export default function StorefrontEditorCanvas({
                 storefront={storefront}
                 slug={business.slug || ''}
                 storeBase={
-                  business.slug ? `/store/${business.slug}` : ''
+                  business.slug
+                    ? `/store/${business.slug}`
+                    : ''
                 }
                 color={
                   storefront.theme?.primaryColor ||
@@ -267,8 +281,9 @@ export default function StorefrontEditorCanvas({
                   </h2>
 
                   <p className="mt-2 max-w-xs text-sm leading-6 text-slate-500">
-                    Add sections to introduce your business, showcase your
-                    products or services, and help visitors take action.
+                    Add sections to introduce your business,
+                    showcase your products or services, and help
+                    visitors take action.
                   </p>
 
                   <button
@@ -286,8 +301,7 @@ export default function StorefrontEditorCanvas({
             <div className="py-5 text-center">
               <p className="inline-flex items-center gap-1.5 text-[10px] text-slate-400">
                 <GripVertical size={12} />
-                Select an element to resize it. Drag the handles to adjust
-                its dimensions.
+                Select an element to move or resize it.
               </p>
             </div>
           </div>
