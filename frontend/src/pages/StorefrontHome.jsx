@@ -56,6 +56,26 @@ function getElementStyle(element, theme = {}) {
   };
 }
 
+function getSectionCanvasMinHeight(section) {
+  const elements = section.elements || [];
+
+  const positionedElements = elements.filter(
+    (element) => element.style?.positioned === true
+  );
+
+  if (!positionedElements.length) return undefined;
+
+  const lowestPoint = positionedElements.reduce((maximum, element) => {
+    const style = element.style || {};
+    const y = Number(style.y) || 0;
+    const height = Number.parseFloat(style.height) || 80;
+
+    return Math.max(maximum, y + height);
+  }, 0);
+
+  return `${Math.max(160, lowestPoint + 40)}px`;
+}
+
 function getAnimationStyle(animation = {}) {
   const presets = {
     none: '',
@@ -529,18 +549,35 @@ function ElementRenderer({
       output = null;
   }
 
-  if (!editorMode || !output) return output;
+  if (!output) return null;
+
+  const elementStyle = element.style || {};
+  const isPositioned = elementStyle.positioned === true;
+
+  if (!editorMode && !isPositioned) return output;
 
   return (
     <div
-      onClickCapture={selectElement}
-      className={`relative rounded-sm outline outline-1 transition ${
-        selectedElementId === element.id
-          ? 'outline-emerald-600'
-          : 'outline-transparent hover:outline-emerald-400'
-      }`}
-      data-editor-element-wrapper={element.id}
-      data-editor-element={element.id}
+      onClickCapture={editorMode ? selectElement : undefined}
+      className={editorMode ? 'relative' : ''}
+      style={
+        isPositioned
+          ? {
+              position: 'absolute',
+              left: `${Math.max(0, Number(elementStyle.x) || 0)}px`,
+              top: `${Math.max(0, Number(elementStyle.y) || 0)}px`,
+              width: 'fit-content',
+              maxWidth: '100%',
+              zIndex: 5,
+            }
+          : undefined
+      }
+      {...(editorMode
+        ? {
+            'data-editor-element-wrapper': element.id,
+            'data-editor-element': element.id,
+          }
+        : {})}
     >
       {output}
     </div>
@@ -1147,7 +1184,20 @@ function SectionRenderer({
         </>
       );
 
-  if (!editorMode) return content;
+  const sectionMinHeight = getSectionCanvasMinHeight(section);
+
+  if (!editorMode) {
+    return (
+      <div
+        className="relative"
+        style={{
+          minHeight: sectionMinHeight,
+        }}
+      >
+        {content}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -1164,7 +1214,7 @@ function SectionRenderer({
           if (elementId) {
             event.preventDefault();
             event.stopPropagation();
-            onSelectElement?.(elementId);
+            onSelectElement?.(elementId, section.id);
             return;
           }
         }
@@ -1179,6 +1229,9 @@ function SectionRenderer({
           : 'hover:outline hover:outline-1 hover:outline-offset-2 hover:outline-emerald-300'
       }`}
       data-editor-section={section.id}
+      style={{
+        minHeight: sectionMinHeight,
+      }}
     >
       {selectedSectionId === section.id && (
         <div className="absolute right-2 top-2 z-30 rounded-md bg-emerald-700 px-2 py-1 text-[10px] font-bold text-white shadow">
