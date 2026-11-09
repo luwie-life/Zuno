@@ -2,6 +2,9 @@ import { useEffect, useRef } from 'react';
 
 const DRAG_THRESHOLD = 5;
 
+const clamp = (value, min, max) =>
+  Math.max(min, Math.min(max, value));
+
 export default function useStorefrontPointerInteractions({
   rootRef,
   sections = [],
@@ -12,8 +15,10 @@ export default function useStorefrontPointerInteractions({
   onReorderSections = () => {},
   onReorderElements = () => {},
   onMoveElement = () => {},
+  onPositionElement = () => {},
 }) {
   const interactionRef = useRef(null);
+
   const latestRef = useRef({});
 
   latestRef.current = {
@@ -25,6 +30,7 @@ export default function useStorefrontPointerInteractions({
     onReorderSections,
     onReorderElements,
     onMoveElement,
+    onPositionElement,
   };
 
   useEffect(() => {
@@ -34,172 +40,108 @@ export default function useStorefrontPointerInteractions({
 
     const selected = selectedElementId
       ? root.querySelector(
-          `[data-editor-element-wrapper="${CSS.escape(
-            selectedElementId
-          )}"]`
+          `[data-editor-element-wrapper="${CSS.escape(selectedElementId)}"]`
         )
       : selectedSectionId
         ? root.querySelector(
-            `[data-editor-section="${CSS.escape(
-              selectedSectionId
-            )}"]`
+            `[data-editor-section="${CSS.escape(selectedSectionId)}"]`
           )
         : null;
 
     if (!selected) return undefined;
 
     const previousTouchAction = selected.style.touchAction;
-
     selected.style.touchAction = 'none';
 
     return () => {
       selected.style.touchAction = previousTouchAction;
     };
-  }, [
-    rootRef,
-    selectedElementId,
-    selectedSectionId,
-  ]);
+  }, [rootRef, selectedElementId, selectedSectionId]);
 
   useEffect(() => {
     const root = rootRef?.current;
 
     if (!root) return undefined;
 
-    const getElement = (target) => {
-      if (!(target instanceof Element)) return null;
+    const getElement = (target) =>
+      target instanceof Element
+        ? target.closest('[data-editor-element-wrapper]')
+        : null;
 
-      return target.closest(
-        '[data-editor-element-wrapper]'
-      );
-    };
+    const getSection = (target) =>
+      target instanceof Element
+        ? target.closest('[data-editor-section]')
+        : null;
 
-    const getSection = (target) => {
-      if (!(target instanceof Element)) return null;
-
-      return target.closest('[data-editor-section]');
-    };
-
-    const getSectionFromDropzone = (target) => {
-      if (!(target instanceof Element)) return null;
-
-      const dropzone = target.closest(
-        '[data-editor-element-dropzone]'
-      );
-
-      if (!dropzone) return null;
-
-      const sectionId =
-        dropzone.dataset.editorElementDropzone;
-
-      if (!sectionId) return null;
-
-      return root.querySelector(
-        `[data-editor-section="${CSS.escape(sectionId)}"]`
-      );
-    };
-
-    const isDraggedElement = (element, interaction) => {
-      if (!element || !interaction?.node) return false;
-
-      return (
-        element === interaction.node ||
-        interaction.node.contains(element) ||
-        element.contains(interaction.node)
-      );
-    };
-
-    /**
-     * Finds the actual destination section and element
-     * underneath the dragged element.
-     *
-     * It checks every element at the pointer position instead
-     * of trusting only the first DOM element returned.
-     */
-    const getDropTargets = (x, y, interaction) => {
+    const getSectionAtPoint = (x, y, interaction) => {
       const nodes = document.elementsFromPoint(x, y);
-
-      let targetElement = null;
-      let targetSection = null;
 
       for (const node of nodes) {
         if (!(node instanceof Element)) continue;
 
         if (
-          interaction.node === node ||
-          interaction.node.contains(node)
+          interaction?.node === node ||
+          interaction?.node?.contains(node)
         ) {
           continue;
         }
 
-        const element = getElement(node);
+        const dropzone = node.closest(
+          '[data-editor-element-dropzone]'
+        );
 
-        if (
-          element &&
-          !isDraggedElement(element, interaction)
-        ) {
-          const elementSection = getSection(element);
+        if (dropzone?.dataset.editorElementDropzone) {
+          const id = dropzone.dataset.editorElementDropzone;
 
-          if (
-            elementSection &&
-            elementSection.dataset.editorSection !== interaction.sectionId
-          ) {
-            if (!targetElement) {
-              targetElement = element;
-            }
+          const match = root.querySelector(
+            `[data-editor-section="${CSS.escape(id)}"]`
+          );
 
-            if (!targetSection) {
-              targetSection = elementSection;
-            }
-          } else if (
-            elementSection &&
-            elementSection.dataset.editorSection === interaction.sectionId &&
-            interaction.type === 'element'
-          ) {
-            if (!targetElement) {
-              targetElement = element;
-            }
-
-            if (!targetSection) {
-              targetSection = elementSection;
-            }
-          }
+          if (match) return match;
         }
 
-        const section =
-          getSection(node) ||
-          getSectionFromDropzone(node);
+        const section = getSection(node);
 
-        if (
-          section &&
-          !targetSection &&
-          section.dataset.editorSection !== interaction.id
-        ) {
-          targetSection = section;
-        }
-
-        if (
-          targetSection &&
-          targetElement &&
-          getSection(targetElement)?.dataset.editorSection ===
-            targetSection.dataset.editorSection
-        ) {
-          break;
-        }
-
-        if (
-          interaction.type === 'section' &&
-          targetSection
-        ) {
-          break;
-        }
+        if (section) return section;
       }
 
-      return {
-        targetElement,
-        targetSection,
-      };
+      return null;
     };
+
+    const getNearestSection = (x, y) => {
+      const sectionNodes = [
+        ...root.querySelectorAll('[data-editor-section]'),
+      ];
+
+      if (!sectionNodes.length) return null;
+
+      let nearest = null;
+      let nearestDistance = Infinity;
+
+      sectionNodes.forEach((section) => {
+        const rect = section.getBoundingClientRect();
+
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+
+        const distance = Math.hypot(
+          x - centerX,
+          y - centerY
+        );
+
+        if (distance < nearestDistance) {
+          nearestDistance = distance;
+          nearest = section;
+        }
+      });
+
+      return nearest;
+    };
+
+    const getSectionData = (sectionId) =>
+      latestRef.current.sections.find(
+        (section) => section.id === sectionId
+      );
 
     const getResizeOverlay = () =>
       root.querySelector('.zuno-resize-overlay');
@@ -211,119 +153,119 @@ export default function useStorefrontPointerInteractions({
       interaction.node.style.zIndex = '';
       interaction.node.style.willChange = '';
       interaction.node.style.transition = '';
+      interaction.node.classList.remove('zuno-pointer-moving');
 
-      const resizeOverlay = getResizeOverlay();
+      const overlay = getResizeOverlay();
 
-      if (resizeOverlay) {
-        resizeOverlay.style.transform = '';
+      if (overlay) {
+        overlay.style.transform = '';
       }
-
-      interaction.node.classList.remove(
-        'zuno-pointer-moving'
-      );
     };
 
-    const finishElementMove = (interaction, x, y) => {
+    const finishElementMove = (interaction, pointerX, pointerY) => {
       const {
         sections: currentSections,
-        onMoveElement,
-        onReorderElements,
-        onSelectElement,
+        onMoveElement: moveElement,
+        onReorderElements: reorderElements,
+        onPositionElement: positionElement,
+        onSelectElement: selectElement,
       } = latestRef.current;
 
-      const {
-        targetElement,
-        targetSection,
-      } = getDropTargets(x, y, interaction);
+      let targetSection = getSectionAtPoint(
+        pointerX,
+        pointerY,
+        interaction
+      );
+
+      if (!targetSection) {
+        targetSection = getNearestSection(pointerX, pointerY);
+      }
 
       if (!targetSection) return;
-
-      const sourceSectionId = interaction.sectionId;
 
       const targetSectionId =
         targetSection.dataset.editorSection;
 
       if (!targetSectionId) return;
 
+      const sourceSectionId = interaction.sectionId;
+
       const sourceSection = currentSections.find(
         (section) => section.id === sourceSectionId
       );
 
-      const targetSectionData = currentSections.find(
-        (section) => section.id === targetSectionId
-      );
+      const targetSectionData = getSectionData(targetSectionId);
 
       if (!sourceSection || !targetSectionData) return;
 
-      const sourceElements = [
-        ...(sourceSection.elements || []),
-      ];
-
-      const sourceIndex = sourceElements.findIndex(
+      const sourceElement = (sourceSection.elements || []).find(
         (element) => element.id === interaction.id
       );
 
-      if (sourceIndex < 0) return;
+      if (!sourceElement) return;
 
-      let destinationIndex = (
-        targetSectionData.elements || []
-      ).length;
+      const rootRect = root.getBoundingClientRect();
 
-      if (
-        targetElement &&
-        getSection(targetElement)?.dataset.editorSection ===
-          targetSectionId
-      ) {
-        const targetId =
-          targetElement.dataset.editorElementWrapper;
+      const scaleX = root.offsetWidth
+        ? rootRect.width / root.offsetWidth
+        : 1;
 
-        const targetIndex = (
-          targetSectionData.elements || []
-        ).findIndex(
-          (element) => element.id === targetId
+      const scaleY = root.offsetHeight
+        ? rootRect.height / root.offsetHeight
+        : 1;
+
+      const sectionRect = targetSection.getBoundingClientRect();
+
+      const elementRect = interaction.node.getBoundingClientRect();
+
+      const elementWidth = elementRect.width / (scaleX || 1);
+      const elementHeight = elementRect.height / (scaleY || 1);
+
+      const x = clamp(
+        (pointerX - sectionRect.left) / (scaleX || 1) -
+          interaction.grabOffsetX,
+        0,
+        Math.max(0, targetSection.offsetWidth - elementWidth)
+      );
+
+      const y = clamp(
+        (pointerY - sectionRect.top) / (scaleY || 1) -
+          interaction.grabOffsetY,
+        0,
+        Math.max(0, targetSection.offsetHeight - elementHeight)
+      );
+
+      const targetElementNode = document
+        .elementsFromPoint(pointerX, pointerY)
+        .map(getElement)
+        .find(
+          (element) =>
+            element &&
+            element !== interaction.node &&
+            !interaction.node.contains(element)
         );
 
-        if (targetIndex >= 0) {
-          const rect = targetElement.getBoundingClientRect();
+      if (sourceSectionId !== targetSectionId) {
+        const targetElements = [
+          ...(targetSectionData.elements || []),
+        ];
 
-          const horizontal =
-            rect.width > rect.height * 1.35;
+        let destinationIndex = targetElements.length;
 
-          const insertAfter = horizontal
-            ? x > rect.left + rect.width / 2
-            : y > rect.top + rect.height / 2;
+        if (targetElementNode) {
+          const targetId =
+            targetElementNode.dataset.editorElementWrapper;
 
-          destinationIndex =
-            targetIndex + (insertAfter ? 1 : 0);
+          const targetIndex = targetElements.findIndex(
+            (element) => element.id === targetId
+          );
+
+          if (targetIndex >= 0) {
+            destinationIndex = targetIndex;
+          }
         }
-      }
 
-      if (sourceSectionId === targetSectionId) {
-        const [movedElement] = sourceElements.splice(
-          sourceIndex,
-          1
-        );
-
-        const adjustedIndex =
-          sourceIndex < destinationIndex
-            ? destinationIndex - 1
-            : destinationIndex;
-
-        sourceElements.splice(
-          Math.max(
-            0,
-            Math.min(adjustedIndex, sourceElements.length)
-          ),
-          0,
-          movedElement
-        );
-
-        onReorderElements(
-          sourceSectionId,
-          sourceElements
-        );
-      } else {
-        onMoveElement(
+        moveElement(
           sourceSectionId,
           interaction.id,
           targetSectionId,
@@ -331,10 +273,16 @@ export default function useStorefrontPointerInteractions({
         );
       }
 
-      onSelectElement(
+      positionElement(
         interaction.id,
-        targetSectionId
+        targetSectionId,
+        {
+          x: Math.round(x),
+          y: Math.round(y),
+        }
       );
+
+      selectElement(interaction.id, targetSectionId);
     };
 
     const finishSectionMove = (interaction, x, y) => {
@@ -344,16 +292,11 @@ export default function useStorefrontPointerInteractions({
         onSelectSection,
       } = latestRef.current;
 
-      const { targetSection } = getDropTargets(
-        x,
-        y,
-        interaction
-      );
+      const targetSection = getSectionAtPoint(x, y, interaction);
 
       if (!targetSection) return;
 
-      const targetId =
-        targetSection.dataset.editorSection;
+      const targetId = targetSection.dataset.editorSection;
 
       if (!targetId || targetId === interaction.id) return;
 
@@ -371,16 +314,12 @@ export default function useStorefrontPointerInteractions({
 
       const rect = targetSection.getBoundingClientRect();
 
-      const insertAfter =
-        y > rect.top + rect.height / 2;
+      const insertAfter = y > rect.top + rect.height / 2;
 
       const destinationIndex =
         targetIndex + (insertAfter ? 1 : 0);
 
-      const [movedSection] = reordered.splice(
-        sourceIndex,
-        1
-      );
+      const [movedSection] = reordered.splice(sourceIndex, 1);
 
       const adjustedIndex =
         sourceIndex < destinationIndex
@@ -388,10 +327,7 @@ export default function useStorefrontPointerInteractions({
           : destinationIndex;
 
       reordered.splice(
-        Math.max(
-          0,
-          Math.min(adjustedIndex, reordered.length)
-        ),
+        clamp(adjustedIndex, 0, reordered.length),
         0,
         movedSection
       );
@@ -401,19 +337,19 @@ export default function useStorefrontPointerInteractions({
     };
 
     const handlePointerDown = (event) => {
+      if (!(event.target instanceof Element)) return;
+
       if (
-        event.target instanceof Element &&
-        event.target.closest('[data-zuno-resize-handle]')
+        event.target.closest(
+          '[data-zuno-resize-handle], button, input, textarea, select, a'
+        )
       ) {
         return;
       }
 
       if (!event.isPrimary) return;
 
-      if (
-        event.pointerType === 'mouse' &&
-        event.button !== 0
-      ) {
+      if (event.pointerType === 'mouse' && event.button !== 0) {
         return;
       }
 
@@ -423,8 +359,8 @@ export default function useStorefrontPointerInteractions({
       const section = getSection(event.target);
 
       const {
-        selectedElementId,
-        selectedSectionId,
+        selectedElementId: currentSelectedElementId,
+        selectedSectionId: currentSelectedSectionId,
         onSelectElement,
         onSelectSection,
       } = latestRef.current;
@@ -438,10 +374,12 @@ export default function useStorefrontPointerInteractions({
 
         if (!elementId || !sectionId) return;
 
-        if (elementId !== selectedElementId) {
+        if (elementId !== currentSelectedElementId) {
           onSelectElement(elementId, sectionId);
           return;
         }
+
+        const rect = element.getBoundingClientRect();
 
         interactionRef.current = {
           type: 'element',
@@ -451,25 +389,26 @@ export default function useStorefrontPointerInteractions({
           pointerId: event.pointerId,
           startX: event.clientX,
           startY: event.clientY,
+          grabOffsetX: event.clientX - rect.left,
+          grabOffsetY: event.clientY - rect.top,
           started: false,
         };
 
         try {
           root.setPointerCapture(event.pointerId);
         } catch {
-          // Pointer capture may be unavailable.
+          // Pointer capture is optional.
         }
 
         return;
       }
 
       if (section) {
-        const sectionId =
-          section.dataset.editorSection;
+        const sectionId = section.dataset.editorSection;
 
         if (!sectionId) return;
 
-        if (sectionId !== selectedSectionId) {
+        if (sectionId !== currentSelectedSectionId) {
           onSelectSection(sectionId);
           return;
         }
@@ -487,7 +426,7 @@ export default function useStorefrontPointerInteractions({
         try {
           root.setPointerCapture(event.pointerId);
         } catch {
-          // Pointer capture may be unavailable.
+          // Pointer capture is optional.
         }
       }
     };
@@ -495,9 +434,9 @@ export default function useStorefrontPointerInteractions({
     const handlePointerMove = (event) => {
       const interaction = interactionRef.current;
 
-      if (!interaction) return;
-
-      if (interaction.pointerId !== event.pointerId) return;
+      if (!interaction || interaction.pointerId !== event.pointerId) {
+        return;
+      }
 
       const dx = event.clientX - interaction.startX;
       const dy = event.clientY - interaction.startY;
@@ -513,34 +452,29 @@ export default function useStorefrontPointerInteractions({
 
       event.preventDefault();
 
-      const node = interaction.node;
-
-      node.style.willChange = 'transform';
-      node.style.transition = 'none';
-      node.style.zIndex = '80';
-
       const movement = `translate3d(${dx}px, ${dy}px, 0)`;
 
-      node.style.transform = movement;
+      interaction.node.style.willChange = 'transform';
+      interaction.node.style.transition = 'none';
+      interaction.node.style.zIndex = '80';
+      interaction.node.style.transform = movement;
+      interaction.node.classList.add('zuno-pointer-moving');
 
-      // Keep the resize outline attached while dragging.
       if (interaction.type === 'element') {
-        const resizeOverlay = getResizeOverlay();
+        const overlay = getResizeOverlay();
 
-        if (resizeOverlay) {
-          resizeOverlay.style.transform = movement;
+        if (overlay) {
+          overlay.style.transform = movement;
         }
       }
-
-      node.classList.add('zuno-pointer-moving');
     };
 
     const finishInteraction = (event) => {
       const interaction = interactionRef.current;
 
-      if (!interaction) return;
-
-      if (interaction.pointerId !== event.pointerId) return;
+      if (!interaction || interaction.pointerId !== event.pointerId) {
+        return;
+      }
 
       interactionRef.current = null;
 
@@ -551,9 +485,7 @@ export default function useStorefrontPointerInteractions({
             event.clientX,
             event.clientY
           );
-        }
-
-        if (interaction.type === 'section') {
+        } else {
           finishSectionMove(
             interaction,
             event.clientX,
@@ -586,30 +518,18 @@ export default function useStorefrontPointerInteractions({
       }
 
       interactionRef.current = null;
-
       clearVisualState(interaction);
     };
 
-    root.addEventListener(
-      'pointerdown',
-      handlePointerDown,
-      true
-    );
+    root.addEventListener('pointerdown', handlePointerDown, true);
 
     root.addEventListener(
       'pointermove',
       handlePointerMove,
-      {
-        capture: true,
-        passive: false,
-      }
+      { capture: true, passive: false }
     );
 
-    root.addEventListener(
-      'pointerup',
-      finishInteraction,
-      true
-    );
+    root.addEventListener('pointerup', finishInteraction, true);
 
     root.addEventListener(
       'pointercancel',
@@ -618,29 +538,10 @@ export default function useStorefrontPointerInteractions({
     );
 
     return () => {
-      root.removeEventListener(
-        'pointerdown',
-        handlePointerDown,
-        true
-      );
-
-      root.removeEventListener(
-        'pointermove',
-        handlePointerMove,
-        true
-      );
-
-      root.removeEventListener(
-        'pointerup',
-        finishInteraction,
-        true
-      );
-
-      root.removeEventListener(
-        'pointercancel',
-        handlePointerCancel,
-        true
-      );
+      root.removeEventListener('pointerdown', handlePointerDown, true);
+      root.removeEventListener('pointermove', handlePointerMove, true);
+      root.removeEventListener('pointerup', finishInteraction, true);
+      root.removeEventListener('pointercancel', handlePointerCancel, true);
 
       handlePointerCancel();
     };
