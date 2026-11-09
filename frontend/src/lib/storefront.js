@@ -592,6 +592,17 @@ export function normalizeElementStyle(input = {}) {
   const alignments = ['left', 'center', 'right'];
   const weights = ['normal', 'medium', 'semibold', 'bold'];
 
+  // Preserve numeric canvas coordinates.
+  // These were previously discarded during normalization,
+  // causing dragged elements to lose their saved positions.
+  const normalizeCoordinate = (value) => {
+    const number = Number(value);
+
+    if (!Number.isFinite(number)) return 0;
+
+    return Math.max(-100000, Math.min(100000, number));
+  };
+
   return {
     color: source.color ? normalizeHexColor(source.color, '') : '',
     backgroundColor: source.backgroundColor ? normalizeHexColor(source.backgroundColor, '') : '',
@@ -605,6 +616,12 @@ export function normalizeElementStyle(input = {}) {
     borderRadius: cleanText(source.borderRadius, 30) || '0',
     opacity: Math.max(0, Math.min(1, Number(source.opacity ?? 1))),
     objectFit: ['cover', 'contain', 'fill'].includes(source.objectFit) ? source.objectFit : 'cover',
+
+    // Free-positioning data must survive createElement,
+    // normalizeElement, updates, and storefront saves.
+    x: normalizeCoordinate(source.x),
+    y: normalizeCoordinate(source.y),
+    positioned: source.positioned === true,
   };
 }
 
@@ -679,7 +696,7 @@ export function normalizeSection(input = {}) {
     visible: source.visible !== false,
     settings: cleanSettings(source.settings),
     elements: Array.isArray(source.elements)
-      ? source.elements.slice(0, 100).filter(isObject).map(normalizeElement)
+      ? source.elements.slice(0, MAX_ELEMENTS_PER_SECTION).filter(isObject).map(normalizeElement)
       : [],
   };
 }
