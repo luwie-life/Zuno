@@ -789,10 +789,12 @@ export default function StorefrontEditor() {
   };
 
   const moveElementAcrossSections = (
+      const moveElementAcrossSections = (
     sourceSectionId,
     elementId,
     targetSectionId,
-    destinationIndex
+    destinationIndex,
+    position = null
   ) => {
     if (
       !activePage ||
@@ -818,6 +820,60 @@ export default function StorefrontEditor() {
           (section) => section.id === sourceSectionId
         );
 
+        const target = sections.find(
+          (section) => section.id === targetSectionId
+        );
+
+        if (!source || !target) return page;
+
+        const sourceIndex = source.elements.findIndex(
+          (element) => element.id === elementId
+        );
+
+        if (sourceIndex === -1) return page;
+
+        const [originalElement] = source.elements.splice(
+          sourceIndex,
+          1
+        );
+
+        const movedElement = position
+          ? {
+              ...originalElement,
+              style: {
+                ...(originalElement.style || {}),
+                ...position,
+              },
+            }
+          : originalElement;
+
+        const requestedIndex = Number.isFinite(
+          Number(destinationIndex)
+        )
+          ? Math.floor(Number(destinationIndex))
+          : target.elements.length;
+
+        const safeIndex = Math.max(
+          0,
+          Math.min(requestedIndex, target.elements.length)
+        );
+
+        target.elements.splice(
+          safeIndex,
+          0,
+          movedElement
+        );
+
+        return {
+          ...page,
+          sections,
+        };
+      }),
+    }));
+
+    setSelectedSectionId(targetSectionId);
+    setSelectedElementId(elementId);
+  };
         const target = sections.find(
           (section) => section.id === targetSectionId
         );
