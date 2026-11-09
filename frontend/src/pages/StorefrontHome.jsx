@@ -589,6 +589,7 @@ function ElementRenderer({
       {output}
     </div>
   );
+}
 function HeroSection({ settings, context, children }) {
   const image = settings.backgroundImage || settings.image;
   const buttonLink = settings.buttonLink || settings.ctaLink || '';
