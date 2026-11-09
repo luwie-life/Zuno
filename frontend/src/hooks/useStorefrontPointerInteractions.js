@@ -85,15 +85,15 @@ export default function useStorefrontPointerInteractions({
       for (const node of nodes) {
         if (!(node instanceof Element)) continue;
 
-        const element = getElement(node);
-        const section = getSection(node);
-
         if (
           interaction.node === node ||
           interaction.node.contains(node)
         ) {
           continue;
         }
+
+        // First identify an actual editable element.
+        const element = getElement(node);
 
         if (
           interaction.type === 'element' &&
@@ -104,11 +104,38 @@ export default function useStorefrontPointerInteractions({
           targetElement = element;
         }
 
-        if (
-          section &&
-          section.dataset.editorSection !== interaction.id
-        ) {
-          targetSection = section;
+        // Prefer the explicit dropzone's section ID.
+        const dropzone = node.closest(
+          '[data-editor-element-dropzone]'
+        );
+
+        if (dropzone) {
+          const dropzoneSectionId =
+            dropzone.dataset.editorElementDropzone;
+
+          if (dropzoneSectionId) {
+            const matchingSection = root.querySelector(
+              `[data-editor-section="${CSS.escape(
+                dropzoneSectionId
+              )}"]`
+            );
+
+            if (matchingSection) {
+              targetSection = matchingSection;
+            }
+          }
+        }
+
+        // Fall back to the nearest section wrapper.
+        if (!targetSection) {
+          const section = getSection(node);
+
+          if (
+            section &&
+            section.dataset.editorSection
+          ) {
+            targetSection = section;
+          }
         }
 
         if (
