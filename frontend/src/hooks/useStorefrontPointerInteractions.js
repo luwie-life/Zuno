@@ -18,7 +18,6 @@ export default function useStorefrontPointerInteractions({
   onPositionElement = () => {},
 }) {
   const interactionRef = useRef(null);
-
   const latestRef = useRef({});
 
   latestRef.current = {
@@ -166,7 +165,6 @@ export default function useStorefrontPointerInteractions({
       const {
         sections: currentSections,
         onMoveElement: moveElement,
-        onReorderElements: reorderElements,
         onPositionElement: positionElement,
         onSelectElement: selectElement,
       } = latestRef.current;
@@ -215,7 +213,6 @@ export default function useStorefrontPointerInteractions({
         : 1;
 
       const sectionRect = targetSection.getBoundingClientRect();
-
       const elementRect = interaction.node.getBoundingClientRect();
 
       const elementWidth = elementRect.width / (scaleX || 1);
@@ -245,26 +242,39 @@ export default function useStorefrontPointerInteractions({
             !interaction.node.contains(element)
         );
 
-      if (sourceSectionId !== targetSectionId) {
-        const targetElements = [
-          ...(targetSectionData.elements || []),
-        ];
+      let destinationIndex = (
+        targetSectionData.elements || []
+      ).length;
 
-        let destinationIndex = targetElements.length;
+      if (targetElementNode) {
+        const targetId =
+          targetElementNode.dataset.editorElementWrapper;
 
-        if (targetElementNode) {
-          const targetId =
-            targetElementNode.dataset.editorElementWrapper;
+        const targetIndex = (
+          targetSectionData.elements || []
+        ).findIndex((element) => element.id === targetId);
 
-          const targetIndex = targetElements.findIndex(
-            (element) => element.id === targetId
-          );
-
-          if (targetIndex >= 0) {
-            destinationIndex = targetIndex;
-          }
+        if (targetIndex >= 0) {
+          destinationIndex = targetIndex;
         }
+      }
 
+      /*
+       * IMPORTANT:
+       * Persist coordinates before transferring the element.
+       * The transfer then carries the updated style with it.
+       */
+      positionElement(
+        interaction.id,
+        sourceSectionId,
+        {
+          x: Math.round(x),
+          y: Math.round(y),
+          positioned: true,
+        }
+      );
+
+      if (sourceSectionId !== targetSectionId) {
         moveElement(
           sourceSectionId,
           interaction.id,
@@ -272,15 +282,6 @@ export default function useStorefrontPointerInteractions({
           destinationIndex
         );
       }
-
-      positionElement(
-        interaction.id,
-        targetSectionId,
-        {
-          x: Math.round(x),
-          y: Math.round(y),
-        }
-      );
 
       selectElement(interaction.id, targetSectionId);
     };
