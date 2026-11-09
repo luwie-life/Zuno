@@ -556,12 +556,12 @@ function ElementRenderer({
 
   if (!editorMode && !isPositioned) return output;
 
-  return (
+    return (
     <div
       onClickCapture={editorMode ? selectElement : undefined}
       className={editorMode ? 'relative' : ''}
-      style={
-        isPositioned
+      style={{
+        ...(isPositioned
           ? {
               position: 'absolute',
               left: `${Math.max(0, Number(elementStyle.x) || 0)}px`,
@@ -570,8 +570,15 @@ function ElementRenderer({
               maxWidth: '100%',
               zIndex: 5,
             }
-          : undefined
-      }
+          : {}),
+        ...(editorMode
+          ? {
+              touchAction: 'none',
+              userSelect: 'none',
+              WebkitUserSelect: 'none',
+            }
+          : {}),
+      }}
       {...(editorMode
         ? {
             'data-editor-element-wrapper': element.id,
@@ -582,8 +589,6 @@ function ElementRenderer({
       {output}
     </div>
   );
-}
-
 function HeroSection({ settings, context, children }) {
   const image = settings.backgroundImage || settings.image;
   const buttonLink = settings.buttonLink || settings.ctaLink || '';
