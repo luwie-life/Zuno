@@ -37,7 +37,6 @@ export default function StorefrontEditorCanvas({
   onReorderSections = () => {},
   onReorderElements = () => {},
   onMoveElement = () => {},
-  onPositionElement = () => {},
   onResizeElement = () => {},
   onAddSection = () => {},
   onPreview = () => {},
@@ -62,7 +61,12 @@ export default function StorefrontEditorCanvas({
     )
     .find((element) => element.id === selectedElementId);
 
-  // ELEMENT MOVEMENT AND SECTION INTERACTIONS
+  // Route pixel-position updates through the editor's existing
+  // element-style updater so they are included in save/history.
+  const handlePositionElement = (elementId, sectionId, position) => {
+    onResizeElement(elementId, position, sectionId);
+  };
+
   useStorefrontPointerInteractions({
     rootRef: canvasRef,
     sections,
@@ -73,10 +77,9 @@ export default function StorefrontEditorCanvas({
     onReorderSections,
     onReorderElements,
     onMoveElement,
-    onPositionElement,
+    onPositionElement: handlePositionElement,
   });
 
-  // ELEMENT RESIZING
   useStorefrontResizeInteractions({
     rootRef: canvasRef,
     selectedElementId,
@@ -93,7 +96,6 @@ export default function StorefrontEditorCanvas({
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[#f1f2f5]">
-      {/* TOP TOOLBAR */}
       <div className="z-10 flex min-h-[52px] shrink-0 items-center justify-between gap-2 border-b border-slate-200 bg-white px-3 sm:px-4">
         <div className="min-w-0 flex-1">
           <p className="truncate text-xs font-bold text-slate-800">
@@ -105,7 +107,6 @@ export default function StorefrontEditorCanvas({
           </p>
         </div>
 
-        {/* DESKTOP DEVICE SELECTOR */}
         <div className="hidden shrink-0 items-center gap-1 rounded-xl bg-slate-100 p-1 sm:flex">
           {DEVICES.map(({ id, label, icon: Icon }) => (
             <button
@@ -122,7 +123,6 @@ export default function StorefrontEditorCanvas({
               }`}
             >
               <Icon size={15} />
-
               <span className="hidden text-[10px] font-semibold lg:inline">
                 {label}
               </span>
@@ -130,7 +130,6 @@ export default function StorefrontEditorCanvas({
           ))}
         </div>
 
-        {/* ZOOM CONTROLS */}
         <div className="flex shrink-0 items-center gap-1">
           <button
             type="button"
@@ -174,7 +173,6 @@ export default function StorefrontEditorCanvas({
           </button>
         </div>
 
-        {/* PREVIEW */}
         <button
           type="button"
           onClick={onPreview}
@@ -186,7 +184,6 @@ export default function StorefrontEditorCanvas({
         </button>
       </div>
 
-      {/* MOBILE DEVICE SELECTOR */}
       <div className="flex shrink-0 items-center justify-center gap-2 border-b border-slate-200 bg-white px-3 py-2 sm:hidden">
         {DEVICES.map(({ id, label, icon: Icon }) => (
           <button
@@ -206,7 +203,6 @@ export default function StorefrontEditorCanvas({
         ))}
       </div>
 
-      {/* CANVAS SCROLL AREA */}
       <div className="relative min-h-0 flex-1 overflow-auto overscroll-contain">
         <div className="flex min-h-full min-w-full items-start justify-center p-3 sm:p-5 md:p-8">
           <div
@@ -216,13 +212,11 @@ export default function StorefrontEditorCanvas({
               maxWidth: '100%',
             }}
           >
-            {/* CANVAS INFORMATION */}
             <div className="mb-3 flex items-center justify-between">
               <div className="flex items-center gap-2 text-[10px] font-semibold text-slate-400">
                 <span className="rounded-md bg-white px-2 py-1 shadow-sm">
                   {currentDevice.label}
                 </span>
-
                 <span>{currentDevice.width}px preview</span>
               </div>
 
@@ -232,7 +226,6 @@ export default function StorefrontEditorCanvas({
               </span>
             </div>
 
-            {/* STOREFRONT CANVAS */}
             <div
               ref={canvasRef}
               className="relative origin-top overflow-hidden bg-white shadow-[0_8px_40px_rgba(15,23,42,0.10)] ring-1 ring-slate-200 transition-transform duration-200"
@@ -263,7 +256,6 @@ export default function StorefrontEditorCanvas({
                 onSelectElement={onSelectElement}
               />
 
-              {/* EMPTY PAGE STATE */}
               {!sections.length && (
                 <div className="flex min-h-[420px] flex-col items-center justify-center px-6 py-20 text-center">
                   <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
@@ -291,7 +283,6 @@ export default function StorefrontEditorCanvas({
               )}
             </div>
 
-            {/* EDITOR INSTRUCTIONS */}
             <div className="py-5 text-center">
               <p className="inline-flex items-center gap-1.5 text-[10px] text-slate-400">
                 <GripVertical size={12} />
