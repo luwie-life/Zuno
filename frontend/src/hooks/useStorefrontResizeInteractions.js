@@ -465,10 +465,15 @@ export default function useStorefrontResizeInteractions({
 
       overlay.remove();
     };
-  }, [
+   }, [
     rootRef,
     selectedElementId,
     elementType,
     zoom,
+    selectedElement?.style?.x,
+    selectedElement?.style?.y,
+    selectedElement?.style?.positioned,
+    selectedElement?.style?.width,
+    selectedElement?.style?.height,
   ]);
 }
