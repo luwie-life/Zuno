@@ -780,7 +780,15 @@ export default function StorefrontEditor() {
   targetSectionId,
   destinationIndex
 ) => {
-  if (!activePage || sourceSectionId === targetSectionId) return;
+  if (
+    !activePage ||
+    !sourceSectionId ||
+    !targetSectionId ||
+    !elementId ||
+    sourceSectionId === targetSectionId
+  ) {
+    return;
+  }
 
   commit((current) => ({
     ...current,
@@ -806,18 +814,34 @@ export default function StorefrontEditor() {
         (element) => element.id === elementId
       );
 
-      if (sourceIndex < 0) return page;
+      if (sourceIndex === -1) return page;
 
-      const [moved] = source.elements.splice(sourceIndex, 1);
+      const [movedElement] = source.elements.splice(
+        sourceIndex,
+        1
+      );
+
+      const requestedIndex = Number.isFinite(
+        Number(destinationIndex)
+      )
+        ? Math.floor(Number(destinationIndex))
+        : target.elements.length;
 
       const safeIndex = Math.max(
         0,
-        Math.min(destinationIndex, target.elements.length)
+        Math.min(requestedIndex, target.elements.length)
       );
 
-      target.elements.splice(safeIndex, 0, moved);
+      target.elements.splice(
+        safeIndex,
+        0,
+        movedElement
+      );
 
-      return { ...page, sections };
+      return {
+        ...page,
+        sections,
+      };
     }),
   }));
 
