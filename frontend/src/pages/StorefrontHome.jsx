@@ -569,9 +569,15 @@ function HeroSection({ settings, context, children }) {
             : settings.height === 'large'
               ? 480
               : 360,
+
+        backgroundColor: settings.backgroundColor || '#111827',
+
         backgroundImage: image
-          ? `linear-gradient(90deg, rgba(0,0,0,.72), rgba(0,0,0,.18)), url("${image}")`
-          : 'linear-gradient(120deg, #102f27, #111827)',
+          ? `linear-gradient(90deg, rgba(0,0,0,.45), rgba(0,0,0,.12)), url("${image}")`
+          : settings.backgroundColor
+            ? 'none'
+            : 'linear-gradient(120deg, #102f27, #111827)',
+
         backgroundPosition: 'center',
         backgroundSize: 'cover',
       }}
