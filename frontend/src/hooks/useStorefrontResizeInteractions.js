@@ -1,500 +1,396 @@
 import { useEffect, useRef } from 'react';
 
-const DRAG_THRESHOLD = 5;
+const MIN_WIDTH = 24;
+const MIN_HEIGHT = 24;
+const MIN_FONT_SIZE = 8;
+const MAX_FONT_SIZE = 160;
+
+const HANDLES = [
+  { id: 'nw', cursor: 'nwse-resize', x: -1, y: -1 },
+  { id: 'n', cursor: 'ns-resize', x: 0, y: -1 },
+  { id: 'ne', cursor: 'nesw-resize', x: 1, y: -1 },
+  { id: 'e', cursor: 'ew-resize', x: 1, y: 0 },
+  { id: 'se', cursor: 'nwse-resize', x: 1, y: 1 },
+  { id: 's', cursor: 'ns-resize', x: 0, y: 1 },
+  { id: 'sw', cursor: 'nesw-resize', x: -1, y: 1 },
+  { id: 'w', cursor: 'ew-resize', x: -1, y: 0 },
+];
 
 const clamp = (value, min, max) =>
   Math.max(min, Math.min(max, value));
 
-export default function useStorefrontPointerInteractions({
+export default function useStorefrontResizeInteractions({
   rootRef,
-  sections = [],
-  selectedSectionId = '',
   selectedElementId = '',
-  onSelectSection = () => {},
-  onSelectElement = () => {},
-  onReorderSections = () => {},
-  onReorderElements = () => {},
-  onMoveElement = () => {},
-  onPositionElement = () => {},
+  selectedElement = null,
+  zoom = 100,
+  onResizeElement = () => {},
 }) {
-  const interactionRef = useRef(null);
+  const callbackRef = useRef(onResizeElement);
 
-  const latestRef = useRef({});
+  callbackRef.current = onResizeElement;
 
-  latestRef.current = {
-    sections,
-    selectedSectionId,
-    selectedElementId,
-    onSelectSection,
-    onSelectElement,
-    onReorderSections,
-    onReorderElements,
-    onMoveElement,
-    onPositionElement,
-  };
+  const elementType = selectedElement?.type || '';
 
   useEffect(() => {
     const root = rootRef?.current;
 
-    if (!root) return undefined;
+    if (!root || !selectedElementId || !elementType) {
+      return undefined;
+    }
 
-    const selected = selectedElementId
-      ? root.querySelector(
-          `[data-editor-element-wrapper="${CSS.escape(selectedElementId)}"]`
-        )
-      : selectedSectionId
-        ? root.querySelector(
-            `[data-editor-section="${CSS.escape(selectedSectionId)}"]`
-          )
-        : null;
+    const wrapper = root.querySelector(
+      `[data-editor-element-wrapper="${CSS.escape(
+        String(selectedElementId)
+      )}"]`
+    );
 
-    if (!selected) return undefined;
+    if (!wrapper) return undefined;
 
-    const previousTouchAction = selected.style.touchAction;
-    selected.style.touchAction = 'none';
+    const elementNode = wrapper.firstElementChild || wrapper;
 
-    return () => {
-      selected.style.touchAction = previousTouchAction;
-    };
-  }, [rootRef, selectedElementId, selectedSectionId]);
+    const isText =
+      elementType === 'heading' ||
+      elementType === 'text';
 
-  useEffect(() => {
-    const root = rootRef?.current;
+    const isImage = elementType === 'image';
 
-    if (!root) return undefined;
+    const scale = Math.max(0.1, Number(zoom) / 100 || 1);
 
-    const getElement = (target) =>
-      target instanceof Element
-        ? target.closest('[data-editor-element-wrapper]')
-        : null;
+    const getVisualRect = () => {
+      if (isText && elementNode.textContent?.trim()) {
+        const range = document.createRange();
 
-    const getSection = (target) =>
-      target instanceof Element
-        ? target.closest('[data-editor-section]')
-        : null;
+        range.selectNodeContents(elementNode);
 
-    const getSectionAtPoint = (x, y, interaction) => {
-      const nodes = document.elementsFromPoint(x, y);
+        const rect = range.getBoundingClientRect();
 
-      for (const node of nodes) {
-        if (!(node instanceof Element)) continue;
-
-        if (
-          interaction?.node === node ||
-          interaction?.node?.contains(node)
-        ) {
-          continue;
+        if (rect.width && rect.height) {
+          return rect;
         }
-
-        const dropzone = node.closest(
-          '[data-editor-element-dropzone]'
-        );
-
-        if (dropzone?.dataset.editorElementDropzone) {
-          const id = dropzone.dataset.editorElementDropzone;
-
-          const match = root.querySelector(
-            `[data-editor-section="${CSS.escape(id)}"]`
-          );
-
-          if (match) return match;
-        }
-
-        const section = getSection(node);
-
-        if (section) return section;
       }
 
-      return null;
+      return elementNode.getBoundingClientRect();
     };
 
-    const getNearestSection = (x, y) => {
-      const sectionNodes = [
-        ...root.querySelectorAll('[data-editor-section]'),
-      ];
+    const getRootCoordinates = (rect) => {
+      const rootRect = root.getBoundingClientRect();
 
-      if (!sectionNodes.length) return null;
+      return {
+        left: (rect.left - rootRect.left) / scale,
+        top: (rect.top - rootRect.top) / scale,
+        width: rect.width / scale,
+        height: rect.height / scale,
+      };
+    };
 
-      let nearest = null;
-      let nearestDistance = Infinity;
+    const initialRect = getVisualRect();
 
-      sectionNodes.forEach((section) => {
-        const rect = section.getBoundingClientRect();
+    if (!initialRect.width || !initialRect.height) {
+      return undefined;
+    }
 
-        const centerX = rect.left + rect.width / 2;
-        const centerY = rect.top + rect.height / 2;
+    const initial = getRootCoordinates(initialRect);
 
-        const distance = Math.hypot(
-          x - centerX,
-          y - centerY
-        );
+    const initialFontSize =
+      Number.parseFloat(
+        window.getComputedStyle(elementNode).fontSize
+      ) || 16;
 
-        if (distance < nearestDistance) {
-          nearestDistance = distance;
-          nearest = section;
+    const initialInlineStyles = {
+      width: elementNode.style.width,
+      height: elementNode.style.height,
+      fontSize: elementNode.style.fontSize,
+    };
+
+    const overlay = document.createElement('div');
+
+    overlay.className = 'zuno-resize-overlay';
+
+    Object.assign(overlay.style, {
+      position: 'absolute',
+      left: `${initial.left}px`,
+      top: `${initial.top}px`,
+      width: `${initial.width}px`,
+      height: `${initial.height}px`,
+      boxSizing: 'border-box',
+      border: '1.5px solid #059669',
+      zIndex: '999',
+      pointerEvents: 'none',
+      touchAction: 'none',
+      transform: 'none',
+    });
+
+    const label = document.createElement('div');
+
+    Object.assign(label.style, {
+      position: 'absolute',
+      top: '-25px',
+      left: '-1px',
+      padding: '3px 7px',
+      borderRadius: '4px',
+      background: '#047857',
+      color: '#ffffff',
+      fontSize: '10px',
+      fontWeight: '600',
+      lineHeight: '16px',
+      whiteSpace: 'nowrap',
+      pointerEvents: 'none',
+      userSelect: 'none',
+    });
+
+    const updateLabel = (width, height) => {
+      label.textContent =
+        `${Math.round(width)} × ${Math.round(height)}`;
+    };
+
+    const updateOverlay = (width, height) => {
+      overlay.style.width = `${width}px`;
+      overlay.style.height = `${height}px`;
+
+      updateLabel(width, height);
+    };
+
+    updateLabel(initial.width, initial.height);
+
+    overlay.appendChild(label);
+
+    let activeInteraction = null;
+
+    const handlePositions = {
+      nw: { left: '-7px', top: '-7px' },
+      n: {
+        left: '50%',
+        top: '-7px',
+        transform: 'translateX(-50%)',
+      },
+      ne: { right: '-7px', top: '-7px' },
+      e: {
+        right: '-7px',
+        top: '50%',
+        transform: 'translateY(-50%)',
+      },
+      se: { right: '-7px', bottom: '-7px' },
+      s: {
+        left: '50%',
+        bottom: '-7px',
+        transform: 'translateX(-50%)',
+      },
+      sw: { left: '-7px', bottom: '-7px' },
+      w: {
+        left: '-7px',
+        top: '50%',
+        transform: 'translateY(-50%)',
+      },
+    };
+
+    const createHandle = (handle) => {
+      const button = document.createElement('button');
+
+      button.type = 'button';
+
+      button.setAttribute(
+        'aria-label',
+        `Resize ${handle.id}`
+      );
+
+      button.setAttribute(
+        'data-zuno-resize-handle',
+        handle.id
+      );
+
+      Object.assign(button.style, {
+        position: 'absolute',
+        width: '14px',
+        height: '14px',
+        padding: '0',
+        margin: '0',
+        border: '2px solid #047857',
+        borderRadius: '4px',
+        background: '#ffffff',
+        boxSizing: 'border-box',
+        pointerEvents: 'auto',
+        touchAction: 'none',
+        cursor: handle.cursor,
+        zIndex: '1000',
+        ...handlePositions[handle.id],
+      });
+
+      button.addEventListener('pointerdown', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+
+        if (activeInteraction) return;
+
+        activeInteraction = {
+          pointerId: event.pointerId,
+          handle,
+          startX: event.clientX,
+          startY: event.clientY,
+          width: initial.width,
+          height: initial.height,
+          fontSize: initialFontSize,
+          startInlineWidth: elementNode.style.width,
+          startInlineHeight: elementNode.style.height,
+          startInlineFontSize: elementNode.style.fontSize,
+        };
+
+        try {
+          root.setPointerCapture(event.pointerId);
+        } catch {
+          // Pointer capture may be unavailable.
         }
       });
 
-      return nearest;
+      return button;
     };
 
-    const getSectionData = (sectionId) =>
-      latestRef.current.sections.find(
-        (section) => section.id === sectionId
-      );
-
-    const getResizeOverlay = () =>
-      root.querySelector('.zuno-resize-overlay');
-
-    const clearVisualState = (interaction) => {
-      if (!interaction?.node) return;
-
-      interaction.node.style.transform = '';
-      interaction.node.style.zIndex = '';
-      interaction.node.style.willChange = '';
-      interaction.node.style.transition = '';
-      interaction.node.classList.remove('zuno-pointer-moving');
-
-      const overlay = getResizeOverlay();
-
-      if (overlay) {
-        overlay.style.transform = '';
-      }
-    };
-
-    const finishElementMove = (interaction, pointerX, pointerY) => {
-      const {
-        sections: currentSections,
-        onMoveElement: moveElement,
-        onReorderElements: reorderElements,
-        onPositionElement: positionElement,
-        onSelectElement: selectElement,
-      } = latestRef.current;
-
-      let targetSection = getSectionAtPoint(
-        pointerX,
-        pointerY,
-        interaction
-      );
-
-      if (!targetSection) {
-        targetSection = getNearestSection(pointerX, pointerY);
-      }
-
-      if (!targetSection) return;
-
-      const targetSectionId =
-        targetSection.dataset.editorSection;
-
-      if (!targetSectionId) return;
-
-      const sourceSectionId = interaction.sectionId;
-
-      const sourceSection = currentSections.find(
-        (section) => section.id === sourceSectionId
-      );
-
-      const targetSectionData = getSectionData(targetSectionId);
-
-      if (!sourceSection || !targetSectionData) return;
-
-      const sourceElement = (sourceSection.elements || []).find(
-        (element) => element.id === interaction.id
-      );
-
-      if (!sourceElement) return;
-
-      const rootRect = root.getBoundingClientRect();
-
-      const scaleX = root.offsetWidth
-        ? rootRect.width / root.offsetWidth
-        : 1;
-
-      const scaleY = root.offsetHeight
-        ? rootRect.height / root.offsetHeight
-        : 1;
-
-      const sectionRect = targetSection.getBoundingClientRect();
-
-      const elementRect = interaction.node.getBoundingClientRect();
-
-      const elementWidth = elementRect.width / (scaleX || 1);
-      const elementHeight = elementRect.height / (scaleY || 1);
-
-      const x = clamp(
-        (pointerX - sectionRect.left) / (scaleX || 1) -
-          interaction.grabOffsetX,
-        0,
-        Math.max(0, targetSection.offsetWidth - elementWidth)
-      );
-
-      const y = clamp(
-        (pointerY - sectionRect.top) / (scaleY || 1) -
-          interaction.grabOffsetY,
-        0,
-        Math.max(0, targetSection.offsetHeight - elementHeight)
-      );
-
-      const targetElementNode = document
-        .elementsFromPoint(pointerX, pointerY)
-        .map(getElement)
-        .find(
-          (element) =>
-            element &&
-            element !== interaction.node &&
-            !interaction.node.contains(element)
-        );
-
-      if (sourceSectionId !== targetSectionId) {
-        const targetElements = [
-          ...(targetSectionData.elements || []),
-        ];
-
-        let destinationIndex = targetElements.length;
-
-        if (targetElementNode) {
-          const targetId =
-            targetElementNode.dataset.editorElementWrapper;
-
-          const targetIndex = targetElements.findIndex(
-            (element) => element.id === targetId
-          );
-
-          if (targetIndex >= 0) {
-            destinationIndex = targetIndex;
-          }
-        }
-
-        moveElement(
-          sourceSectionId,
-          interaction.id,
-          targetSectionId,
-          destinationIndex
-        );
-      }
-
-      positionElement(
-        interaction.id,
-        targetSectionId,
-        {
-          x: Math.round(x),
-          y: Math.round(y),
-        }
-      );
-
-      selectElement(interaction.id, targetSectionId);
-    };
-
-    const finishSectionMove = (interaction, x, y) => {
-      const {
-        sections: currentSections,
-        onReorderSections,
-        onSelectSection,
-      } = latestRef.current;
-
-      const targetSection = getSectionAtPoint(x, y, interaction);
-
-      if (!targetSection) return;
-
-      const targetId = targetSection.dataset.editorSection;
-
-      if (!targetId || targetId === interaction.id) return;
-
-      const reordered = [...currentSections];
-
-      const sourceIndex = reordered.findIndex(
-        (section) => section.id === interaction.id
-      );
-
-      const targetIndex = reordered.findIndex(
-        (section) => section.id === targetId
-      );
-
-      if (sourceIndex < 0 || targetIndex < 0) return;
-
-      const rect = targetSection.getBoundingClientRect();
-
-      const insertAfter = y > rect.top + rect.height / 2;
-
-      const destinationIndex =
-        targetIndex + (insertAfter ? 1 : 0);
-
-      const [movedSection] = reordered.splice(sourceIndex, 1);
-
-      const adjustedIndex =
-        sourceIndex < destinationIndex
-          ? destinationIndex - 1
-          : destinationIndex;
-
-      reordered.splice(
-        clamp(adjustedIndex, 0, reordered.length),
-        0,
-        movedSection
-      );
-
-      onReorderSections(reordered);
-      onSelectSection(interaction.id);
-    };
-
-    const handlePointerDown = (event) => {
-      if (!(event.target instanceof Element)) return;
-
-      if (
-        event.target.closest(
-          '[data-zuno-resize-handle], button, input, textarea, select, a'
-        )
-      ) {
-        return;
-      }
-
-      if (!event.isPrimary) return;
-
-      if (event.pointerType === 'mouse' && event.button !== 0) {
-        return;
-      }
-
-      if (interactionRef.current) return;
-
-      const element = getElement(event.target);
-      const section = getSection(event.target);
-
-      const {
-        selectedElementId: currentSelectedElementId,
-        selectedSectionId: currentSelectedSectionId,
-        onSelectElement,
-        onSelectSection,
-      } = latestRef.current;
-
-      if (element) {
-        const elementId =
-          element.dataset.editorElementWrapper;
-
-        const sectionId =
-          getSection(element)?.dataset.editorSection;
-
-        if (!elementId || !sectionId) return;
-
-        if (elementId !== currentSelectedElementId) {
-          onSelectElement(elementId, sectionId);
-          return;
-        }
-
-        const rect = element.getBoundingClientRect();
-
-        interactionRef.current = {
-          type: 'element',
-          id: elementId,
-          sectionId,
-          node: element,
-          pointerId: event.pointerId,
-          startX: event.clientX,
-          startY: event.clientY,
-          grabOffsetX: event.clientX - rect.left,
-          grabOffsetY: event.clientY - rect.top,
-          started: false,
-        };
-
-        try {
-          root.setPointerCapture(event.pointerId);
-        } catch {
-          // Pointer capture is optional.
-        }
-
-        return;
-      }
-
-      if (section) {
-        const sectionId = section.dataset.editorSection;
-
-        if (!sectionId) return;
-
-        if (sectionId !== currentSelectedSectionId) {
-          onSelectSection(sectionId);
-          return;
-        }
-
-        interactionRef.current = {
-          type: 'section',
-          id: sectionId,
-          node: section,
-          pointerId: event.pointerId,
-          startX: event.clientX,
-          startY: event.clientY,
-          started: false,
-        };
-
-        try {
-          root.setPointerCapture(event.pointerId);
-        } catch {
-          // Pointer capture is optional.
-        }
-      }
-    };
+    HANDLES.forEach((handle) => {
+      overlay.appendChild(createHandle(handle));
+    });
+
+    root.appendChild(overlay);
 
     const handlePointerMove = (event) => {
-      const interaction = interactionRef.current;
+      const interaction = activeInteraction;
 
-      if (!interaction || interaction.pointerId !== event.pointerId) {
+      if (!interaction) return;
+
+      if (event.pointerId !== interaction.pointerId) {
         return;
       }
-
-      const dx = event.clientX - interaction.startX;
-      const dy = event.clientY - interaction.startY;
-
-      if (
-        !interaction.started &&
-        Math.hypot(dx, dy) < DRAG_THRESHOLD
-      ) {
-        return;
-      }
-
-      interaction.started = true;
 
       event.preventDefault();
 
-      const movement = `translate3d(${dx}px, ${dy}px, 0)`;
+      const dx =
+        (event.clientX - interaction.startX) / scale;
 
-      interaction.node.style.willChange = 'transform';
-      interaction.node.style.transition = 'none';
-      interaction.node.style.zIndex = '80';
-      interaction.node.style.transform = movement;
-      interaction.node.classList.add('zuno-pointer-moving');
+      const dy =
+        (event.clientY - interaction.startY) / scale;
 
-      if (interaction.type === 'element') {
-        const overlay = getResizeOverlay();
+      const handle = interaction.handle;
 
-        if (overlay) {
-          overlay.style.transform = movement;
-        }
+      let width = interaction.width;
+      let height = interaction.height;
+      let fontSize = interaction.fontSize;
+
+      if (handle.x !== 0) {
+        width = Math.max(
+          MIN_WIDTH,
+          interaction.width + dx * handle.x
+        );
       }
+
+      if (handle.y !== 0) {
+        height = Math.max(
+          MIN_HEIGHT,
+          interaction.height + dy * handle.y
+        );
+      }
+
+      // Keep images proportional when resizing from a corner.
+      if (
+        isImage &&
+        handle.x !== 0 &&
+        handle.y !== 0
+      ) {
+        const aspectRatio =
+          interaction.width / interaction.height;
+
+        const widthChange = Math.abs(
+          width - interaction.width
+        );
+
+        const heightChange = Math.abs(
+          height - interaction.height
+        );
+
+        if (widthChange >= heightChange) {
+          height = width / aspectRatio;
+        } else {
+          width = height * aspectRatio;
+        }
+
+        width = Math.max(MIN_WIDTH, width);
+        height = Math.max(MIN_HEIGHT, height);
+      }
+
+      // Scale text when resizing from a corner.
+      if (
+        isText &&
+        handle.x !== 0 &&
+        handle.y !== 0
+      ) {
+        const ratio = clamp(
+          (
+            width / interaction.width +
+            height / interaction.height
+          ) / 2,
+          0.5,
+          3
+        );
+
+        fontSize = clamp(
+          interaction.fontSize * ratio,
+          MIN_FONT_SIZE,
+          MAX_FONT_SIZE
+        );
+      }
+
+      elementNode.style.width = `${width}px`;
+      elementNode.style.height = `${height}px`;
+
+      if (
+        isText &&
+        handle.x !== 0 &&
+        handle.y !== 0
+      ) {
+        elementNode.style.fontSize = `${fontSize}px`;
+      }
+
+      updateOverlay(width, height);
     };
 
-    const finishInteraction = (event) => {
-      const interaction = interactionRef.current;
+    const handlePointerUp = (event) => {
+      const interaction = activeInteraction;
 
-      if (!interaction || interaction.pointerId !== event.pointerId) {
+      if (!interaction) return;
+
+      if (event.pointerId !== interaction.pointerId) {
         return;
       }
 
-      interactionRef.current = null;
+      activeInteraction = null;
 
-      if (interaction.started) {
-        if (interaction.type === 'element') {
-          finishElementMove(
-            interaction,
-            event.clientX,
-            event.clientY
-          );
-        } else {
-          finishSectionMove(
-            interaction,
-            event.clientX,
-            event.clientY
-          );
-        }
+      const finalWidth =
+        Number.parseFloat(elementNode.style.width) ||
+        interaction.width;
+
+      const finalHeight =
+        Number.parseFloat(elementNode.style.height) ||
+        interaction.height;
+
+      const finalFontSize =
+        Number.parseFloat(elementNode.style.fontSize) ||
+        interaction.fontSize;
+
+      const dimensions = {
+        width: `${Math.round(finalWidth)}px`,
+        height: `${Math.round(finalHeight)}px`,
+      };
+
+      if (
+        isText &&
+        interaction.handle.x !== 0 &&
+        interaction.handle.y !== 0
+      ) {
+        dimensions.fontSize = Math.round(finalFontSize);
       }
 
-      clearVisualState(interaction);
+      callbackRef.current(
+        selectedElementId,
+        dimensions
+      );
 
       try {
         if (root.hasPointerCapture(event.pointerId)) {
@@ -506,7 +402,7 @@ export default function useStorefrontPointerInteractions({
     };
 
     const handlePointerCancel = (event) => {
-      const interaction = interactionRef.current;
+      const interaction = activeInteraction;
 
       if (!interaction) return;
 
@@ -517,33 +413,62 @@ export default function useStorefrontPointerInteractions({
         return;
       }
 
-      interactionRef.current = null;
-      clearVisualState(interaction);
-    };
+      activeInteraction = null;
 
-    root.addEventListener('pointerdown', handlePointerDown, true);
+      elementNode.style.width =
+        interaction.startInlineWidth;
+
+      elementNode.style.height =
+        interaction.startInlineHeight;
+
+      elementNode.style.fontSize =
+        interaction.startInlineFontSize;
+
+      updateOverlay(
+        interaction.width,
+        interaction.height
+      );
+
+      try {
+        if (root.hasPointerCapture(interaction.pointerId)) {
+          root.releasePointerCapture(interaction.pointerId);
+        }
+      } catch {
+        // Ignore unsupported pointer capture.
+      }
+    };
 
     root.addEventListener(
       'pointermove',
       handlePointerMove,
-      { capture: true, passive: false }
+      { passive: false }
     );
 
-    root.addEventListener('pointerup', finishInteraction, true);
-
-    root.addEventListener(
-      'pointercancel',
-      handlePointerCancel,
-      true
-    );
+    root.addEventListener('pointerup', handlePointerUp);
+    root.addEventListener('pointercancel', handlePointerCancel);
 
     return () => {
-      root.removeEventListener('pointerdown', handlePointerDown, true);
-      root.removeEventListener('pointermove', handlePointerMove, true);
-      root.removeEventListener('pointerup', finishInteraction, true);
-      root.removeEventListener('pointercancel', handlePointerCancel, true);
+      root.removeEventListener('pointermove', handlePointerMove);
+      root.removeEventListener('pointerup', handlePointerUp);
+      root.removeEventListener('pointercancel', handlePointerCancel);
 
-      handlePointerCancel();
+      if (activeInteraction) {
+        elementNode.style.width =
+          activeInteraction.startInlineWidth;
+
+        elementNode.style.height =
+          activeInteraction.startInlineHeight;
+
+        elementNode.style.fontSize =
+          activeInteraction.startInlineFontSize;
+      }
+
+      overlay.remove();
     };
-  }, [rootRef]);
+  }, [
+    rootRef,
+    selectedElementId,
+    elementType,
+    zoom,
+  ]);
 }
