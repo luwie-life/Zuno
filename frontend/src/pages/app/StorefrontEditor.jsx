@@ -1429,11 +1429,9 @@ export default function StorefrontEditor() {
               );
             }}
 
-            onSelectSection={(id) => {
+                        onSelectSection={(id) => {
               setSelectedSectionId(id);
               setSelectedElementId('');
-              setPanel('inspector');
-              setDrawerOpen(true);
             }}
             onSelectElement={(elementId, sectionId) => {
               const parent =
@@ -1447,8 +1445,6 @@ export default function StorefrontEditor() {
 
               setSelectedSectionId(parent);
               setSelectedElementId(elementId);
-              setPanel('inspector');
-              setDrawerOpen(true);
             }}
             onAddSection={() => setShowSections(true)}
             onPreview={() => {
