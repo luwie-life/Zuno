@@ -81,7 +81,9 @@ export default function useStorefrontPointerInteractions({
       };
     };
 
-    const getSectionAtPoint = (x, y, interaction) => {
+    // Find the real section and its actual positioned container.
+    // Ignore the dragged element and its children during hit testing.
+    const getDropTargetAtPoint = (x, y, interaction) => {
       const nodes = document.elementsFromPoint(x, y);
 
       for (const node of nodes) {
@@ -94,23 +96,39 @@ export default function useStorefrontPointerInteractions({
           continue;
         }
 
+        const section = getSection(node);
+
+        if (!section) continue;
+
+        const sectionId = section.dataset.editorSection;
+
+        if (!sectionId) continue;
+
         const dropzone = node.closest(
           '[data-editor-element-dropzone]'
         );
 
-        if (dropzone?.dataset.editorElementDropzone) {
-          const id = dropzone.dataset.editorElementDropzone;
+        let container = dropzone || section;
 
-          const match = root.querySelector(
-            `[data-editor-section="${CSS.escape(id)}"]`
-          );
-
-          if (match) return match;
+        // Absolute-positioned elements must use the same
+        // positioned ancestor that their rendered wrapper uses.
+        while (
+          container &&
+          container !== root &&
+          window.getComputedStyle(container).position === 'static'
+        ) {
+          container = container.parentElement;
         }
 
-        const section = getSection(node);
+        if (!container || container === root) {
+          container = section;
+        }
 
-        if (section) return section;
+        return {
+          section,
+          sectionId,
+          container,
+        };
       }
 
       return null;
@@ -148,20 +166,19 @@ export default function useStorefrontPointerInteractions({
         onSelectElement: selectElement,
       } = latestRef.current;
 
-      const targetSection = getSectionAtPoint(
+      const dropTarget = getDropTargetAtPoint(
         pointerX,
         pointerY,
         interaction
       );
 
-      // Never guess a destination section.
-      // If the pointer is outside a valid section, do not move the object.
-      if (!targetSection) return;
+      // Never guess a destination.
+      if (!dropTarget) return;
 
-      const targetSectionId =
-        targetSection.dataset.editorSection;
-
-      if (!targetSectionId) return;
+      const {
+        sectionId: targetSectionId,
+        container,
+      } = dropTarget;
 
       const sourceSectionId = interaction.sectionId;
 
@@ -181,35 +198,47 @@ export default function useStorefrontPointerInteractions({
 
       const { x: scaleX, y: scaleY } = getScale();
 
-      const sectionRect = targetSection.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
       const elementRect = interaction.node.getBoundingClientRect();
 
       const elementWidth = elementRect.width / (scaleX || 1);
       const elementHeight = elementRect.height / (scaleY || 1);
 
+      const containerWidth =
+        container.offsetWidth || dropTarget.section.offsetWidth;
+
+      const containerHeight =
+        container.offsetHeight || dropTarget.section.offsetHeight;
+
       const x = clamp(
-        (pointerX - sectionRect.left) / (scaleX || 1) -
+        (pointerX - containerRect.left) / (scaleX || 1) -
           interaction.grabOffsetX,
         0,
-        Math.max(0, targetSection.offsetWidth - elementWidth)
+        Math.max(0, containerWidth - elementWidth)
       );
 
       const y = clamp(
-        (pointerY - sectionRect.top) / (scaleY || 1) -
+        (pointerY - containerRect.top) / (scaleY || 1) -
           interaction.grabOffsetY,
         0,
-        Math.max(0, targetSection.offsetHeight - elementHeight)
+        Math.max(0, containerHeight - elementHeight)
       );
 
+      // Find another element in the destination section,
+      // so the moved element can be inserted at the right index.
       const targetElementNode = document
         .elementsFromPoint(pointerX, pointerY)
         .map(getElement)
-        .find(
-          (element) =>
-            element &&
-            element !== interaction.node &&
-            !interaction.node.contains(element)
-        );
+        .find((element) => {
+          if (!element || element === interaction.node) return false;
+          if (interaction.node.contains(element)) return false;
+
+          const parentSection = getSection(element);
+
+          return (
+            parentSection?.dataset.editorSection === targetSectionId
+          );
+        });
 
       let destinationIndex = (
         targetSectionData.elements || []
@@ -228,22 +257,26 @@ export default function useStorefrontPointerInteractions({
         }
       }
 
-      positionElement(
-        interaction.id,
-        sourceSectionId,
-        {
-          x: Math.round(x),
-          y: Math.round(y),
-          positioned: true,
-        }
-      );
+      const position = {
+        x: Math.round(x),
+        y: Math.round(y),
+        positioned: true,
+      };
 
       if (sourceSectionId !== targetSectionId) {
+        // One atomic update: move the element and its position together.
         moveElement(
           sourceSectionId,
           interaction.id,
           targetSectionId,
-          destinationIndex
+          destinationIndex,
+          position
+        );
+      } else {
+        positionElement(
+          interaction.id,
+          sourceSectionId,
+          position
         );
       }
 
@@ -257,11 +290,15 @@ export default function useStorefrontPointerInteractions({
         onSelectSection,
       } = latestRef.current;
 
-      const targetSection = getSectionAtPoint(x, y, interaction);
+      const dropTarget = getDropTargetAtPoint(
+        x,
+        y,
+        interaction
+      );
 
-      if (!targetSection) return;
+      if (!dropTarget) return;
 
-      const targetId = targetSection.dataset.editorSection;
+      const targetId = dropTarget.sectionId;
 
       if (!targetId || targetId === interaction.id) return;
 
@@ -277,7 +314,7 @@ export default function useStorefrontPointerInteractions({
 
       if (sourceIndex < 0 || targetIndex < 0) return;
 
-      const rect = targetSection.getBoundingClientRect();
+      const rect = dropTarget.section.getBoundingClientRect();
 
       const insertAfter = y > rect.top + rect.height / 2;
 
@@ -320,8 +357,6 @@ export default function useStorefrontPointerInteractions({
         startX: event.clientX,
         startY: event.clientY,
 
-        // Keep grab offsets in canvas coordinates,
-        // not screen coordinates.
         grabOffsetX: (event.clientX - rect.left) / (scaleX || 1),
         grabOffsetY: (event.clientY - rect.top) / (scaleY || 1),
 
@@ -374,8 +409,6 @@ export default function useStorefrontPointerInteractions({
 
         if (!elementId || !sectionId) return;
 
-        // Select immediately, but DO NOT return.
-        // The same pointer gesture can now move the element.
         onSelectElement(elementId, sectionId);
 
         startInteraction(
