@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-const DRAG_THRESHOLD = 5;
+const DRAG_THRESHOLD = 3;
 
 const clamp = (value, min, max) =>
   Math.max(min, Math.min(max, value));
@@ -72,6 +72,15 @@ export default function useStorefrontPointerInteractions({
         ? target.closest('[data-editor-section]')
         : null;
 
+    const getScale = () => {
+      const rect = root.getBoundingClientRect();
+
+      return {
+        x: root.offsetWidth ? rect.width / root.offsetWidth : 1,
+        y: root.offsetHeight ? rect.height / root.offsetHeight : 1,
+      };
+    };
+
     const getSectionAtPoint = (x, y, interaction) => {
       const nodes = document.elementsFromPoint(x, y);
 
@@ -107,36 +116,6 @@ export default function useStorefrontPointerInteractions({
       return null;
     };
 
-    const getNearestSection = (x, y) => {
-      const sectionNodes = [
-        ...root.querySelectorAll('[data-editor-section]'),
-      ];
-
-      if (!sectionNodes.length) return null;
-
-      let nearest = null;
-      let nearestDistance = Infinity;
-
-      sectionNodes.forEach((section) => {
-        const rect = section.getBoundingClientRect();
-
-        const centerX = rect.left + rect.width / 2;
-        const centerY = rect.top + rect.height / 2;
-
-        const distance = Math.hypot(
-          x - centerX,
-          y - centerY
-        );
-
-        if (distance < nearestDistance) {
-          nearestDistance = distance;
-          nearest = section;
-        }
-      });
-
-      return nearest;
-    };
-
     const getSectionData = (sectionId) =>
       latestRef.current.sections.find(
         (section) => section.id === sectionId
@@ -169,16 +148,14 @@ export default function useStorefrontPointerInteractions({
         onSelectElement: selectElement,
       } = latestRef.current;
 
-      let targetSection = getSectionAtPoint(
+      const targetSection = getSectionAtPoint(
         pointerX,
         pointerY,
         interaction
       );
 
-      if (!targetSection) {
-        targetSection = getNearestSection(pointerX, pointerY);
-      }
-
+      // Never guess a destination section.
+      // If the pointer is outside a valid section, do not move the object.
       if (!targetSection) return;
 
       const targetSectionId =
@@ -202,15 +179,7 @@ export default function useStorefrontPointerInteractions({
 
       if (!sourceElement) return;
 
-      const rootRect = root.getBoundingClientRect();
-
-      const scaleX = root.offsetWidth
-        ? rootRect.width / root.offsetWidth
-        : 1;
-
-      const scaleY = root.offsetHeight
-        ? rootRect.height / root.offsetHeight
-        : 1;
+      const { x: scaleX, y: scaleY } = getScale();
 
       const sectionRect = targetSection.getBoundingClientRect();
       const elementRect = interaction.node.getBoundingClientRect();
@@ -259,11 +228,6 @@ export default function useStorefrontPointerInteractions({
         }
       }
 
-      /*
-       * IMPORTANT:
-       * Persist coordinates before transferring the element.
-       * The transfer then carries the updated style with it.
-       */
       positionElement(
         interaction.id,
         sourceSectionId,
@@ -337,6 +301,40 @@ export default function useStorefrontPointerInteractions({
       onSelectSection(interaction.id);
     };
 
+    const startInteraction = (
+      event,
+      type,
+      id,
+      sectionId,
+      node
+    ) => {
+      const rect = node.getBoundingClientRect();
+      const { x: scaleX, y: scaleY } = getScale();
+
+      interactionRef.current = {
+        type,
+        id,
+        sectionId,
+        node,
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+
+        // Keep grab offsets in canvas coordinates,
+        // not screen coordinates.
+        grabOffsetX: (event.clientX - rect.left) / (scaleX || 1),
+        grabOffsetY: (event.clientY - rect.top) / (scaleY || 1),
+
+        started: false,
+      };
+
+      try {
+        root.setPointerCapture(event.pointerId);
+      } catch {
+        // Pointer capture is optional.
+      }
+    };
+
     const handlePointerDown = (event) => {
       if (!(event.target instanceof Element)) return;
 
@@ -360,7 +358,6 @@ export default function useStorefrontPointerInteractions({
       const section = getSection(event.target);
 
       const {
-        selectedElementId: currentSelectedElementId,
         selectedSectionId: currentSelectedSectionId,
         onSelectElement,
         onSelectSection,
@@ -370,36 +367,24 @@ export default function useStorefrontPointerInteractions({
         const elementId =
           element.dataset.editorElementWrapper;
 
+        const parentSection = getSection(element);
+
         const sectionId =
-          getSection(element)?.dataset.editorSection;
+          parentSection?.dataset.editorSection;
 
         if (!elementId || !sectionId) return;
 
-        if (elementId !== currentSelectedElementId) {
-          onSelectElement(elementId, sectionId);
-          return;
-        }
+        // Select immediately, but DO NOT return.
+        // The same pointer gesture can now move the element.
+        onSelectElement(elementId, sectionId);
 
-        const rect = element.getBoundingClientRect();
-
-        interactionRef.current = {
-          type: 'element',
-          id: elementId,
+        startInteraction(
+          event,
+          'element',
+          elementId,
           sectionId,
-          node: element,
-          pointerId: event.pointerId,
-          startX: event.clientX,
-          startY: event.clientY,
-          grabOffsetX: event.clientX - rect.left,
-          grabOffsetY: event.clientY - rect.top,
-          started: false,
-        };
-
-        try {
-          root.setPointerCapture(event.pointerId);
-        } catch {
-          // Pointer capture is optional.
-        }
+          element
+        );
 
         return;
       }
@@ -411,24 +396,15 @@ export default function useStorefrontPointerInteractions({
 
         if (sectionId !== currentSelectedSectionId) {
           onSelectSection(sectionId);
-          return;
         }
 
-        interactionRef.current = {
-          type: 'section',
-          id: sectionId,
-          node: section,
-          pointerId: event.pointerId,
-          startX: event.clientX,
-          startY: event.clientY,
-          started: false,
-        };
-
-        try {
-          root.setPointerCapture(event.pointerId);
-        } catch {
-          // Pointer capture is optional.
-        }
+        startInteraction(
+          event,
+          'section',
+          sectionId,
+          '',
+          section
+        );
       }
     };
 
