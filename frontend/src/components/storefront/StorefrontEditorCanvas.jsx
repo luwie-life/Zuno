@@ -37,6 +37,7 @@ export default function StorefrontEditorCanvas({
   onReorderSections = () => {},
   onReorderElements = () => {},
   onMoveElement = () => {},
+  onPositionElement = () => {},
   onResizeElement = () => {},
   onAddSection = () => {},
   onPreview = () => {},
@@ -61,6 +62,7 @@ export default function StorefrontEditorCanvas({
     )
     .find((element) => element.id === selectedElementId);
 
+  // ELEMENT MOVEMENT AND SECTION INTERACTIONS
   useStorefrontPointerInteractions({
     rootRef: canvasRef,
     sections,
@@ -71,8 +73,10 @@ export default function StorefrontEditorCanvas({
     onReorderSections,
     onReorderElements,
     onMoveElement,
+    onPositionElement,
   });
 
+  // ELEMENT RESIZING
   useStorefrontResizeInteractions({
     rootRef: canvasRef,
     selectedElementId,
