@@ -627,8 +627,13 @@ export default function StorefrontEditor() {
     setDrawerOpen(true);
   };
 
-  const updateElement = (elementId, changes) => {
-    if (!activePage) return;
+  // UPDATED: SECTION-AWARE ELEMENT UPDATES
+  const updateElement = (
+    elementId,
+    changes,
+    sectionId = selectedSectionId
+  ) => {
+    if (!activePage || !elementId || !sectionId) return;
 
     commit((current) => ({
       ...current,
@@ -638,15 +643,24 @@ export default function StorefrontEditor() {
           : {
               ...page,
               sections: page.sections.map((section) =>
-                section.id !== selectedSectionId
+                section.id !== sectionId
                   ? section
                   : {
                       ...section,
-                      elements: (section.elements || []).map((element) =>
-                        element.id === elementId
-                          ? { ...element, ...changes }
-                          : element
-                      ),
+                      elements: (section.elements || []).map((element) => {
+                        if (element.id !== elementId) return element;
+
+                        return {
+                          ...element,
+                          ...changes,
+                          style: changes.style
+                            ? {
+                                ...(element.style || {}),
+                                ...changes.style,
+                              }
+                            : element.style,
+                        };
+                      }),
                     }
               ),
             }
@@ -775,80 +789,80 @@ export default function StorefrontEditor() {
   };
 
   const moveElementAcrossSections = (
-  sourceSectionId,
-  elementId,
-  targetSectionId,
-  destinationIndex
-) => {
-  if (
-    !activePage ||
-    !sourceSectionId ||
-    !targetSectionId ||
-    !elementId ||
-    sourceSectionId === targetSectionId
-  ) {
-    return;
-  }
+    sourceSectionId,
+    elementId,
+    targetSectionId,
+    destinationIndex
+  ) => {
+    if (
+      !activePage ||
+      !sourceSectionId ||
+      !targetSectionId ||
+      !elementId ||
+      sourceSectionId === targetSectionId
+    ) {
+      return;
+    }
 
-  commit((current) => ({
-    ...current,
-    pages: current.pages.map((page) => {
-      if (page.id !== activePage.id) return page;
+    commit((current) => ({
+      ...current,
+      pages: current.pages.map((page) => {
+        if (page.id !== activePage.id) return page;
 
-      const sections = page.sections.map((section) => ({
-        ...section,
-        elements: [...(section.elements || [])],
-      }));
+        const sections = page.sections.map((section) => ({
+          ...section,
+          elements: [...(section.elements || [])],
+        }));
 
-      const source = sections.find(
-        (section) => section.id === sourceSectionId
-      );
+        const source = sections.find(
+          (section) => section.id === sourceSectionId
+        );
 
-      const target = sections.find(
-        (section) => section.id === targetSectionId
-      );
+        const target = sections.find(
+          (section) => section.id === targetSectionId
+        );
 
-      if (!source || !target) return page;
+        if (!source || !target) return page;
 
-      const sourceIndex = source.elements.findIndex(
-        (element) => element.id === elementId
-      );
+        const sourceIndex = source.elements.findIndex(
+          (element) => element.id === elementId
+        );
 
-      if (sourceIndex === -1) return page;
+        if (sourceIndex === -1) return page;
 
-      const [movedElement] = source.elements.splice(
-        sourceIndex,
-        1
-      );
+        const [movedElement] = source.elements.splice(
+          sourceIndex,
+          1
+        );
 
-      const requestedIndex = Number.isFinite(
-        Number(destinationIndex)
-      )
-        ? Math.floor(Number(destinationIndex))
-        : target.elements.length;
+        const requestedIndex = Number.isFinite(
+          Number(destinationIndex)
+        )
+          ? Math.floor(Number(destinationIndex))
+          : target.elements.length;
 
-      const safeIndex = Math.max(
-        0,
-        Math.min(requestedIndex, target.elements.length)
-      );
+        const safeIndex = Math.max(
+          0,
+          Math.min(requestedIndex, target.elements.length)
+        );
 
-      target.elements.splice(
-        safeIndex,
-        0,
-        movedElement
-      );
+        target.elements.splice(
+          safeIndex,
+          0,
+          movedElement
+        );
 
-      return {
-        ...page,
-        sections,
-      };
-    }),
-  }));
+        return {
+          ...page,
+          sections,
+        };
+      }),
+    }));
 
-  setSelectedSectionId(targetSectionId);
-  setSelectedElementId(elementId);
-};
-  
+    setSelectedSectionId(targetSectionId);
+    setSelectedElementId(elementId);
+  };
+
   const toggleSection = (section) => {
     updatePage(activePage.id, {
       sections: activePage.sections.map((item) =>
@@ -1363,33 +1377,58 @@ export default function StorefrontEditor() {
 
         {/* CANVAS */}
         <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
-<StorefrontEditorCanvas
-  business={business}
-  storefront={storefront}
-  activePage={activePage}
-  device={device}
-  setDevice={setDevice}
-  zoom={zoom}
-  setZoom={setZoom}
-  selectedSectionId={selectedSectionId}
-  selectedElementId={selectedElementId}
-  onReorderSections={reorderSections}
-  onReorderElements={reorderElements}
-  onMoveElement={moveElementAcrossSections}
-  onResizeElement={(elementId, dimensions) => {
-  const element = activePage?.sections
-    ?.find((section) => section.id === selectedSectionId)
-    ?.elements?.find((item) => item.id === elementId);
+          <StorefrontEditorCanvas
+            business={business}
+            storefront={storefront}
+            activePage={activePage}
+            device={device}
+            setDevice={setDevice}
+            zoom={zoom}
+            setZoom={setZoom}
+            selectedSectionId={selectedSectionId}
+            selectedElementId={selectedElementId}
+            onReorderSections={reorderSections}
+            onReorderElements={reorderElements}
+            onMoveElement={moveElementAcrossSections}
 
-  if (!element) return;
+            onPositionElement={(elementId, sectionId, position) => {
+              const element = activePage?.sections
+                ?.find((section) => section.id === sectionId)
+                ?.elements?.find((item) => item.id === elementId);
 
-  updateElement(elementId, {
-    style: {
-      ...(element.style || {}),
-      ...dimensions,
-    },
-  });
-}}
+              if (!element) return;
+
+              updateElement(
+                elementId,
+                {
+                  style: {
+                    ...(element.style || {}),
+                    ...position,
+                  },
+                },
+                sectionId
+              );
+            }}
+
+            onResizeElement={(elementId, dimensions, sectionId) => {
+              const element = activePage?.sections
+                ?.find((section) => section.id === sectionId)
+                ?.elements?.find((item) => item.id === elementId);
+
+              if (!element) return;
+
+              updateElement(
+                elementId,
+                {
+                  style: {
+                    ...(element.style || {}),
+                    ...dimensions,
+                  },
+                },
+                sectionId
+              );
+            }}
+
             onSelectSection={(id) => {
               setSelectedSectionId(id);
               setSelectedElementId('');
@@ -1518,10 +1557,10 @@ export default function StorefrontEditor() {
               setDrawerOpen(true);
             }}
             className={`flex min-w-[70px] shrink-0 flex-col items-center gap-1 rounded-xl px-2 py-2 text-[10px] font-semibold ${
-              panel === 'inspector'
-                ? 'bg-emerald-50 text-emerald-800'
-                : 'text-slate-500'
-            }`}
+                panel === 'inspector'
+                  ? 'bg-emerald-50 text-emerald-800'
+                  : 'text-slate-500'
+              }`}
           >
             <Paintbrush size={19} />
             Inspect
