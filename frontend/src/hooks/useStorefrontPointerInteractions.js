@@ -83,9 +83,11 @@ export default function useStorefrontPointerInteractions({
 
     // Find the real section and its actual positioned container.
     // Ignore the dragged element and its children during hit testing.
-    const getDropTargetAtPoint = (x, y, interaction) => {
+        const getDropTargetAtPoint = (x, y, interaction) => {
       const nodes = document.elementsFromPoint(x, y);
+      let section = null;
 
+      // First, detect the section directly beneath the pointer.
       for (const node of nodes) {
         if (!(node instanceof Element)) continue;
 
@@ -96,44 +98,100 @@ export default function useStorefrontPointerInteractions({
           continue;
         }
 
-        const section = getSection(node);
+        const candidate = getSection(node);
 
-        if (!section) continue;
-
-        const sectionId = section.dataset.editorSection;
-
-        if (!sectionId) continue;
-
-        const dropzone = node.closest(
-          '[data-editor-element-dropzone]'
-        );
-
-        let container = dropzone || section;
-
-        // Absolute-positioned elements must use the same
-        // positioned ancestor that their rendered wrapper uses.
-        while (
-          container &&
-          container !== root &&
-          window.getComputedStyle(container).position === 'static'
-        ) {
-          container = container.parentElement;
+        if (candidate) {
+          section = candidate;
+          break;
         }
-
-        if (!container || container === root) {
-          container = section;
-        }
-
-        return {
-          section,
-          sectionId,
-          container,
-        };
       }
 
-      return null;
-    };
+      // If the pointer is in a gap between sections,
+      // use the nearest section within a safe distance.
+      if (!section) {
+        const { x: scaleX, y: scaleY } = getScale();
 
+        const maxDistance =
+          96 * Math.max(scaleX || 1, scaleY || 1);
+
+        let nearestSection = null;
+        let nearestDistance = Infinity;
+
+        const availableSections = root.querySelectorAll(
+          '[data-editor-section]'
+        );
+
+        for (const candidate of availableSections) {
+          const rect = candidate.getBoundingClientRect();
+
+          const distanceX = Math.max(
+            rect.left - x,
+            0,
+            x - rect.right
+          );
+
+          const distanceY = Math.max(
+            rect.top - y,
+            0,
+            y - rect.bottom
+          );
+
+          const distance = Math.hypot(
+            distanceX,
+            distanceY
+          );
+
+          if (distance < nearestDistance) {
+            nearestDistance = distance;
+            nearestSection = candidate;
+          }
+        }
+
+        if (
+          !nearestSection ||
+          nearestDistance > maxDistance
+        ) {
+          return null;
+        }
+
+        section = nearestSection;
+      }
+
+      const sectionId = section.dataset.editorSection;
+
+      if (!sectionId) return null;
+
+      // Always find the section's actual dropzone,
+      // even when the pointer is over empty space.
+      const dropzone = section.matches(
+        '[data-editor-element-dropzone]'
+      )
+        ? section
+        : section.querySelector(
+            '[data-editor-element-dropzone]'
+          );
+
+      let container = dropzone || section;
+
+      // Resolve the actual positioned ancestor.
+      while (
+        container &&
+        container !== root &&
+        window.getComputedStyle(container).position === 'static'
+      ) {
+        container = container.parentElement;
+      }
+
+      if (!container || container === root) {
+        container = section;
+      }
+
+      return {
+        section,
+        sectionId,
+        container,
+      };
+    };
     const getSectionData = (sectionId) =>
       latestRef.current.sections.find(
         (section) => section.id === sectionId
