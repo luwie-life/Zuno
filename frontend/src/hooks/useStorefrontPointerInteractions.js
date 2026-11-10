@@ -462,7 +462,13 @@ export default function useStorefrontPointerInteractions({
 
       event.preventDefault();
 
-      const movement = `translate3d(${dx}px, ${dy}px, 0)`;
+      const { x: scaleX, y: scaleY } = getScale();
+
+const movement = `translate3d(
+  ${dx / (scaleX || 1)}px,
+  ${dy / (scaleY || 1)}px,
+  0
+)`;
 
       interaction.node.style.willChange = 'transform';
       interaction.node.style.transition = 'none';
