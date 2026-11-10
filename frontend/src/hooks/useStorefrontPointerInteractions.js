@@ -157,66 +157,7 @@ export default function useStorefrontPointerInteractions({
         section = nearestSection;
       }
 
-      const sectionId = section.dataset.editorSection;
-
-      if (!sectionId) return null;
-
-      // Always find the section's actual dropzone,
-      // even when the pointer is over empty space.
-      const dropzone = section.matches(
-        '[data-editor-element-dropzone]'
-      )
-        ? section
-        : section.querySelector(
-            '[data-editor-element-dropzone]'
-          );
-
-      let container = dropzone || section;
-
-      // Resolve the actual positioned ancestor.
-      while (
-        container &&
-        container !== root &&
-        window.getComputedStyle(container).position === 'static'
-      ) {
-        container = container.parentElement;
-      }
-
-      if (!container || container === root) {
-        container = section;
-      }
-
-      return {
-        section,
-        sectionId,
-        container,
-      };
-    };
-    const getSectionData = (sectionId) =>
-      latestRef.current.sections.find(
-        (section) => section.id === sectionId
-      );
-
-    const getResizeOverlay = () =>
-      root.querySelector('.zuno-resize-overlay');
-
-    const clearVisualState = (interaction) => {
-      if (!interaction?.node) return;
-
-      interaction.node.style.transform = '';
-      interaction.node.style.zIndex = '';
-      interaction.node.style.willChange = '';
-      interaction.node.style.transition = '';
-      interaction.node.classList.remove('zuno-pointer-moving');
-
-      const overlay = getResizeOverlay();
-
-      if (overlay) {
-        overlay.style.transform = '';
-      }
-    };
-
-    const finishElementMove = (interaction, pointerX, pointerY) => {
+          const finishElementMove = (interaction, pointerX, pointerY) => {
       const {
         sections: currentSections,
         onMoveElement: moveElement,
@@ -230,7 +171,6 @@ export default function useStorefrontPointerInteractions({
         interaction
       );
 
-      // Never guess a destination.
       if (!dropTarget) return;
 
       const {
@@ -256,41 +196,108 @@ export default function useStorefrontPointerInteractions({
 
       const { x: scaleX, y: scaleY } = getScale();
 
+      const safeScaleX = scaleX || 1;
+      const safeScaleY = scaleY || 1;
+
       const containerRect = container.getBoundingClientRect();
       const elementRect = interaction.node.getBoundingClientRect();
 
-      const elementWidth = elementRect.width / (scaleX || 1);
-      const elementHeight = elementRect.height / (scaleY || 1);
+      // Convert the dragged element's dimensions
+      // from screen pixels into canvas coordinates.
+      const elementWidth = elementRect.width / safeScaleX;
+      const elementHeight = elementRect.height / safeScaleY;
 
-      const containerWidth =
-        container.offsetWidth || dropTarget.section.offsetWidth;
+      // Use the container's actual content dimensions.
+      const containerWidth = container.clientWidth;
+      const containerHeight = container.clientHeight;
 
-      const containerHeight =
-        container.offsetHeight || dropTarget.section.offsetHeight;
+      // Account for borders and scrolling.
+      const localPointerX =
+        (pointerX - containerRect.left) / safeScaleX -
+        container.clientLeft +
+        container.scrollLeft;
 
+      const localPointerY =
+        (pointerY - containerRect.top) / safeScaleY -
+        container.clientTop +
+        container.scrollTop;
+
+      // Preserve exactly where the user grabbed the element.
       const x = clamp(
-        (pointerX - containerRect.left) / (scaleX || 1) -
-          interaction.grabOffsetX,
+        localPointerX - interaction.grabOffsetX,
         0,
         Math.max(0, containerWidth - elementWidth)
       );
 
       const y = clamp(
-        (pointerY - containerRect.top) / (scaleY || 1) -
-          interaction.grabOffsetY,
+        localPointerY - interaction.grabOffsetY,
         0,
         Math.max(0, containerHeight - elementHeight)
       );
 
-      // Find another element in the destination section,
-      // so the moved element can be inserted at the right index.
+      // Detect another element underneath the drop point.
       const targetElementNode = document
         .elementsFromPoint(pointerX, pointerY)
         .map(getElement)
         .find((element) => {
-          if (!element || element === interaction.node) return false;
-          if (interaction.node.contains(element)) return false;
+          if (!element || element === interaction.node) {
+            return false;
+          }
 
+          if (interaction.node.contains(element)) {
+            return false;
+          }
+
+          const parentSection = getSection(element);
+
+          return (
+            parentSection?.dataset.editorSection === targetSectionId
+          );
+        });
+
+      let destinationIndex = (
+        targetSectionData.elements || []
+      ).length;
+
+      if (targetElementNode) {
+        const targetId =
+          targetElementNode.dataset.editorElementWrapper;
+
+        const targetIndex = (
+          targetSectionData.elements || []
+        ).findIndex((element) => element.id === targetId);
+
+        if (targetIndex >= 0) {
+          destinationIndex = targetIndex;
+        }
+      }
+
+      const position = {
+        x: Number(x.toFixed(2)),
+        y: Number(y.toFixed(2)),
+        positioned: true,
+      };
+
+      if (sourceSectionId !== targetSectionId) {
+        // Move the element and save its new position atomically.
+        moveElement(
+          sourceSectionId,
+          interaction.id,
+          targetSectionId,
+          destinationIndex,
+          position
+        );
+      } else {
+        positionElement(
+          interaction.id,
+          sourceSectionId,
+          position
+        );
+      }
+
+      selectElement(interaction.id, targetSectionId);
+    };
+          
           const parentSection = getSection(element);
 
           return (
