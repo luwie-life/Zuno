@@ -556,14 +556,14 @@ function ElementRenderer({
 
   if (!editorMode && !isPositioned) return output;
 
-    return (
+  return (
     <div
       onClickCapture={editorMode ? selectElement : undefined}
       className={editorMode ? 'relative' : ''}
       style={{
         ...(isPositioned
           ? {
-              position: 'absolute',
+              position: 'fixed',
               left: `${Math.max(0, Number(elementStyle.x) || 0)}px`,
               top: `${Math.max(0, Number(elementStyle.y) || 0)}px`,
               width: 'fit-content',
@@ -590,6 +590,7 @@ function ElementRenderer({
     </div>
   );
 }
+
 function HeroSection({ settings, context, children }) {
   const image = settings.backgroundImage || settings.image;
   const buttonLink = settings.buttonLink || settings.ctaLink || '';
@@ -1190,7 +1191,9 @@ function SectionRenderer({
         </>
       );
 
-  const sectionMinHeight = getSectionCanvasMinHeight(section);
+  // Positioned elements now belong to the page canvas,
+  // not to an individual section's height.
+  const sectionMinHeight = undefined;
 
   if (!editorMode) {
     return (
@@ -1287,6 +1290,25 @@ export function StorefrontRenderer({
   const page = getStorefrontPage(storefront, pageSlug);
   const capabilities = getBusinessCapabilities(biz.businessType);
 
+  // Calculate the full page canvas height using globally positioned
+  // elements so elements placed far down remain reachable.
+  const pageCanvasMinHeight = (page?.sections || []).reduce(
+    (maximum, section) =>
+      (section.elements || []).reduce((sectionMaximum, element) => {
+        const style = element.style || {};
+
+        if (style.positioned !== true) {
+          return sectionMaximum;
+        }
+
+        const y = Math.max(0, Number(style.y) || 0);
+        const height = Number.parseFloat(style.height) || 80;
+
+        return Math.max(sectionMaximum, y + height + 60);
+      }, maximum),
+    900
+  );
+
   const theme = storefront.theme || {};
 
   const context = {
@@ -1308,7 +1330,9 @@ export function StorefrontRenderer({
         backgroundColor: theme.backgroundColor || '#FFFFFF',
         color: theme.textColor || '#111827',
         fontFamily: theme.fontBody || 'Inter, sans-serif',
-        minHeight: '100%',
+        minHeight: `${pageCanvasMinHeight}px`,
+        position: 'relative',
+        transform: 'translateZ(0)',
       }}
     >
       {page?.sections?.length ? (
