@@ -1,0 +1,814 @@
+/* =========================================================
+   ZUNO STOREFRONT TEMPLATE DESIGN SYSTEM
+   Scoped to the public storefront and editor preview.
+   ========================================================= */
+
+[data-zuno-template] {
+  --zuno-radius: 18px;
+  --zuno-card-radius: 16px;
+  --zuno-section-space: 64px;
+}
+
+[data-zuno-template] h1,
+[data-zuno-template] h2,
+[data-zuno-template] h3 {
+  font-family: var(--zuno-heading-font, inherit);
+  letter-spacing: -0.035em;
+}
+
+[data-zuno-template] a,
+[data-zuno-template] button {
+  transition:
+    background-color 180ms ease,
+    color 180ms ease,
+    border-color 180ms ease,
+    transform 180ms ease;
+}
+
+[data-zuno-template] > .relative {
+  padding-left: clamp(18px, 5vw, 76px);
+  padding-right: clamp(18px, 5vw, 76px);
+}
+
+/* =========================================================
+   HERO FOUNDATION
+   ========================================================= */
+
+[data-zuno-template] > .relative > section.relative.mb-10 {
+  min-height: 480px !important;
+  border-radius: var(--zuno-radius) !important;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+[data-zuno-template] > .relative > section.relative.mb-10 > div {
+  min-height: inherit;
+  padding: clamp(32px, 7vw, 100px);
+}
+
+[data-zuno-template] > .relative > section.relative.mb-10 h1 {
+  max-width: 850px;
+  font-size: clamp(42px, 6vw, 76px);
+  line-height: 0.98;
+  letter-spacing: -0.055em;
+}
+
+[data-zuno-template] > .relative > section.relative.mb-10 p {
+  max-width: 600px;
+  line-height: 1.75;
+}
+
+[data-zuno-template] > .relative > section.relative.mb-10 a {
+  min-height: 48px;
+  padding: 15px 25px;
+  font-weight: 700;
+}
+
+/* =========================================================
+   MINIMAL FASHION
+   ========================================================= */
+
+[data-zuno-template="fashion-minimal"] {
+  --zuno-radius: 0px;
+  --zuno-card-radius: 0px;
+}
+
+[data-zuno-template="fashion-minimal"]
+  > .relative
+  > section.relative.mb-10 {
+  min-height: 570px !important;
+  border-radius: 0 !important;
+  background-color: #e9e5de !important;
+  color: #242424;
+}
+
+[data-zuno-template="fashion-minimal"]
+  > .relative
+  > section.relative.mb-10 > div {
+  background: linear-gradient(
+    90deg,
+    rgba(20, 20, 20, 0.55),
+    rgba(20, 20, 20, 0.05)
+  );
+}
+
+[data-zuno-template="fashion-minimal"] article {
+  border-radius: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+[data-zuno-template="fashion-minimal"] article img {
+  transition: transform 500ms ease;
+}
+
+[data-zuno-template="fashion-minimal"] article:hover img {
+  transform: scale(1.035);
+}
+
+/* =========================================================
+   LUXURY BOUTIQUE
+   ========================================================= */
+
+[data-zuno-template="fashion-luxury"] {
+  --zuno-radius: 2px;
+  --zuno-card-radius: 2px;
+}
+
+[data-zuno-template="fashion-luxury"]
+  > .relative
+  > section.relative.mb-10 {
+  min-height: 620px !important;
+  border-radius: 2px !important;
+  background-color: #6e513d !important;
+}
+
+[data-zuno-template="fashion-luxury"]
+  > .relative
+  > section.relative.mb-10 > div {
+  align-items: center !important;
+  text-align: center !important;
+  background: linear-gradient(
+    180deg,
+    rgba(30, 22, 17, 0.08),
+    rgba(30, 22, 17, 0.5)
+  );
+}
+
+[data-zuno-template="fashion-luxury"]
+  > .relative
+  > section.relative.mb-10 h1 {
+  max-width: 760px;
+  font-family: Georgia, serif;
+  font-weight: 400;
+  font-size: clamp(48px, 7vw, 88px);
+}
+
+[data-zuno-template="fashion-luxury"] article {
+  border: 0 !important;
+  border-radius: 2px !important;
+  background: transparent !important;
+}
+
+[data-zuno-template="fashion-luxury"] article img {
+  aspect-ratio: 3 / 4;
+  border-radius: 2px;
+}
+
+/* =========================================================
+   STREETWEAR
+   ========================================================= */
+
+[data-zuno-template="fashion-streetwear"] {
+  --zuno-radius: 0px;
+  --zuno-card-radius: 0px;
+}
+
+[data-zuno-template="fashion-streetwear"]
+  > .relative
+  > section.relative.mb-10 {
+  min-height: 610px !important;
+  border-radius: 0 !important;
+  background-color: #171717 !important;
+}
+
+[data-zuno-template="fashion-streetwear"]
+  > .relative
+  > section.relative.mb-10 > div {
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.88),
+    rgba(0, 0, 0, 0.15)
+  );
+}
+
+[data-zuno-template="fashion-streetwear"]
+  > .relative
+  > section.relative.mb-10 h1 {
+  max-width: 900px;
+  font-family: Arial, sans-serif;
+  font-weight: 900;
+  text-transform: uppercase;
+  font-size: clamp(54px, 9vw, 112px);
+  line-height: 0.86;
+  letter-spacing: -0.075em;
+}
+
+[data-zuno-template="fashion-streetwear"]
+  > .relative
+  > section.relative.mb-10 a {
+  background: #d9ff36;
+  color: #171717;
+  border-radius: 0;
+  text-transform: uppercase;
+}
+
+[data-zuno-template="fashion-streetwear"] article {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+/* =========================================================
+   BEAUTY STUDIO
+   ========================================================= */
+
+[data-zuno-template="beauty-studio"] {
+  --zuno-radius: 30px;
+  --zuno-card-radius: 22px;
+}
+
+[data-zuno-template="beauty-studio"]
+  > .relative
+  > section.relative.mb-10 {
+  min-height: 550px !important;
+  border-radius: 30px !important;
+  background-color: #a66d78 !important;
+}
+
+[data-zuno-template="beauty-studio"]
+  > .relative
+  > section.relative.mb-10 > div {
+  align-items: center !important;
+  text-align: center !important;
+  background: linear-gradient(
+    180deg,
+    rgba(65, 35, 42, 0.05),
+    rgba(65, 35, 42, 0.42)
+  );
+}
+
+[data-zuno-template="beauty-studio"]
+  > .relative
+  > section.relative.mb-10 h1 {
+  font-family: Georgia, serif;
+  font-weight: 400;
+  font-size: clamp(46px, 6vw, 76px);
+}
+
+[data-zuno-template="beauty-studio"] article {
+  border-radius: 22px !important;
+  border-color: #eadad6 !important;
+}
+
+/* =========================================================
+   SKINCARE
+   ========================================================= */
+
+[data-zuno-template="skincare"] {
+  --zuno-radius: 28px;
+  --zuno-card-radius: 20px;
+}
+
+[data-zuno-template="skincare"]
+  > .relative
+  > section.relative.mb-10 {
+  min-height: 550px !important;
+  border-radius: 28px !important;
+  background-color: #667d68 !important;
+}
+
+[data-zuno-template="skincare"]
+  > .relative
+  > section.relative.mb-10 > div {
+  background: linear-gradient(
+    90deg,
+    rgba(31, 51, 39, 0.58),
+    rgba(31, 51, 39, 0.04)
+  );
+}
+
+[data-zuno-template="skincare"]
+  > .relative
+  > section.relative.mb-10 h1 {
+  font-family: Georgia, serif;
+  font-weight: 400;
+}
+
+[data-zuno-template="skincare"] article {
+  border-radius: 20px !important;
+  border-color: #dde2d8 !important;
+}
+
+/* =========================================================
+   RESTAURANT
+   ========================================================= */
+
+[data-zuno-template="restaurant"] {
+  --zuno-radius: 4px;
+  --zuno-card-radius: 12px;
+}
+
+[data-zuno-template="restaurant"]
+  > .relative
+  > section.relative.mb-10 {
+  min-height: 590px !important;
+  border-radius: 4px !important;
+  background-color: #2c211c !important;
+}
+
+[data-zuno-template="restaurant"]
+  > .relative
+  > section.relative.mb-10 > div {
+  align-items: center !important;
+  text-align: center !important;
+  background: linear-gradient(
+    180deg,
+    rgba(24, 15, 11, 0.1),
+    rgba(24, 15, 11, 0.65)
+  );
+}
+
+[data-zuno-template="restaurant"]
+  > .relative
+  > section.relative.mb-10 h1 {
+  font-family: Georgia, serif;
+  font-weight: 400;
+  font-size: clamp(46px, 6vw, 78px);
+}
+
+[data-zuno-template="restaurant"] article {
+  border-radius: 12px !important;
+  border-color: #e5d9c9 !important;
+}
+
+[data-zuno-template="restaurant"] article img {
+  aspect-ratio: 4 / 3;
+}
+
+/* =========================================================
+   BAKERY
+   ========================================================= */
+
+[data-zuno-template="bakery"] {
+  --zuno-radius: 26px;
+  --zuno-card-radius: 18px;
+}
+
+[data-zuno-template="bakery"]
+  > .relative
+  > section.relative.mb-10 {
+  min-height: 560px !important;
+  border-radius: 26px !important;
+  background-color: #9a6544 !important;
+}
+
+[data-zuno-template="bakery"]
+  > .relative
+  > section.relative.mb-10 > div {
+  align-items: center !important;
+  text-align: center !important;
+  background: linear-gradient(
+    180deg,
+    rgba(57, 36, 23, 0.05),
+    rgba(57, 36, 23, 0.5)
+  );
+}
+
+[data-zuno-template="bakery"]
+  > .relative
+  > section.relative.mb-10 h1 {
+  font-family: Georgia, serif;
+  font-weight: 400;
+}
+
+[data-zuno-template="bakery"] article {
+  border-radius: 18px !important;
+  border-color: #e8d9c7 !important;
+}
+
+/* =========================================================
+   PROFESSIONAL SERVICES
+   ========================================================= */
+
+[data-zuno-template="professional-services"] {
+  --zuno-radius: 16px;
+  --zuno-card-radius: 14px;
+}
+
+[data-zuno-template="professional-services"]
+  > .relative
+  > section.relative.mb-10 {
+  min-height: 560px !important;
+  border-radius: 16px !important;
+  background-color: #172b3a !important;
+}
+
+[data-zuno-template="professional-services"]
+  > .relative
+  > section.relative.mb-10 > div {
+  background: linear-gradient(
+    90deg,
+    rgba(14, 35, 50, 0.9),
+    rgba(14, 35, 50, 0.15)
+  );
+}
+
+[data-zuno-template="professional-services"]
+  > .relative
+  > section.relative.mb-10 h1 {
+  max-width: 720px;
+  font-size: clamp(42px, 6vw, 72px);
+}
+
+[data-zuno-template="professional-services"] article {
+  border-radius: 14px !important;
+  border-color: #dce5ea !important;
+}
+
+/* =========================================================
+   FREELANCER
+   ========================================================= */
+
+[data-zuno-template="freelancer"] {
+  --zuno-radius: 0px;
+  --zuno-card-radius: 8px;
+}
+
+[data-zuno-template="freelancer"]
+  > .relative
+  > section.relative.mb-10 {
+  min-height: 560px !important;
+  border-radius: 0 !important;
+  background-color: #29243a !important;
+}
+
+[data-zuno-template="freelancer"]
+  > .relative
+  > section.relative.mb-10 > div {
+  background: linear-gradient(
+    90deg,
+    rgba(30, 25, 45, 0.8),
+    rgba(30, 25, 45, 0.12)
+  );
+}
+
+[data-zuno-template="freelancer"]
+  > .relative
+  > section.relative.mb-10 h1 {
+  font-size: clamp(48px, 7vw, 84px);
+  font-weight: 700;
+}
+
+[data-zuno-template="freelancer"] article {
+  border-radius: 8px !important;
+}
+
+/* =========================================================
+   SALON & BARBER
+   ========================================================= */
+
+[data-zuno-template="salon-barber"] {
+  --zuno-radius: 24px;
+  --zuno-card-radius: 18px;
+}
+
+[data-zuno-template="salon-barber"]
+  > .relative
+  > section.relative.mb-10 {
+  min-height: 570px !important;
+  border-radius: 24px !important;
+  background-color: #2d2521 !important;
+}
+
+[data-zuno-template="salon-barber"]
+  > .relative
+  > section.relative.mb-10 > div {
+  align-items: center !important;
+  text-align: center !important;
+  background: linear-gradient(
+    180deg,
+    rgba(35, 25, 20, 0.08),
+    rgba(35, 25, 20, 0.62)
+  );
+}
+
+[data-zuno-template="salon-barber"]
+  > .relative
+  > section.relative.mb-10 h1 {
+  font-family: Georgia, serif;
+  font-weight: 400;
+}
+
+[data-zuno-template="salon-barber"] article {
+  border-radius: 18px !important;
+  border-color: #e2d8ce !important;
+}
+
+/* =========================================================
+   SPA & WELLNESS
+   ========================================================= */
+
+[data-zuno-template="spa-wellness"] {
+  --zuno-radius: 32px;
+  --zuno-card-radius: 24px;
+}
+
+[data-zuno-template="spa-wellness"]
+  > .relative
+  > section.relative.mb-10 {
+  min-height: 600px !important;
+  border-radius: 32px !important;
+  background-color: #2e3d35 !important;
+}
+
+[data-zuno-template="spa-wellness"]
+  > .relative
+  > section.relative.mb-10 > div {
+  align-items: center !important;
+  text-align: center !important;
+  background: linear-gradient(
+    180deg,
+    rgba(30, 45, 36, 0.04),
+    rgba(30, 45, 36, 0.48)
+  );
+}
+
+[data-zuno-template="spa-wellness"]
+  > .relative
+  > section.relative.mb-10 h1 {
+  font-family: Georgia, serif;
+  font-weight: 400;
+  font-size: clamp(48px, 7vw, 82px);
+}
+
+[data-zuno-template="spa-wellness"] article {
+  border-radius: 24px !important;
+  border-color: #dde2d8 !important;
+}
+
+/* =========================================================
+   CREATIVE PORTFOLIO
+   ========================================================= */
+
+[data-zuno-template="creative-portfolio"] {
+  --zuno-radius: 0px;
+  --zuno-card-radius: 0px;
+}
+
+[data-zuno-template="creative-portfolio"]
+  > .relative
+  > section.relative.mb-10 {
+  min-height: 620px !important;
+  border-radius: 0 !important;
+  background-color: #171717 !important;
+}
+
+[data-zuno-template="creative-portfolio"]
+  > .relative
+  > section.relative.mb-10 > div {
+  background: linear-gradient(
+    90deg,
+    rgba(15, 15, 15, 0.78),
+    rgba(15, 15, 15, 0.08)
+  );
+}
+
+[data-zuno-template="creative-portfolio"]
+  > .relative
+  > section.relative.mb-10 h1 {
+  font-size: clamp(52px, 8vw, 96px);
+  font-weight: 700;
+}
+
+[data-zuno-template="creative-portfolio"] article {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+[data-zuno-template="creative-portfolio"] article img {
+  border-radius: 0;
+}
+
+/* =========================================================
+   FITNESS & COACHING
+   ========================================================= */
+
+[data-zuno-template="fitness-coach"] {
+  --zuno-radius: 0px;
+  --zuno-card-radius: 8px;
+}
+
+[data-zuno-template="fitness-coach"]
+  > .relative
+  > section.relative.mb-10 {
+  min-height: 600px !important;
+  border-radius: 0 !important;
+  background-color: #171717 !important;
+}
+
+[data-zuno-template="fitness-coach"]
+  > .relative
+  > section.relative.mb-10 > div {
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.9),
+    rgba(0, 0, 0, 0.12)
+  );
+}
+
+[data-zuno-template="fitness-coach"]
+  > .relative
+  > section.relative.mb-10 h1 {
+  max-width: 800px;
+  font-size: clamp(50px, 8vw, 94px);
+  font-weight: 900;
+  text-transform: uppercase;
+  line-height: 0.95;
+}
+
+[data-zuno-template="fitness-coach"] article {
+  border-radius: 8px !important;
+}
+
+/* =========================================================
+   PROPERTY & REAL ESTATE
+   ========================================================= */
+
+[data-zuno-template="property-services"] {
+  --zuno-radius: 8px;
+  --zuno-card-radius: 12px;
+}
+
+[data-zuno-template="property-services"]
+  > .relative
+  > section.relative.mb-10 {
+  min-height: 590px !important;
+  border-radius: 8px !important;
+  background-color: #202e34 !important;
+}
+
+[data-zuno-template="property-services"]
+  > .relative
+  > section.relative.mb-10 > div {
+  background: linear-gradient(
+    90deg,
+    rgba(22, 39, 46, 0.82),
+    rgba(22, 39, 46, 0.12)
+  );
+}
+
+[data-zuno-template="property-services"]
+  > .relative
+  > section.relative.mb-10 h1 {
+  max-width: 760px;
+  font-size: clamp(44px, 6vw, 76px);
+}
+
+[data-zuno-template="property-services"] article {
+  border-radius: 12px !important;
+}
+
+/* =========================================================
+   HOME SERVICES
+   ========================================================= */
+
+[data-zuno-template="home-services"] {
+  --zuno-radius: 16px;
+  --zuno-card-radius: 14px;
+}
+
+[data-zuno-template="home-services"]
+  > .relative
+  > section.relative.mb-10 {
+  min-height: 550px !important;
+  border-radius: 16px !important;
+  background-color: #172b3a !important;
+}
+
+[data-zuno-template="home-services"]
+  > .relative
+  > section.relative.mb-10 > div {
+  background: linear-gradient(
+    90deg,
+    rgba(20, 42, 55, 0.86),
+    rgba(20, 42, 55, 0.12)
+  );
+}
+
+[data-zuno-template="home-services"] article {
+  border-radius: 14px !important;
+}
+
+/* =========================================================
+   MODERN BUSINESS
+   ========================================================= */
+
+[data-zuno-template="modern-business"] {
+  --zuno-radius: 20px;
+  --zuno-card-radius: 16px;
+}
+
+[data-zuno-template="modern-business"]
+  > .relative
+  > section.relative.mb-10 {
+  min-height: 560px !important;
+  border-radius: 20px !important;
+  background-color: #172b27 !important;
+}
+
+[data-zuno-template="modern-business"]
+  > .relative
+  > section.relative.mb-10 > div {
+  background: linear-gradient(
+    90deg,
+    rgba(15, 45, 36, 0.82),
+    rgba(15, 45, 36, 0.08)
+  );
+}
+
+[data-zuno-template="modern-business"] article {
+  border-radius: 16px !important;
+}
+
+/* =========================================================
+   SHARED PRODUCT AND SERVICE PRESENTATION
+   ========================================================= */
+
+[data-zuno-template] article {
+  transition:
+    transform 220ms ease,
+    box-shadow 220ms ease;
+}
+
+[data-zuno-template] article:hover {
+  transform: translateY(-3px);
+}
+
+[data-zuno-template] article img {
+  display: block;
+  object-fit: cover;
+}
+
+[data-zuno-template] article button,
+[data-zuno-template] article a.btn-primary {
+  min-height: 42px;
+}
+
+[data-zuno-template] section.py-10 {
+  padding-top: var(--zuno-section-space);
+  padding-bottom: var(--zuno-section-space);
+}
+
+[data-zuno-template] section.py-10 h2 {
+  font-size: clamp(26px, 3vw, 38px);
+}
+
+[data-zuno-template] .text-muted {
+  line-height: 1.75;
+}
+
+/* =========================================================
+   MOBILE RESPONSIVENESS
+   ========================================================= */
+
+@media (max-width: 640px) {
+  [data-zuno-template] {
+    --zuno-section-space: 42px;
+  }
+
+  [data-zuno-template] > .relative {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  [data-zuno-template] > .relative > section.relative.mb-10 {
+    min-height: 440px !important;
+  }
+
+  [data-zuno-template]
+    > .relative
+    > section.relative.mb-10 > div {
+    min-height: 440px;
+    padding: 28px 22px;
+  }
+
+  [data-zuno-template]
+    > .relative
+    > section.relative.mb-10 h1 {
+    font-size: clamp(38px, 11vw, 56px);
+  }
+
+  [data-zuno-template="fashion-luxury"]
+    > .relative
+    > section.relative.mb-10,
+  [data-zuno-template="spa-wellness"]
+    > .relative
+    > section.relative.mb-10 {
+    min-height: 480px !important;
+  }
+
+  [data-zuno-template] article {
+    min-width: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-zuno-template] *,
+  [data-zuno-template] *::before,
+  [data-zuno-template] *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
