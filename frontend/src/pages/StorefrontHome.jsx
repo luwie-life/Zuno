@@ -10,6 +10,7 @@ import {
   isElementAllowedForBusiness,
 } from '../lib/storefront.js';
 import { useMemo } from 'react';
+import './storefront-templates.css';
 
 function SectionHeading({ title, subtitle }) {
   if (!title && !subtitle) return null;
@@ -1325,6 +1326,7 @@ export function StorefrontRenderer({
 
   return (
     <div
+      data-zuno-template={storefront.templateId || 'modern-business'}
       className={editorMode ? 'storefront-editor-renderer' : ''}
       style={{
         backgroundColor: theme.backgroundColor || '#FFFFFF',
