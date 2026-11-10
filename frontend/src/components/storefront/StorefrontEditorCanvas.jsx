@@ -237,7 +237,7 @@ export default function StorefrontEditorCanvas({
 
             <div
               ref={canvasRef}
-              className="relative origin-top overflow-hidden bg-white shadow-[0_8px_40px_rgba(15,23,42,0.10)] ring-1 ring-slate-200 transition-transform duration-200"
+              className="relative origin-top overflow-visible bg-white shadow-[0_8px_40px_rgba(15,23,42,0.10)] ring-1 ring-slate-200 transition-transform duration-200"
               style={{
                 width: '100%',
                 transform: `scale(${zoom / 100})`,
