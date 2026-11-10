@@ -493,6 +493,28 @@ export function normalizeElementStyle(input = {}) {
     'bold',
   ];
 
+  // Preserve global canvas coordinates during normalization.
+  const normalizeCoordinate = (value) => {
+    if (
+      value === undefined ||
+      value === null ||
+      value === ''
+    ) {
+      return 0;
+    }
+
+    const number = Number(value);
+
+    if (!Number.isFinite(number)) {
+      return 0;
+    }
+
+    return Math.max(
+      -100000,
+      Math.min(100000, number)
+    );
+  };
+
   return {
     color: source.color
       ? normalizeHexColor(source.color, '')
@@ -533,6 +555,13 @@ export function normalizeElementStyle(input = {}) {
     objectFit: ['cover', 'contain', 'fill'].includes(source.objectFit)
       ? source.objectFit
       : 'cover',
+
+    // CRITICAL: preserve global positioning.
+    x: normalizeCoordinate(source.x),
+
+    y: normalizeCoordinate(source.y),
+
+    positioned: source.positioned === true,
   };
 }
 
