@@ -6,8 +6,8 @@ const makeHeading = (content, style = {}) =>
     style: {
       fontSize: 36,
       fontWeight: 'bold',
-      color: style.color || '',
-      textAlign: style.textAlign || 'left',
+      color: '#202820',
+      textAlign: 'left',
       ...style,
     },
   });
@@ -17,25 +17,29 @@ const makeText = (content, style = {}) =>
     content,
     style: {
       fontSize: 16,
-      color: style.color || '',
-      textAlign: style.textAlign || 'left',
+      color: '#555B55',
+      textAlign: 'left',
       ...style,
     },
   });
 
-const makeButton = (content, link = '') =>
+const makeButton = (content, link = '', style = {}) =>
   createElement('button', {
     content,
     action: link
       ? {
           type: link.startsWith('http') ? 'external' : 'page',
           value: link,
-          url: link,
         }
       : { type: 'none' },
     style: {
       fontSize: 14,
       fontWeight: 'semibold',
+      backgroundColor: '#202820',
+      color: '#FFFFFF',
+      padding: '12px 22px',
+      borderRadius: '6px',
+      ...style,
     },
   });
 
@@ -52,15 +56,24 @@ const makeImage = (src, alt = '') =>
   });
 
 /**
- * Converts editable content stored in legacy section settings
- * into independent native storefront elements.
+ * Converts supported legacy section settings into native,
+ * independently editable storefront elements.
  *
- * Dynamic sections such as products, services, bookings,
- * testimonials and navigation remain untouched.
+ * Dynamic sections remain intact so live products, services,
+ * bookings, testimonials and navigation continue to work.
  */
 export function createEditableTemplateSection(section) {
   const settings = { ...(section.settings || {}) };
   const elements = [];
+
+  const alignment = ['left', 'center', 'right'].includes(settings.alignment)
+    ? settings.alignment
+    : 'left';
+
+  const textColor = settings.textColor || '#202820';
+  const mutedColor = settings.mutedColor || '#555B55';
+  const buttonColor = settings.buttonColor || '#202820';
+  const buttonTextColor = settings.buttonTextColor || '#FFFFFF';
 
   switch (section.type) {
     case 'hero': {
@@ -69,6 +82,8 @@ export function createEditableTemplateSection(section) {
           makeText(settings.eyebrow, {
             fontSize: 12,
             fontWeight: 'semibold',
+            color: settings.eyebrowColor || mutedColor,
+            textAlign: alignment,
           })
         );
       }
@@ -78,8 +93,8 @@ export function createEditableTemplateSection(section) {
           makeHeading(settings.title, {
             fontSize: 48,
             fontWeight: 'bold',
-            textAlign: settings.alignment || 'left',
-            color: '#FFFFFF',
+            color: settings.heroTextColor || textColor,
+            textAlign: alignment,
           })
         );
       }
@@ -88,15 +103,18 @@ export function createEditableTemplateSection(section) {
         elements.push(
           makeText(settings.subtitle, {
             fontSize: 18,
-            textAlign: settings.alignment || 'left',
-            color: '#FFFFFF',
+            color: settings.heroSubtitleColor || mutedColor,
+            textAlign: alignment,
           })
         );
       }
 
       if (settings.buttonText) {
         elements.push(
-          makeButton(settings.buttonText, settings.buttonLink)
+          makeButton(settings.buttonText, settings.buttonLink, {
+            backgroundColor: buttonColor,
+            color: buttonTextColor,
+          })
         );
       }
 
@@ -113,17 +131,28 @@ export function createEditableTemplateSection(section) {
       }
 
       if (settings.title) {
-        elements.push(makeHeading(settings.title));
+        elements.push(
+          makeHeading(settings.title, {
+            color: textColor,
+          })
+        );
       }
 
       if (settings.subtitle) {
-        elements.push(makeText(settings.subtitle, {
-          fontSize: 18,
-        }));
+        elements.push(
+          makeText(settings.subtitle, {
+            fontSize: 18,
+            color: mutedColor,
+          })
+        );
       }
 
       if (settings.description) {
-        elements.push(makeText(settings.description));
+        elements.push(
+          makeText(settings.description, {
+            color: mutedColor,
+          })
+        );
       }
 
       settings.editableContent = true;
@@ -133,19 +162,30 @@ export function createEditableTemplateSection(section) {
     case 'rich_text':
     case 'custom_content': {
       if (settings.title) {
-        elements.push(makeHeading(settings.title));
+        elements.push(
+          makeHeading(settings.title, {
+            color: textColor,
+          })
+        );
       }
 
       if (settings.subtitle) {
-        elements.push(makeText(settings.subtitle, {
-          fontSize: 18,
-        }));
+        elements.push(
+          makeText(settings.subtitle, {
+            fontSize: 18,
+            color: mutedColor,
+          })
+        );
       }
 
       const body = settings.content || settings.description;
 
       if (body) {
-        elements.push(makeText(body));
+        elements.push(
+          makeText(body, {
+            color: mutedColor,
+          })
+        );
       }
 
       settings.editableContent = true;
@@ -159,7 +199,7 @@ export function createEditableTemplateSection(section) {
             fontSize: 13,
             fontWeight: 'semibold',
             textAlign: 'center',
-            color: '#FFFFFF',
+            color: settings.textColor || '#FFFFFF',
           })
         );
       }
@@ -170,9 +210,12 @@ export function createEditableTemplateSection(section) {
 
     case 'footer': {
       if (settings.text) {
-        elements.push(makeText(settings.text, {
-          textAlign: 'center',
-        }));
+        elements.push(
+          makeText(settings.text, {
+            textAlign: 'center',
+            color: mutedColor,
+          })
+        );
       }
 
       settings.editableContent = true;
