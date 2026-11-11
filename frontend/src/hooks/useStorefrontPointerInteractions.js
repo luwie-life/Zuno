@@ -1,10 +1,11 @@
 import { useEffect, useRef } from 'react';
 import { flushSync } from 'react-dom';
 import { createDragSnapshot, dragPosition } from '../lib/editorDrag.js';
+import { createSectionDragPreview, updateSectionDragPreview } from '../lib/editorSectionDrag.js';
 
 const DRAG_THRESHOLD = 3;
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
-const transientStyles = (node) => ({ transform: node.style.transform, zIndex: node.style.zIndex, willChange: node.style.willChange, transition: node.style.transition });
+const transientStyles = (node) => ({ transform: node.style.transform, zIndex: node.style.zIndex, willChange: node.style.willChange, transition: node.style.transition, opacity: node.style.opacity });
 
 export default function useStorefrontPointerInteractions(options) {
   const { rootRef, selectedElementId = '', selectedSectionId = '' } = options;
@@ -33,6 +34,7 @@ export default function useStorefrontPointerInteractions(options) {
     const elementFor = (target) => closest(target, '[data-editor-element-wrapper]');
 
     const cleanup = (interaction) => {
+      interaction.sectionPreview?.remove();
       Object.assign(interaction.node.style, interaction.styles);
       if (!interaction.hadMovingClass) interaction.node.classList.remove('zuno-pointer-moving');
       if (interaction.overlay) interaction.overlay.style.transform = interaction.overlayTransform;
@@ -101,8 +103,15 @@ export default function useStorefrontPointerInteractions(options) {
       interaction.started = true;
       event.preventDefault();
       const position = dragPosition(interaction.snapshot, event, root.getBoundingClientRect());
-      const x = interaction.type === 'element' ? position.x - interaction.snapshot.originX : dx / interaction.snapshot.scaleX;
-      const y = interaction.type === 'element' ? position.y - interaction.snapshot.originY : dy / interaction.snapshot.scaleY;
+      if (interaction.type === 'section') {
+        // A section transform would re-anchor its fixed-position descendants.
+        interaction.sectionPreview ||= createSectionDragPreview(root, interaction.node, interaction.snapshot);
+        updateSectionDragPreview(interaction.sectionPreview, position);
+        interaction.node.style.opacity = '0.45';
+        return;
+      }
+      const x = position.x - interaction.snapshot.originX;
+      const y = position.y - interaction.snapshot.originY;
       const translation = `translate3d(${x}px, ${y}px, 0)`;
       const original = interaction.styles.transform;
       Object.assign(interaction.node.style, { transform: `${translation}${original && original !== 'none' ? ` ${original}` : ''}`, transition: 'none', willChange: 'transform', zIndex: '80' });
