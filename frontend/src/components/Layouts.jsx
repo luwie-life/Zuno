@@ -7,6 +7,7 @@ import { useAuth } from '../lib/auth.jsx';
 import { api, getToken } from '../lib/api.js';
 import { Loading, useApi, cx } from './ui.jsx';
 import { ArrowRight } from 'lucide-react';
+import { STORE_EDITOR_NAVIGATION, visibleMerchantNavigation } from '../lib/merchantNavigation.js';
 
 const LogoMark = ({ light = false }) => (
   <BrandIcon light={light} size={36} />
@@ -251,6 +252,7 @@ export function RequireAuth({ children }) {
 
 const NAV = [
   { to: '/app', label: 'Overview', icon: LayoutDashboard, end: true },
+  { ...STORE_EDITOR_NAVIGATION, icon: Store },
   { to: '/app/products', label: 'Products', icon: Package, module: 'commerce', perm: 'products.write', alsoRead: true },
   { to: '/app/orders', label: 'Orders', icon: ShoppingBag, module: 'commerce', perm: 'orders.write' },
   { to: '/app/pos', label: 'POS', icon: Store, module: 'commerce', feature: 'pos', perm: 'pos.sell', cashier: true },
@@ -273,7 +275,7 @@ export function AppLayout() {
   useEffect(() => setMore(false), [pathname]);
   if (loading) return <Loading />;
 
-  const items = NAV.filter((n) => (!n.module || ctx?.modules?.includes(n.module)) && (!n.perm || can(n.perm) || n.cashier || (n.alsoRead && can('products.read'))));
+  const items = visibleMerchantNavigation(NAV, { modules: ctx?.modules || [], can });
   const mobileMain = ['/app', '/app/products', '/app/pos', '/app/orders'].map((to) => items.find((i) => i.to === to)).filter(Boolean);
   const Item = ({ n, mobile }) => {
     const locked = n.feature && !hasFeature(n.feature);
