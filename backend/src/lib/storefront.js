@@ -1,5 +1,5 @@
 /** Storefront normalization: preserves existing page, section and element contracts. */
-import { normalizeStorefrontMetadata } from './storefrontMetadata.js';
+import { normalizeStorefrontMetadata, storefrontInput } from './storefrontMetadata.js';
 
 export const STOREFRONT_VERSION = 3;
 export const ELEMENT_TYPES = Object.freeze(['heading', 'text', 'button', 'image', 'spacer', 'divider', 'columns', 'grid', 'gallery', 'icon', 'video', 'product_list', 'service_list', 'booking_button', 'contact_form']);
@@ -171,7 +171,7 @@ export function createDefaultStorefront(input = {}) {
   return { ...storefrontDefaults, primaryColor, theme: normalizeTheme({ ...STOREFRONT_THEME_DEFAULTS, primaryColor }), pages: [page], activePage: 'home', version: STOREFRONT_VERSION };
 }
 export function normalizeStorefrontConfig(input = {}, businessName = '') {
-  const source = isObject(input) ? input : {};
+  const source = storefrontInput(input);
   const heroTitle = cleanText(source.heroTitle, 200);
   const heroSubtitle = cleanText(source.heroSubtitle, 500);
   const ctaText = cleanText(source.ctaText, 100) || storefrontDefaults.ctaText;

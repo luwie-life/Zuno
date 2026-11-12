@@ -1,5 +1,9 @@
 const text = (value, max) => typeof value === 'string' ? value.trim().slice(0, max) : '';
 const object = value => value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+export function storefrontInput(input = {}) {
+  const value = input && typeof input.toObject === 'function' ? input.toObject() : input;
+  return object(value);
+}
 const image = value => {
   const url = text(value, 3000);
   if (/^\/(?!\/)/.test(url)) return url;
@@ -7,7 +11,7 @@ const image = value => {
 };
 const platforms = ['instagram', 'facebook', 'tiktok', 'youtube', 'x', 'linkedin', 'pinterest', 'threads'];
 export function normalizeStorefrontMetadata(input = {}) {
-  const source = object(input), identity = object(source.identity), contact = object(source.contact), seo = object(source.seo);
+  const source = storefrontInput(input), identity = object(source.identity), contact = object(source.contact), seo = object(source.seo);
   const templateId = text(source.templateId, 80);
   const links = Array.isArray(source.socialLinks) ? source.socialLinks : Object.entries(object(source.socialLinks)).map(([platform, url]) => ({ platform, url }));
   const socialLinks = [], seen = new Set();
