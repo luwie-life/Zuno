@@ -13,4 +13,9 @@ export const storefrontUpdateSchema = z.object({
   theme: z.record(z.string(), z.unknown()).optional(),
   pages: z.array(z.record(z.string(), z.unknown())).optional(),
   activePage: z.string().max(100).optional(),
+  templateId: z.string().max(80).optional(),
+  identity: z.record(z.string(), z.unknown()).optional(),
+  contact: z.record(z.string(), z.unknown()).optional(),
+  seo: z.record(z.string(), z.unknown()).optional(),
+  socialLinks: z.union([z.array(z.record(z.string(), z.unknown())), z.record(z.string(), z.string())]).optional(),
 }).partial();
