@@ -10,6 +10,7 @@ import {
   ExternalLink,
   Check,
 } from 'lucide-react';
+import { socialLinkValue, updateSocialLink } from '../../lib/storefrontSocialEditor.js';
 
 const TABS = [
   { id: 'identity', label: 'Identity', icon: Store },
@@ -128,7 +129,7 @@ export default function StorefrontSettingsPanel({
   const identity = config.identity || {};
   const contact = config.contact || {};
   const seo = config.seo || {};
-  const socialLinks = config.socialLinks || {};
+  const socialLinks = config.socialLinks || [];
   const domain = config.domain || {};
 
   const displayName =
@@ -159,8 +160,10 @@ export default function StorefrontSettingsPanel({
   const updateSEO = (key, value) =>
     updateGroup('seo', key, value);
 
-  const updateSocial = (key, value) =>
-    updateGroup('socialLinks', key, value);
+  const updateSocial = (platform, value) => {
+    if (!onUpdate) return;
+    onUpdate({ ...config, socialLinks: updateSocialLink(socialLinks, platform, value) });
+  };
 
   const updateDomain = (key, value) =>
     updateGroup('domain', key, value);
@@ -364,7 +367,7 @@ export default function StorefrontSettingsPanel({
         <TextField
           key={platform}
           label={platform === 'x' ? 'X profile URL' : `${platform[0].toUpperCase()}${platform.slice(1)} URL`}
-          value={socialLinks[platform] || ''}
+          value={socialLinkValue(socialLinks, platform)}
           placeholder={`https://${platform}.com/yourbusiness`}
           onChange={(value) => updateSocial(platform, value)}
         />
