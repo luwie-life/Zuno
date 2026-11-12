@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "test": "node --test tests/unit.test.js tests/http.test.js tests/verification.test.js tests/storefrontPayload.test.js",
+    "test": "node --test tests/unit.test.js tests/http.test.js tests/verification.test.js tests/storefrontPayload.test.js tests/emailVerification.test.js",
     "test:integration": "node --test tests/integration.test.js",
     "create-admin": "node scripts/createPlatformOwner.js"
   },
