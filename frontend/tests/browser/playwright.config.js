@@ -1,7 +1,7 @@
 import { defineConfig } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 export default defineConfig({
-  testDir: '.', testMatch: 'media-library.spec.js', fullyParallel: false, workers: 1, retries: 0,
+  testDir: '.', testMatch: '*.spec.js', fullyParallel: false, workers: 1, retries: 0,
   timeout: 30000, expect: { timeout: 10000 }, reporter: 'list', outputDir: '../../test-results/media-browser',
   use: { baseURL: 'http://127.0.0.1:5173', browserName: 'chromium', screenshot: 'only-on-failure', trace: 'retain-on-failure' },
   projects: [
