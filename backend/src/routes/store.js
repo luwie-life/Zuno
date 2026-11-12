@@ -10,6 +10,7 @@ import { businessModulesFor } from '../lib/businessModules.js';
 import { featureAllowed } from '../lib/subscriptionRules.js';
 import { createBookingRequest, listAvailableTimes } from '../services/bookingOperations.js';
 import { normalizeStorefrontConfig } from '../lib/storefront.js';
+import { publicStoreBusinessFields } from '../lib/publicStoreBusiness.js';
 
 const r = Router();
 
@@ -61,20 +62,8 @@ async function liveStore(slug) {
 }
 
 const publicBiz = (b, accepting, acceptingServices) => ({
-  name: b.name,
-  slug: b.slug,
-  description: b.description,
-  category: b.category,
-  phone: b.phone,
-  email: b.email,
-  address: b.address,
-  logoUrl: b.logoUrl,
-  brandColor: b.brandColor,
+  ...publicStoreBusinessFields(b, accepting, acceptingServices),
   storefront: normalizeStorefrontConfig(b.storefront, b.name),
-  deliveryFee: b.deliveryFee,
-  timezone: b.timezone || 'Africa/Lagos',
-  acceptingOrders: accepting,
-  acceptingServices,
 });
 
 const publicProduct = (p) => ({
