@@ -8,14 +8,33 @@ const frameDocument = '<!doctype html><html><head><meta charset="UTF-8"><meta na
 
 function DraftDialog({ business, storefront, activePage, initialDevice, onClose, onOpenLive }) {
   const dialog = useRef(null);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   const titleId = useId();
+  const widthId = useId();
   const [device, setDevice] = useState(widths[initialDevice] ? initialDevice : 'desktop');
   const [target, setTarget] = useState(null);
   useEffect(() => {
     const element = dialog.current;
+    const ownerDocument = element.ownerDocument;
+    const escape = event => {
+      if (event.key !== 'Escape' || !element.open) return;
+      event.preventDefault(); event.stopPropagation(); closeRef.current();
+    };
+    ownerDocument.addEventListener('keydown', escape, true);
     if (!element.open) element.showModal();
-    return () => { if (element.open) element.close(); };
+    return () => { ownerDocument.removeEventListener('keydown', escape, true); if (element.open) element.close(); };
   }, []);
+  useEffect(() => {
+    if (!target) return;
+    const frameDocument = target.ownerDocument;
+    const escape = event => {
+      if (event.key !== 'Escape' || !dialog.current?.open) return;
+      event.preventDefault(); event.stopPropagation(); closeRef.current();
+    };
+    frameDocument.addEventListener('keydown', escape, true);
+    return () => frameDocument.removeEventListener('keydown', escape, true);
+  }, [target]);
   const config = { ...storefront, pages: (storefront.pages || []).map(page => page.id === activePage?.id ? { ...page, visible: true } : page) };
   const blockAction = event => {
     if (event.target.closest?.('a,button,input,select,textarea')) { event.preventDefault(); event.stopPropagation(); }
@@ -27,10 +46,10 @@ function DraftDialog({ business, storefront, activePage, initialDevice, onClose,
     document.head.querySelectorAll('style,link[rel="stylesheet"]').forEach(style => doc.head.appendChild(style.cloneNode(true)));
     setTarget(doc.getElementById('draft-root'));
   };
-  return <dialog ref={dialog} aria-labelledby={titleId} onCancel={event => { event.preventDefault(); onClose(); }} className="m-auto w-[95vw] max-w-none rounded-xl border border-slate-200 bg-white p-0 text-slate-800 shadow-2xl backdrop:bg-slate-950/50" style={{ maxHeight: '95vh' }}>
+  return <dialog ref={dialog} aria-labelledby={titleId} onCancel={event => { event.preventDefault(); closeRef.current(); }} className="m-auto w-[95vw] max-w-none rounded-xl border border-slate-200 bg-white p-0 text-slate-800 shadow-2xl backdrop:bg-slate-950/50" style={{ maxHeight: '95vh' }}>
     <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 p-3">
       <div><h2 id={titleId} className="text-base font-bold">Draft preview</h2><p className="text-xs text-slate-500">Current page content only. Nothing is saved or published.</p></div>
-      <label className="text-xs">Draft preview width<select value={device} onChange={event => setDevice(event.target.value)} className="ml-2 rounded-lg border border-slate-200 p-2"><option value="desktop">Desktop (1200px)</option><option value="tablet">Tablet (768px)</option><option value="mobile">Mobile (390px)</option></select></label>
+      <div className="text-xs"><label htmlFor={widthId}>Draft preview width</label><select id={widthId} aria-label="Draft preview width" value={device} onChange={event => setDevice(event.target.value)} className="ml-2 rounded-lg border border-slate-200 p-2"><option value="desktop">Desktop (1200px)</option><option value="tablet">Tablet (768px)</option><option value="mobile">Mobile (390px)</option></select></div>
       <button type="button" autoFocus onClick={onClose} className="rounded-lg border border-slate-200 px-3 py-2 text-xs">Close draft preview</button>
     </header>
     <p className="px-3 py-2 text-xs text-slate-500">Links, cart and booking actions are disabled. Storefront shell and server-generated metadata are not included. Scroll if the selected viewport is wider than this screen.</p>
