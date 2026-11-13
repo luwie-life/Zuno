@@ -12,7 +12,7 @@ import {
 
 import { api } from '../../lib/api.js';
 import { useAuth } from '../../lib/auth.jsx';
-
+import ImageUploadField from '../../components/ImageUploadField.jsx';
 import {
   createSection,
   createElement,
@@ -178,8 +178,8 @@ export default function StorefrontEditor() {
   const [navigationOpen, setNavigationOpen] = useState(false);
 
   const [showSections, setShowSections] = useState(false);
-  const [showElements, setShowElements] = useState(false);
-
+const [showElements, setShowElements] = useState(false);
+const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -195,8 +195,7 @@ export default function StorefrontEditor() {
   const [activeTool, setActiveTool] = useState('elements');
 
   const currentRef = useRef(null);
-  const saveLock = useRef(false);
-  const uploadRef = useRef(null);
+const saveLock = useRef(false);
 
   const pages = storefront?.pages || [];
 
