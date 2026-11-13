@@ -1072,28 +1072,61 @@ const saveLock = useRef(false);
       setPanel('layers');
       setShowElements(true);
     }
+if (tool === 'uploads') {
+  if (!selectedSection) {
+    setError('Select a section before uploading an image.');
+    setPanel('layers');
+    return;
+  }
 
-    if (tool === 'uploads') uploadRef.current?.click();
-    if (tool === 'settings') setPanel('settings');
-  };
+  setError('');
+  setShowUploadDialog(true);
+}
 
-  const handleUpload = (event) => {
-    const file = event.target.files?.[0];
+if (tool === 'settings') setPanel('settings');
+};
 
-    if (!file) return;
+const handleEditorImageUpload = (url) => {
+  if (!url || !activePage || !selectedSection) return;
 
-    if (!file.type.startsWith('image/')) {
-      setError('Please select an image file.');
-      event.target.value = '';
-      return;
-    }
+  const element = createElement('image', {
+    src: url,
+    style: {
+      width: '100%',
+      height: 'auto',
+      objectFit: 'cover',
+    },
+  });
 
-    setNotice(
-      'Image selected. Cloudinary upload integration is the next media phase.'
-    );
+  commit((current) => ({
+    ...current,
+    pages: current.pages.map((page) =>
+      page.id !== activePage.id
+        ? page
+        : {
+            ...page,
+            sections: page.sections.map((section) =>
+              section.id !== selectedSection.id
+                ? section
+                : {
+                    ...section,
+                    elements: [
+                      ...(section.elements || []),
+                      element,
+                    ],
+                  }
+            ),
+          }
+    ),
+  }));
 
-    event.target.value = '';
-  };
+  setSelectedSectionId(selectedSection.id);
+  setSelectedElementId(element.id);
+  setShowUploadDialog(false);
+  setPanel('inspector');
+  setDrawerOpen(true);
+  setNotice('Image added. Save your storefront to persist the change.');
+};
 
   // PANEL PROPS
   const pageManagerProps = {
