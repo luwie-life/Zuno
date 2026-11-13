@@ -1608,6 +1608,49 @@ const handleEditorImageUpload = (url) => {
       </div>
 
       {/* ADD SECTION DIALOG */}
+            {/* IMAGE UPLOAD DIALOG */}
+      {showUploadDialog && (
+        <div className="fixed inset-0 z-[130] flex items-end justify-center bg-slate-950/50 p-3 sm:items-center">
+          <div className="w-full max-w-lg rounded-3xl bg-white p-5 shadow-2xl">
+            <div className="mb-5 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">
+                  Add an image
+                </h2>
+                <p className="mt-1 text-xs text-slate-500">
+                  Upload an image or choose one from your media library.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowUploadDialog(false)}
+                className="rounded-xl p-2 hover:bg-slate-100"
+                aria-label="Close image upload"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <ImageUploadField
+              label="Storefront image"
+              value=""
+              purpose="editor"
+              showUrl={false}
+              onChange={handleEditorImageUpload}
+            />
+
+            <button
+              type="button"
+              onClick={() => setShowUploadDialog(false)}
+              className="mt-5 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+      
       {showSections && (
         <div className="fixed inset-0 z-[120] flex items-end justify-center bg-slate-950/50 p-3 sm:items-center">
           <div className="max-h-[82svh] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl">
