@@ -1,0 +1,29 @@
+import { test, expect } from '@playwright/test';
+import { publicStoreBusinessFields } from '../../../backend/src/lib/publicStoreBusiness.js';
+const logo = 'https://media.fixture.invalid/brand.png';
+const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1sAAAAASUVORK5CYII=', 'base64');
+test('actual public storefront shell uses saved identity and contact fields', async ({ page }) => {
+  const unexpected = [];
+  const storefront = { published: false, identity: { displayName: 'Display Studio', logo, description: 'Saved public description' }, contact: { phone: '08040000000', city: 'Abuja' }, theme: { primaryColor: '#654321' }, pages: [{ id: 'home', slug: 'home', title: 'Home', isHome: true, visible: true, sections: [{ id: 'content', type: 'rich_text', visible: true, settings: { title: 'Public content fixture', content: 'Content from the saved configuration.' }, elements: [] }] }] };
+  const profile = { name: 'Legal Business', slug: 'fixture', businessType: 'product', logoUrl: 'https://media.fixture.invalid/old-logo.png', phone: '08030000000', address: { line: 'Profile street', city: 'Lagos', state: 'Lagos' }, brandColor: '#123456', storefront };
+  const business = { ...publicStoreBusinessFields(profile, true, false), storefront };
+  await page.addInitScript(() => localStorage.clear());
+  await page.route('**/*', async route => {
+    const request = route.request(); const url = new URL(request.url());
+    const reply = body => route.fulfill({ contentType: 'application/json', body: JSON.stringify(body) });
+    if (url.hostname === 'media.fixture.invalid') return route.fulfill({ contentType: 'image/png', body: png });
+    if (url.hostname === '127.0.0.1' && !url.pathname.startsWith('/api/')) return route.continue();
+    if (request.method() === 'GET' && url.pathname === '/api/store/fixture') return reply({ business, categories: [] });
+    if (request.method() === 'GET' && url.pathname === '/api/store/fixture/products') return reply({ items: [], total: 0, page: 1, limit: 24 });
+    unexpected.push({ method: request.method(), url: request.url() }); return route.abort();
+  });
+  await page.goto('/store/fixture');
+  await expect(page.getByRole('link', { name: 'Display Studio', exact: true })).toBeVisible();
+  await expect(page.locator('header img')).toHaveAttribute('src', logo);
+  await expect(page.getByRole('heading', { name: 'Public content fixture', exact: true })).toBeVisible();
+  await expect(page.getByText('08040000000', { exact: true })).toBeVisible();
+  await expect(page.getByText('Profile street, Abuja, Lagos', { exact: true })).toBeVisible();
+  await expect.poll(() => page.locator('[style*="--brand"]').first().evaluate(element => element.style.getPropertyValue('--brand'))).toBe('#654321');
+  expect(profile.name).toBe('Legal Business');
+  expect(unexpected).toEqual([]);
+});
