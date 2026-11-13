@@ -11,6 +11,7 @@ test('actual public storefront shell uses saved identity and contact fields', as
   await page.route('**/*', async route => {
     const request = route.request(); const url = new URL(request.url());
     const reply = body => route.fulfill({ contentType: 'application/json', body: JSON.stringify(body) });
+    if (url.origin === 'https://fonts.googleapis.com' && url.pathname === '/css2' && request.method() === 'GET' && request.resourceType() === 'stylesheet') return route.fulfill({ contentType: 'text/css', body: '/* Offline font fixture: fallback fonts only; hosted typography is not verified. */' });
     if (url.hostname === 'media.fixture.invalid') return route.fulfill({ contentType: 'image/png', body: png });
     if (url.hostname === '127.0.0.1' && !url.pathname.startsWith('/api/')) return route.continue();
     if (request.method() === 'GET' && url.pathname === '/api/store/fixture') return reply({ business, categories: [] });
