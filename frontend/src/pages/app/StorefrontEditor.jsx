@@ -1607,15 +1607,6 @@ const handleEditorImageUpload = (url) => {
         </div>
       </div>
 
-      {/* HIDDEN IMAGE INPUT */}
-      <input
-        ref={uploadRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={handleUpload}
-      />
-
       {/* ADD SECTION DIALOG */}
       {showSections && (
         <div className="fixed inset-0 z-[120] flex items-end justify-center bg-slate-950/50 p-3 sm:items-center">
