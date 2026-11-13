@@ -20,7 +20,8 @@ const ConfirmContact = lazy(() => import('./pages/Auth.jsx').then((m) => ({ defa
 const Recover = lazy(() => import('./pages/Recover.jsx').then((m) => ({ default: m.Recover })));
 const RecoverStatus = lazy(() => import('./pages/Recover.jsx').then((m) => ({ default: m.RecoverStatus })));
 
-const StoreLayout = lazy(() => import('./pages/Store.jsx').then((m) => ({ default: m.StoreLayout })));
+const StoreLayout = lazy(() => import('./components/storefront/StorefrontMetadataLayout.jsx'));
+const StoreMetadata = lazy(() => import('./components/storefront/StorefrontMetadataLayout.jsx').then((m) => ({ default: m.StorefrontMetadataOutlet })));
 const StoreServices = lazy(() => import('./pages/Store.jsx').then((m) => ({ default: m.StoreServices })));
 const StoreService = lazy(() => import('./pages/Store.jsx').then((m) => ({ default: m.StoreService })));
 const StoreProduct = lazy(() => import('./pages/Store.jsx').then((m) => ({ default: m.StoreProduct })));
@@ -129,15 +130,17 @@ function StoreRoutes({ merchantSlug }) {
           path={merchantSlug ? '/' : '/store/:slug'}
           element={<StoreLayout merchantSlug={merchantSlug} />}
         >
-          <Route index element={<StorefrontHome />} />
-          <Route path="services" element={<StoreServices />} />
-          <Route path="services/:id" element={<StoreService />} />
-          <Route path="portfolio" element={<StorePortfolio />} />
-          <Route path="portfolio/:projectSlug" element={<StorePortfolioProject />} />
-          <Route path="p/:id" element={<StoreProduct />} />
-          <Route path="checkout" element={<StoreCheckout />} />
-          <Route path="order" element={<StoreOrder />} />
-          <Route path=":pageSlug" element={<StorefrontPage />} />
+          <Route element={<StoreMetadata />}>
+            <Route index element={<StorefrontHome />} />
+            <Route path="services" element={<StoreServices />} />
+            <Route path="services/:id" element={<StoreService />} />
+            <Route path="portfolio" element={<StorePortfolio />} />
+            <Route path="portfolio/:projectSlug" element={<StorePortfolioProject />} />
+            <Route path="p/:id" element={<StoreProduct />} />
+            <Route path="checkout" element={<StoreCheckout />} />
+            <Route path="order" element={<StoreOrder />} />
+            <Route path=":pageSlug" element={<StorefrontPage />} />
+          </Route>
         </Route>
 
         <Route path="*" element={<NotFound />} />
@@ -181,15 +184,17 @@ export default function App() {
           <Route path="/recover/status" element={<RecoverStatus />} />
 
           <Route path="/store/:slug" element={<StoreLayout />}>
-            <Route index element={<StorefrontHome />} />
-            <Route path="services" element={<StoreServices />} />
-            <Route path="services/:id" element={<StoreService />} />
-            <Route path="portfolio" element={<StorePortfolio />} />
-            <Route path="portfolio/:projectSlug" element={<StorePortfolioProject />} />
-            <Route path="p/:id" element={<StoreProduct />} />
-            <Route path="checkout" element={<StoreCheckout />} />
-            <Route path="order" element={<StoreOrder />} />
-            <Route path=":pageSlug" element={<StorefrontPage />} />
+            <Route element={<StoreMetadata />}>
+              <Route index element={<StorefrontHome />} />
+              <Route path="services" element={<StoreServices />} />
+              <Route path="services/:id" element={<StoreService />} />
+              <Route path="portfolio" element={<StorePortfolio />} />
+              <Route path="portfolio/:projectSlug" element={<StorePortfolioProject />} />
+              <Route path="p/:id" element={<StoreProduct />} />
+              <Route path="checkout" element={<StoreCheckout />} />
+              <Route path="order" element={<StoreOrder />} />
+              <Route path=":pageSlug" element={<StorefrontPage />} />
+            </Route>
           </Route>
 
           <Route
