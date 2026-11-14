@@ -52,6 +52,13 @@ const HEIGHT_OPTIONS = [
 const ALIGNMENT_OPTIONS = [
   { value: 'left', label: 'Left' },
   { value: 'center', label: 'Centre' },
+  { value: 'right', label: 'Right' },
+];
+
+const NAVIGATION_STYLE_OPTIONS = [
+  { value: 'plain', label: 'Plain links' },
+  { value: 'underline', label: 'Underlined links' },
+  { value: 'pill', label: 'Pill buttons' },
 ];
 
 function Field({
@@ -718,6 +725,23 @@ export default function SectionInspector({
         title="Layout"
         icon={LayoutGrid}
       >
+        {type === 'navigation' && (
+  <>
+    <Select
+      label="Navigation alignment"
+      value={settings.alignment || 'left'}
+      onChange={(value) => update('alignment', value)}
+      options={ALIGNMENT_OPTIONS}
+    />
+
+    <Select
+      label="Link style"
+      value={settings.linkStyle || 'plain'}
+      onChange={(value) => update('linkStyle', value)}
+      options={NAVIGATION_STYLE_OPTIONS}
+    />
+  </>
+)}
         {showAlignment && (
           <Select
             label="Content alignment"
@@ -858,6 +882,14 @@ export default function SectionInspector({
           Background colour is stored in section settings. The current storefront renderer does not yet apply this property to every section type.
         </div>
       </Accordion>
+
+      {type === 'navigation' && (
+  <ColorField
+    label="Link text colour"
+    value={settings.textColor}
+    onChange={(value) => update('textColor', value)}
+  />
+)}
 
       {/* VISIBILITY */}
 
