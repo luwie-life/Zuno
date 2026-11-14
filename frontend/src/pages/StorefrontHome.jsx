@@ -31,6 +31,35 @@ function SectionHeading({ title, subtitle }) {
   );
 }
 
+function getResponsiveGridClass(type, columns) {
+  const value = Number(columns);
+
+  const layouts = {
+    products: {
+      2: 'grid-cols-2 md:grid-cols-2',
+      3: 'grid-cols-2 md:grid-cols-3',
+      4: 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4',
+    },
+    services: {
+      1: 'grid-cols-1',
+      2: 'grid-cols-1 md:grid-cols-2',
+      3: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
+    },
+    gallery: {
+      2: 'grid-cols-2',
+      3: 'grid-cols-2 md:grid-cols-3',
+      4: 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4',
+    },
+    portfolio: {
+      2: 'grid-cols-1 sm:grid-cols-2',
+      3: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
+      4: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4',
+    },
+  };
+
+  return layouts[type]?.[value] || layouts[type]?.[3];
+}
+
 function getElementStyle(element, theme = {}) {
   const style = element.style || {};
 
@@ -218,7 +247,12 @@ function ElementProducts({ element, context }) {
   }
 
   return (
-    <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+    <div
+  className={`grid gap-4 ${getResponsiveGridClass(
+    'products',
+    element.settings?.columns || 4
+  )}`}
+>
       {products.map((product) => (
         <article
           key={product.id}
@@ -294,7 +328,12 @@ function ElementServices({ element, context }) {
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2">
+    <div
+  className={`grid gap-4 ${getResponsiveGridClass(
+    'services',
+    element.settings?.columns || 2
+  )}`}
+>
       {services.map((service) => (
         <article
           key={service.id}
@@ -728,7 +767,12 @@ function PortfolioSection({ settings, context }) {
           Projects will appear here when available.
         </p>
       ) : (
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div
+  className={`grid gap-5 ${getResponsiveGridClass(
+    'portfolio',
+    settings.columns || 3
+  )}`}
+>
           {projects.map((project) => (
             <Link
               key={project._id || project.slug}
@@ -805,17 +849,33 @@ function LegacySection({ section, context }) {
 
     case 'about':
       return (
-        <section className="grid items-center gap-8 py-10 md:grid-cols-2">
+        <section
+  className={
+    settings.image
+      ? 'grid items-center gap-8 py-10 md:grid-cols-2'
+      : 'py-10'
+  }
+>
           {settings.image && (
             <img
               src={settings.image}
               alt={settings.title || 'About us'}
-              className="max-h-[440px] w-full rounded-3xl object-cover"
+              className={`max-h-[440px] w-full rounded-3xl object-cover ${
+  settings.imagePosition === 'right' ? 'md:order-2' : 'md:order-1'
+}`}
               loading="lazy"
             />
           )}
 
-          <div>
+          <div
+  className={
+    settings.image
+      ? settings.imagePosition === 'right'
+        ? 'md:order-1'
+        : 'md:order-2'
+      : ''
+  }
+>
             <SectionHeading
               title={settings.title || 'About us'}
               subtitle={settings.subtitle}
@@ -827,17 +887,37 @@ function LegacySection({ section, context }) {
         </section>
       );
 
-    case 'image_text':
+        case 'image_text':
       return (
-        <section className="grid items-center gap-8 py-10 md:grid-cols-2">
-          <img
-            src={settings.image}
-            alt={settings.title || ''}
-            className="max-h-[440px] w-full rounded-3xl object-cover"
-            loading="lazy"
-          />
+        <section
+          className={
+            settings.image
+              ? 'grid items-center gap-8 py-10 md:grid-cols-2'
+              : 'py-10'
+          }
+        >
+          {settings.image && (
+            <img
+              src={settings.image}
+              alt={settings.title || ''}
+              className={`max-h-[440px] w-full rounded-3xl object-cover ${
+                settings.imagePosition === 'right'
+                  ? 'md:order-2'
+                  : 'md:order-1'
+              }`}
+              loading="lazy"
+            />
+          )}
 
-          <div>
+          <div
+            className={
+              settings.image
+                ? settings.imagePosition === 'right'
+                  ? 'md:order-1'
+                  : 'md:order-2'
+                : ''
+            }
+          >
             <SectionHeading
               title={settings.title}
               subtitle={settings.subtitle}
@@ -848,7 +928,6 @@ function LegacySection({ section, context }) {
           </div>
         </section>
       );
-
     case 'rich_text':
     case 'custom_content':
       return (
@@ -871,7 +950,12 @@ function LegacySection({ section, context }) {
             subtitle={settings.subtitle}
           />
 
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+         <div
+  className={`grid gap-3 ${getResponsiveGridClass(
+    'gallery',
+    settings.columns || 3
+  )}`}
+>
             {(settings.images || []).map((image, index) => {
               const src = typeof image === 'string' ? image : image?.url;
 
@@ -955,9 +1039,28 @@ function LegacySection({ section, context }) {
         </div>
       ) : null;
 
-    case 'navigation':
+        case 'navigation': {
+      const alignmentClasses = {
+        left: 'justify-start',
+        center: 'justify-center',
+        right: 'justify-end',
+      };
+
+      const linkStyleClasses = {
+        plain: 'hover:underline',
+        underline: 'underline underline-offset-4',
+        pill: 'rounded-full px-4 py-2 hover:bg-black/5',
+      };
+
       return (
-        <nav className="mb-6 flex flex-wrap gap-4 border-b border-line pb-4">
+        <nav
+          className={`mb-6 flex w-full flex-wrap items-center gap-3 border-b border-line pb-4 ${
+            alignmentClasses[settings.alignment] || 'justify-start'
+          }`}
+          style={{
+            backgroundColor: settings.backgroundColor || 'transparent',
+          }}
+        >
           {(context.storefront.pages || [])
             .filter((page) => page.visible)
             .map((page) => (
@@ -968,13 +1071,20 @@ function LegacySection({ section, context }) {
                     ? context.storeBase || '/'
                     : `${context.storeBase}/${page.slug}`
                 }
-                className="text-sm font-medium hover:underline"
+                className={`text-sm font-medium transition-colors ${
+                  linkStyleClasses[settings.linkStyle] ||
+                  linkStyleClasses.plain
+                }`}
+                style={{
+                  color: settings.textColor || 'inherit',
+                }}
               >
                 {page.title}
               </Link>
             ))}
         </nav>
       );
+    }
 
     case 'categories':
       return (
@@ -1109,11 +1219,11 @@ function SectionRenderer({
             className="grid items-center gap-8 py-10 md:grid-cols-2"
             data-editor-element-dropzone={section.id}
           >
-            <div className={imageOnRight ? 'order-2' : 'order-1'}>
+            <div className={imageOnRight ? 'md:order-2' : 'md:order-1'}>
               {renderElementList(images)}
             </div>
 
-            <div className={imageOnRight ? 'order-1' : 'order-2'}>
+            <div className={imageOnRight ? 'md:order-1' : 'md:order-2'}>
               {renderElementList(contentElements)}
             </div>
 

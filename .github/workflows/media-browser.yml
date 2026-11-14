@@ -1,0 +1,42 @@
+name: Media browser regression
+on:
+  pull_request:
+  push:
+    branches: [perplexity/mvp-completion]
+permissions:
+  contents: read
+concurrency:
+  group: media-browser-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  media-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      VITE_API_URL: ''
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: Install pinned CI-only browser test tooling
+        run: npm install --no-save --package-lock=false @playwright/test@1.65.0
+      - run: npx playwright install --with-deps chromium
+      - name: Test real components with fixture APIs on desktop and mobile
+        run: npx playwright test --config tests/browser/playwright.config.js
+      - name: Verify application dependency files remain unchanged
+        if: always()
+        run: git diff --exit-code -- package.json package-lock.json
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: media-browser-failure-details
+          path: frontend/test-results/media-browser
+          if-no-files-found: ignore
+          retention-days: 7

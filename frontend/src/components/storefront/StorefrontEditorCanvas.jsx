@@ -7,12 +7,12 @@ import {
   ZoomOut,
   Maximize2,
   Plus,
-  Eye,
   MousePointer2,
   GripVertical,
 } from 'lucide-react';
 
 import { StorefrontRenderer } from '../../pages/StorefrontHome.jsx';
+import StorefrontDraftPreviewButton from './StorefrontDraftPreviewButton.jsx';
 import useStorefrontPointerInteractions from '../../hooks/useStorefrontPointerInteractions.js';
 import useStorefrontResizeInteractions from '../../hooks/useStorefrontResizeInteractions.js';
 
@@ -179,15 +179,7 @@ export default function StorefrontEditorCanvas({
           </button>
         </div>
 
-        <button
-          type="button"
-          onClick={onPreview}
-          title="Open storefront preview"
-          aria-label="Open storefront preview"
-          className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 lg:flex"
-        >
-          <Eye size={15} />
-        </button>
+        <StorefrontDraftPreviewButton business={business} storefront={storefront} activePage={activePage} initialDevice={device} onOpenLive={onPreview} />
       </div>
 
       {/* MOBILE DEVICE SELECTOR */}

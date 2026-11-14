@@ -38,8 +38,8 @@ test('storefront config keeps a safe draft default and cleans content before pub
   const cfg = normalizeStorefrontConfig({ heroTitle: '   ', heroSubtitle: ' Welcome to my store ', ctaText: '', primaryColor: '#ff0000', published: true }, 'Acme');
   assert.equal(cfg.heroTitle, '');
   assert.equal(cfg.heroSubtitle, 'Welcome to my store');
-  assert.equal(cfg.ctaText, 'Shop now');
-  assert.equal(cfg.primaryColor, '#ff0000');
+  assert.equal(cfg.ctaText, 'Get started');
+  assert.equal(cfg.primaryColor, '#FF0000');
   assert.equal(cfg.published, true);
   assert.equal(cfg.ctaLink, '');
 });

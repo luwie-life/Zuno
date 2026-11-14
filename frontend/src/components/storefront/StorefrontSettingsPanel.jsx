@@ -10,6 +10,8 @@ import {
   ExternalLink,
   Check,
 } from 'lucide-react';
+import { socialLinkValue, updateSocialLink } from '../../lib/storefrontSocialEditor.js';
+import ImageUploadField from '../ImageUploadField.jsx';
 
 const TABS = [
   { id: 'identity', label: 'Identity', icon: Store },
@@ -128,7 +130,7 @@ export default function StorefrontSettingsPanel({
   const identity = config.identity || {};
   const contact = config.contact || {};
   const seo = config.seo || {};
-  const socialLinks = config.socialLinks || {};
+  const socialLinks = config.socialLinks || [];
   const domain = config.domain || {};
 
   const displayName =
@@ -159,8 +161,10 @@ export default function StorefrontSettingsPanel({
   const updateSEO = (key, value) =>
     updateGroup('seo', key, value);
 
-  const updateSocial = (key, value) =>
-    updateGroup('socialLinks', key, value);
+  const updateSocial = (platform, value) => {
+    if (!onUpdate) return;
+    onUpdate({ ...config, socialLinks: updateSocialLink(socialLinks, platform, value) });
+  };
 
   const updateDomain = (key, value) =>
     updateGroup('domain', key, value);
@@ -201,36 +205,19 @@ export default function StorefrontSettingsPanel({
         onChange={(value) => updateIdentity('description', value)}
       />
 
-      <TextField
-        label="Logo URL"
+      <ImageUploadField
+        label="Store logo"
+        purpose="logo"
         value={identity.logo || ''}
-        placeholder="https://..."
+        disabled={typeof onUpdate !== 'function'}
         onChange={(value) => updateIdentity('logo', value)}
-        hint="Media uploads will be connected through the media library phase."
       />
 
-      {identity.logo && (
-        <div className="flex items-center gap-3 rounded-xl border border-slate-200 p-3">
-          <img
-            src={identity.logo}
-            alt="Store logo preview"
-            className="h-14 w-14 rounded-lg border border-slate-100 object-contain"
-          />
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-slate-700">
-              Logo preview
-            </p>
-            <p className="truncate text-xs text-slate-400">
-              {identity.logo}
-            </p>
-          </div>
-        </div>
-      )}
-
-      <TextField
-        label="Favicon URL"
+      <ImageUploadField
+        label="Favicon image"
+        purpose="logo"
         value={identity.favicon || ''}
-        placeholder="https://..."
+        disabled={typeof onUpdate !== 'function'}
         onChange={(value) => updateIdentity('favicon', value)}
       />
 
@@ -330,10 +317,11 @@ export default function StorefrontSettingsPanel({
           hint="Separate keywords with commas."
         />
 
-        <TextField
-          label="Social sharing image URL"
+        <ImageUploadField
+          label="Social sharing image"
+          purpose="banner"
           value={seo.ogImage || ''}
-          placeholder="https://..."
+          disabled={typeof onUpdate !== 'function'}
           onChange={(value) => updateSEO('ogImage', value)}
         />
 
@@ -364,7 +352,7 @@ export default function StorefrontSettingsPanel({
         <TextField
           key={platform}
           label={platform === 'x' ? 'X profile URL' : `${platform[0].toUpperCase()}${platform.slice(1)} URL`}
-          value={socialLinks[platform] || ''}
+          value={socialLinkValue(socialLinks, platform)}
           placeholder={`https://${platform}.com/yourbusiness`}
           onChange={(value) => updateSocial(platform, value)}
         />
@@ -481,12 +469,12 @@ export default function StorefrontSettingsPanel({
       <div className="border-t border-slate-100 px-4 py-3">
         <div className="flex items-center justify-between gap-3">
           <p className="text-xs text-slate-400">
-            Changes are applied to the editor state.
+            Use Save in the main editor to persist changes.
           </p>
 
           <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">
             <Check size={14} />
-            Auto-updated
+            Editor state only
           </span>
         </div>
       </div>

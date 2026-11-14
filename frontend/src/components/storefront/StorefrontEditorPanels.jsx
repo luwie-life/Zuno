@@ -13,6 +13,7 @@ import ColorStudio from './storefront-editor/ColorStudio.jsx';
 import ElementInspector from './storefront-editor/ElementInspector.jsx';
 import SectionInspector from './storefront-editor/SectionInspector.jsx';
 import StorefrontTemplatePanel from './StorefrontTemplatePanel.jsx';
+import StorefrontMediaControls from './StorefrontMediaControls.jsx';
 
 const PANEL_ITEMS = [
   {
@@ -110,19 +111,25 @@ export default function StorefrontEditorPanels({
       case 'inspector':
         if (selectedElement) {
           return (
-            <ElementInspector
-              element={selectedElement}
-              {...elementInspectorProps}
-            />
+            <>
+              <StorefrontMediaControls element={selectedElement} elementInspectorProps={elementInspectorProps} />
+              <ElementInspector
+                element={selectedElement}
+                {...elementInspectorProps}
+              />
+            </>
           );
         }
 
         if (selectedSection) {
           return (
-            <SectionInspector
-              section={selectedSection}
-              {...sectionInspectorProps}
-            />
+            <>
+              <StorefrontMediaControls section={selectedSection} sectionInspectorProps={sectionInspectorProps} />
+              <SectionInspector
+                section={selectedSection}
+                {...sectionInspectorProps}
+              />
+            </>
           );
         }
 
@@ -238,7 +245,7 @@ export default function StorefrontEditorPanels({
               key={id}
               type="button"
               onClick={() => setPanel(id)}
-              className={`flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition ${
+              className={`flex shrink-0 items-center gap-2 rounded-xl px-3 py-2.5 text-xs font-semibold transition ${
                 panel === id
                   ? 'bg-emerald-50 text-emerald-800'
                   : 'bg-slate-50 text-slate-500'

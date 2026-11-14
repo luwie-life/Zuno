@@ -31,6 +31,7 @@ import services from './routes/services.js';
 import bookings from './routes/bookings.js';
 import serviceManagement from './routes/services.js';
 import portfolio from './routes/portfolio.js';
+import media from './routes/media.js';
 
 export function createApp() {
   const app = express();
@@ -76,6 +77,8 @@ export function createApp() {
   // Webhooks need the raw request body.
   app.use('/api/webhooks', webhooks);
 
+  // Media authenticates and resolves ownership before its route-specific 8 MB parser.
+  app.use('/api/media', media);
   app.use(express.json({ limit: '200kb' }));
 
   app.use('/api', rateLimit({

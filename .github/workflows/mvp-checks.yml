@@ -1,0 +1,80 @@
+name: MVP checks
+on:
+  push:
+    branches: [perplexity/mvp-completion]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  backend:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Install backend dependencies
+        run: npm ci
+      - name: Backend unit and HTTP tests
+        run: npm test
+      - name: Verification policy tests
+        run: node --test tests/verification.test.js
+  frontend:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend dependencies
+        run: npm ci
+      - name: Editor regression tests
+        run: node --test tests/*.test.mjs
+      - name: Frontend production build
+        run: npm run build
+  security-integration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      TEST_MONGODB_URI: mongodb://127.0.0.1:27017/zuno_security_test
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Install backend dependencies
+        run: npm ci
+      - name: Start disposable local MongoDB
+        run: |
+          docker run --detach --name zuno-security-mongo --publish 127.0.0.1:27017:27017 mongo:8.0 --bind_ip_all
+          for attempt in $(seq 1 30); do
+            if docker exec zuno-security-mongo mongosh --quiet --eval 'quit(db.adminCommand({ping:1}).ok ? 0 : 1)'; then break; fi
+            sleep 2
+          done
+          docker exec zuno-security-mongo mongosh --quiet --eval 'quit(db.adminCommand({ping:1}).ok ? 0 : 1)'
+      - name: Security and storefront database integration tests
+        run: npm run test:security:integration
+      - name: MongoDB failure diagnostics
+        if: failure()
+        run: docker logs zuno-security-mongo || true
+      - name: Remove disposable MongoDB
+        if: always()
+        run: docker rm --force zuno-security-mongo || true
