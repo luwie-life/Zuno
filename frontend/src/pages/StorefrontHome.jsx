@@ -31,6 +31,35 @@ function SectionHeading({ title, subtitle }) {
   );
 }
 
+function getResponsiveGridClass(type, columns) {
+  const value = Number(columns);
+
+  const layouts = {
+    products: {
+      2: 'grid-cols-2 md:grid-cols-2',
+      3: 'grid-cols-2 md:grid-cols-3',
+      4: 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4',
+    },
+    services: {
+      1: 'grid-cols-1',
+      2: 'grid-cols-1 md:grid-cols-2',
+      3: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
+    },
+    gallery: {
+      2: 'grid-cols-2',
+      3: 'grid-cols-2 md:grid-cols-3',
+      4: 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4',
+    },
+    portfolio: {
+      2: 'grid-cols-1 sm:grid-cols-2',
+      3: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
+      4: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4',
+    },
+  };
+
+  return layouts[type]?.[value] || layouts[type]?.[3];
+}
+
 function getElementStyle(element, theme = {}) {
   const style = element.style || {};
 
@@ -218,7 +247,12 @@ function ElementProducts({ element, context }) {
   }
 
   return (
-    <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+    <div
+  className={`grid gap-4 ${getResponsiveGridClass(
+    'products',
+    element.settings?.columns || 4
+  )}`}
+>
       {products.map((product) => (
         <article
           key={product.id}
@@ -294,7 +328,12 @@ function ElementServices({ element, context }) {
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2">
+    <div
+  className={`grid gap-4 ${getResponsiveGridClass(
+    'services',
+    element.settings?.columns || 2
+  )}`}
+>
       {services.map((service) => (
         <article
           key={service.id}
@@ -728,7 +767,12 @@ function PortfolioSection({ settings, context }) {
           Projects will appear here when available.
         </p>
       ) : (
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div
+  className={`grid gap-5 ${getResponsiveGridClass(
+    'portfolio',
+    settings.columns || 3
+  )}`}
+>
           {projects.map((project) => (
             <Link
               key={project._id || project.slug}
@@ -871,7 +915,12 @@ function LegacySection({ section, context }) {
             subtitle={settings.subtitle}
           />
 
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+         <div
+  className={`grid gap-3 ${getResponsiveGridClass(
+    'gallery',
+    settings.columns || 3
+  )}`}
+>
             {(settings.images || []).map((image, index) => {
               const src = typeof image === 'string' ? image : image?.url;
 
