@@ -878,12 +878,7 @@ export default function SectionInspector({
           onChange={(value) => update('backgroundColor', value)}
         />
 
-        <div className="rounded-xl bg-slate-50 p-3 text-[11px] leading-5 text-slate-500">
-          Background colour is stored in section settings. The current storefront renderer does not yet apply this property to every section type.
-        </div>
-      </Accordion>
-
-      {type === 'navigation' && (
+         {type === 'navigation' && (
   <ColorField
     label="Link text colour"
     value={settings.textColor}
@@ -891,6 +886,13 @@ export default function SectionInspector({
   />
 )}
 
+
+        <div className="rounded-xl bg-slate-50 p-3 text-[11px] leading-5 text-slate-500">
+          Background colour is stored in section settings. The current storefront renderer does not yet apply this property to every section type.
+        </div>
+      </Accordion>
+
+     
       {/* VISIBILITY */}
 
       <Accordion
