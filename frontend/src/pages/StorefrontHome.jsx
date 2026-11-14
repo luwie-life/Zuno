@@ -849,7 +849,13 @@ function LegacySection({ section, context }) {
 
     case 'about':
       return (
-        <section className="grid items-center gap-8 py-10 md:grid-cols-2">
+        <section
+  className={
+    settings.image
+      ? 'grid items-center gap-8 py-10 md:grid-cols-2'
+      : 'py-10'
+  }
+>
           {settings.image && (
             <img
               src={settings.image}
@@ -863,7 +869,11 @@ function LegacySection({ section, context }) {
 
           <div
   className={
-    settings.imagePosition === 'right' ? 'md:order-1' : 'md:order-2'
+    settings.image
+      ? settings.imagePosition === 'right'
+        ? 'md:order-1'
+        : 'md:order-2'
+      : ''
   }
 >
             <SectionHeading
@@ -879,21 +889,36 @@ function LegacySection({ section, context }) {
 
     case 'image_text':
       return (
-        <section className="grid items-center gap-8 py-10 md:grid-cols-2">
+        <section
+  className={
+    settings.image
+      ? 'grid items-center gap-8 py-10 md:grid-cols-2'
+      : 'py-10'
+  }
+>
+          {settings.image && (
+  // existing img element goes 
           <img
             src={settings.image}
             alt={settings.title || ''}
             className={`max-h-[440px] w-full rounded-3xl object-cover ${
   settings.imagePosition === 'right' ? 'md:order-2' : 'md:order-1'
 }`}
+
+          
+)}
             loading="lazy"
           />
 
-          <div
-  className={
-    settings.imagePosition === 'right' ? 'md:order-1' : 'md:order-2'
-  }
->
+                    <div
+            className={
+              settings.image
+                ? settings.imagePosition === 'right'
+                  ? 'md:order-1'
+                  : 'md:order-2'
+                : ''
+            }
+          >
             <SectionHeading
               title={settings.title}
               subtitle={settings.subtitle}
