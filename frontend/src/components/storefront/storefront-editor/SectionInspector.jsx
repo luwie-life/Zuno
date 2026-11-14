@@ -61,6 +61,23 @@ const NAVIGATION_STYLE_OPTIONS = [
   { value: 'pill', label: 'Pill buttons' },
 ];
 
+const GRID_COLUMN_OPTIONS = [
+  { value: '2', label: '2 columns' },
+  { value: '3', label: '3 columns' },
+  { value: '4', label: '4 columns' },
+];
+
+const SERVICE_COLUMN_OPTIONS = [
+  { value: '1', label: '1 column' },
+  { value: '2', label: '2 columns' },
+  { value: '3', label: '3 columns' },
+];
+
+const IMAGE_POSITION_OPTIONS = [
+  { value: 'left', label: 'Image left' },
+  { value: 'right', label: 'Image right' },
+];
+
 function Field({
   label,
   value,
@@ -722,6 +739,47 @@ export default function SectionInspector({
       {/* LAYOUT */}
 
       <Accordion
+
+                {['about', 'image_text'].includes(type) && (
+          <Select
+            label="Image position"
+            value={settings.imagePosition || 'left'}
+            onChange={(value) => update('imagePosition', value)}
+            options={IMAGE_POSITION_OPTIONS}
+          />
+        )}
+
+        {[
+          'gallery',
+          'product_grid',
+          'featured_products',
+          'portfolio_grid',
+          'featured_projects',
+        ].includes(type) && (
+          <Select
+            label="Desktop grid columns"
+            value={String(settings.columns || (
+              type === 'product_grid' || type === 'featured_products'
+                ? 4
+                : 3
+            ))}
+            onChange={(value) => update('columns', Number(value))}
+            options={GRID_COLUMN_OPTIONS}
+          />
+        )}
+
+        {[
+          'services',
+          'featured_services',
+          'service_packages',
+        ].includes(type) && (
+          <Select
+            label="Desktop card columns"
+            value={String(settings.columns || 2)}
+            onChange={(value) => update('columns', Number(value))}
+            options={SERVICE_COLUMN_OPTIONS}
+          />
+        )}
         title="Layout"
         icon={LayoutGrid}
       >
