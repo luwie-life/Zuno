@@ -137,12 +137,7 @@ function TextArea({
   );
 }
 
-function Select({
-  label,
-  value,
-  onChange,
-  options,
-}) {
+function Select({ label, value, onChange, options }) {
   return (
     <label className="block space-y-1.5">
       <span className="block text-xs font-semibold text-slate-600">
@@ -155,10 +150,7 @@ function Select({
         className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm text-slate-800 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
       >
         {options.map((option) => (
-          <option
-            key={option.value}
-            value={option.value}
-          >
+          <option key={option.value} value={option.value}>
             {option.label}
           </option>
         ))}
@@ -291,9 +283,7 @@ function ListEditor({
   const updateItem = (index, changes) => {
     onChange(
       safeItems.map((item, itemIndex) =>
-        itemIndex === index
-          ? { ...item, ...changes }
-          : item
+        itemIndex === index ? { ...item, ...changes } : item
       )
     );
   };
@@ -305,18 +295,13 @@ function ListEditor({
   };
 
   const addItem = () => {
-    onChange([
-      ...safeItems,
-      createItem(),
-    ]);
+    onChange([...safeItems, createItem()]);
   };
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-bold text-slate-700">
-          {title}
-        </p>
+        <p className="text-xs font-bold text-slate-700">{title}</p>
 
         <span className="text-[10px] text-slate-400">
           {safeItems.length} items
@@ -387,7 +372,6 @@ export default function SectionInspector({
   }
 
   const type = section.type;
-
   const label = SECTION_LABELS[type] || type;
 
   const update = (key, value) => {
@@ -463,14 +447,11 @@ export default function SectionInspector({
     'product_grid',
   ].includes(type);
 
-  const showAlignment = [
-    'hero',
-  ].includes(type);
+  const showAlignment = ['hero'].includes(type);
 
   return (
     <div className="space-y-5 pb-6">
       {/* HEADER */}
-
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
@@ -507,7 +488,6 @@ export default function SectionInspector({
       </div>
 
       {/* QUICK ACTIONS */}
-
       <div className="grid grid-cols-3 gap-2">
         <button
           type="button"
@@ -515,9 +495,7 @@ export default function SectionInspector({
           className="flex flex-col items-center gap-1.5 rounded-xl border border-slate-200 px-2 py-3 text-slate-600 transition hover:bg-slate-50"
         >
           <Copy size={16} />
-          <span className="text-[10px] font-semibold">
-            Duplicate
-          </span>
+          <span className="text-[10px] font-semibold">Duplicate</span>
         </button>
 
         <button
@@ -542,18 +520,12 @@ export default function SectionInspector({
           className="flex flex-col items-center gap-1.5 rounded-xl border border-red-100 px-2 py-3 text-red-500 transition hover:bg-red-50"
         >
           <Trash2 size={16} />
-          <span className="text-[10px] font-semibold">
-            Delete
-          </span>
+          <span className="text-[10px] font-semibold">Delete</span>
         </button>
       </div>
 
       {/* CONTENT */}
-
-      <Accordion
-        title="Content"
-        icon={Type}
-      >
+      <Accordion title="Content" icon={Type}>
         {hasTitle && (
           <Field
             label="Section title"
@@ -655,12 +627,8 @@ export default function SectionInspector({
       </Accordion>
 
       {/* MEDIA */}
-
       {hasImage && (
-        <Accordion
-          title="Images"
-          icon={ImageIcon}
-        >
+        <Accordion title="Images" icon={ImageIcon}>
           {type === 'hero' && (
             <Field
               label="Hero background image URL"
@@ -696,18 +664,12 @@ export default function SectionInspector({
       )}
 
       {type === 'gallery' && (
-        <Accordion
-          title="Gallery images"
-          icon={ImageIcon}
-        >
+        <Accordion title="Gallery images" icon={ImageIcon}>
           <ListEditor
             title="Images"
             items={settings.images || []}
             onChange={(value) => update('images', value)}
-            createItem={() => ({
-              url: '',
-              alt: '',
-            })}
+            createItem={() => ({ url: '', alt: '' })}
             addLabel="Add gallery image"
             renderItem={(item, setItem) => {
               const image = typeof item === 'string'
@@ -737,10 +699,8 @@ export default function SectionInspector({
       )}
 
       {/* LAYOUT */}
-
-      <Accordion
-
-                {['about', 'image_text'].includes(type) && (
+      <Accordion title="Layout" icon={LayoutGrid}>
+        {['about', 'image_text'].includes(type) && (
           <Select
             label="Image position"
             value={settings.imagePosition || 'left'}
@@ -758,11 +718,12 @@ export default function SectionInspector({
         ].includes(type) && (
           <Select
             label="Desktop grid columns"
-            value={String(settings.columns || (
-              type === 'product_grid' || type === 'featured_products'
-                ? 4
-                : 3
-            ))}
+            value={String(
+              settings.columns ||
+                (type === 'product_grid' || type === 'featured_products'
+                  ? 4
+                  : 3)
+            )}
             onChange={(value) => update('columns', Number(value))}
             options={GRID_COLUMN_OPTIONS}
           />
@@ -780,26 +741,25 @@ export default function SectionInspector({
             options={SERVICE_COLUMN_OPTIONS}
           />
         )}
-        title="Layout"
-        icon={LayoutGrid}
-      >
-        {type === 'navigation' && (
-  <>
-    <Select
-      label="Navigation alignment"
-      value={settings.alignment || 'left'}
-      onChange={(value) => update('alignment', value)}
-      options={ALIGNMENT_OPTIONS}
-    />
 
-    <Select
-      label="Link style"
-      value={settings.linkStyle || 'plain'}
-      onChange={(value) => update('linkStyle', value)}
-      options={NAVIGATION_STYLE_OPTIONS}
-    />
-  </>
-)}
+        {type === 'navigation' && (
+          <>
+            <Select
+              label="Navigation alignment"
+              value={settings.alignment || 'left'}
+              onChange={(value) => update('alignment', value)}
+              options={ALIGNMENT_OPTIONS}
+            />
+
+            <Select
+              label="Link style"
+              value={settings.linkStyle || 'plain'}
+              onChange={(value) => update('linkStyle', value)}
+              options={NAVIGATION_STYLE_OPTIONS}
+            />
+          </>
+        )}
+
         {showAlignment && (
           <Select
             label="Content alignment"
@@ -842,20 +802,13 @@ export default function SectionInspector({
       </Accordion>
 
       {/* FAQ */}
-
       {type === 'faq' && (
-        <Accordion
-          title="Questions and answers"
-          icon={Type}
-        >
+        <Accordion title="Questions and answers" icon={Type}>
           <ListEditor
             title="FAQ items"
             items={settings.items || []}
             onChange={(value) => update('items', value)}
-            createItem={() => ({
-              question: '',
-              answer: '',
-            })}
+            createItem={() => ({ question: '', answer: '' })}
             addLabel="Add question"
             renderItem={(item, setItem) => (
               <div className="space-y-3">
@@ -880,12 +833,8 @@ export default function SectionInspector({
       )}
 
       {/* SOCIAL LINKS */}
-
       {type === 'social_links' && (
-        <Accordion
-          title="Social links"
-          icon={Type}
-        >
+        <Accordion title="Social links" icon={Type}>
           <ListEditor
             title="Links"
             items={settings.links || []}
@@ -925,38 +874,28 @@ export default function SectionInspector({
       )}
 
       {/* BACKGROUND */}
-
-      <Accordion
-        title="Section appearance"
-        icon={Palette}
-      >
+      <Accordion title="Section appearance" icon={Palette}>
         <ColorField
           label="Background colour"
           value={settings.backgroundColor}
           onChange={(value) => update('backgroundColor', value)}
         />
 
-         {type === 'navigation' && (
-  <ColorField
-    label="Link text colour"
-    value={settings.textColor}
-    onChange={(value) => update('textColor', value)}
-  />
-)}
-
+        {type === 'navigation' && (
+          <ColorField
+            label="Link text colour"
+            value={settings.textColor}
+            onChange={(value) => update('textColor', value)}
+          />
+        )}
 
         <div className="rounded-xl bg-slate-50 p-3 text-[11px] leading-5 text-slate-500">
           Background colour is stored in section settings. The current storefront renderer does not yet apply this property to every section type.
         </div>
       </Accordion>
 
-     
       {/* VISIBILITY */}
-
-      <Accordion
-        title="Visibility"
-        icon={Eye}
-      >
+      <Accordion title="Visibility" icon={Eye}>
         <Toggle
           label="Show this section"
           description="Hidden sections remain saved in your editor."
