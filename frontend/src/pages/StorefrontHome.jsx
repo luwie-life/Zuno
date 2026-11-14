@@ -955,9 +955,28 @@ function LegacySection({ section, context }) {
         </div>
       ) : null;
 
-    case 'navigation':
+        case 'navigation': {
+      const alignmentClasses = {
+        left: 'justify-start',
+        center: 'justify-center',
+        right: 'justify-end',
+      };
+
+      const linkStyleClasses = {
+        plain: 'hover:underline',
+        underline: 'underline underline-offset-4',
+        pill: 'rounded-full px-4 py-2 hover:bg-black/5',
+      };
+
       return (
-        <nav className="mb-6 flex flex-wrap gap-4 border-b border-line pb-4">
+        <nav
+          className={`mb-6 flex w-full flex-wrap items-center gap-3 border-b border-line pb-4 ${
+            alignmentClasses[settings.alignment] || 'justify-start'
+          }`}
+          style={{
+            backgroundColor: settings.backgroundColor || 'transparent',
+          }}
+        >
           {(context.storefront.pages || [])
             .filter((page) => page.visible)
             .map((page) => (
@@ -968,13 +987,20 @@ function LegacySection({ section, context }) {
                     ? context.storeBase || '/'
                     : `${context.storeBase}/${page.slug}`
                 }
-                className="text-sm font-medium hover:underline"
+                className={`text-sm font-medium transition-colors ${
+                  linkStyleClasses[settings.linkStyle] ||
+                  linkStyleClasses.plain
+                }`}
+                style={{
+                  color: settings.textColor || 'inherit',
+                }}
               >
                 {page.title}
               </Link>
             ))}
         </nav>
       );
+    }
 
     case 'categories':
       return (
