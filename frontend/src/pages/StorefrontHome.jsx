@@ -854,12 +854,18 @@ function LegacySection({ section, context }) {
             <img
               src={settings.image}
               alt={settings.title || 'About us'}
-              className="max-h-[440px] w-full rounded-3xl object-cover"
+              className={`max-h-[440px] w-full rounded-3xl object-cover ${
+  settings.imagePosition === 'right' ? 'md:order-2' : 'md:order-1'
+}`}
               loading="lazy"
             />
           )}
 
-          <div>
+          <div
+  className={
+    settings.imagePosition === 'right' ? 'md:order-1' : 'md:order-2'
+  }
+>
             <SectionHeading
               title={settings.title || 'About us'}
               subtitle={settings.subtitle}
@@ -877,11 +883,17 @@ function LegacySection({ section, context }) {
           <img
             src={settings.image}
             alt={settings.title || ''}
-            className="max-h-[440px] w-full rounded-3xl object-cover"
+            className={`max-h-[440px] w-full rounded-3xl object-cover ${
+  settings.imagePosition === 'right' ? 'md:order-2' : 'md:order-1'
+}`}
             loading="lazy"
           />
 
-          <div>
+          <div
+  className={
+    settings.imagePosition === 'right' ? 'md:order-1' : 'md:order-2'
+  }
+>
             <SectionHeading
               title={settings.title}
               subtitle={settings.subtitle}
@@ -1184,11 +1196,11 @@ function SectionRenderer({
             className="grid items-center gap-8 py-10 md:grid-cols-2"
             data-editor-element-dropzone={section.id}
           >
-            <div className={imageOnRight ? 'order-2' : 'order-1'}>
+            <div className={imageOnRight ? 'md:order-2' : 'md:order-1'}>
               {renderElementList(images)}
             </div>
 
-            <div className={imageOnRight ? 'order-1' : 'order-2'}>
+            <div className={imageOnRight ? 'md:order-1' : 'md:order-2'}>
               {renderElementList(contentElements)}
             </div>
 
