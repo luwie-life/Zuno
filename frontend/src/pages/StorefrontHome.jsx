@@ -1033,7 +1033,9 @@ function LegacySection({ section, context }) {
       return settings.text ? (
         <div
           className="mb-6 rounded-xl px-4 py-3 text-center text-sm font-medium text-white"
-          style={{ background: context.color }}
+          style={{
+  background: settings.backgroundColor || context.color,
+}}
         >
           {settings.text}
         </div>
@@ -1259,7 +1261,9 @@ function SectionRenderer({
         return (
           <div
             className="mb-6 rounded-xl px-4 py-3 text-center text-sm font-medium text-white"
-            style={{ background: context.color }}
+            style={{
+  background: section.settings?.backgroundColor || context.color,
+}}
             data-editor-element-dropzone={section.id}
           >
             {renderElementList(section.elements)}
