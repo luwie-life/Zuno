@@ -1306,12 +1306,13 @@ function SectionRenderer({
   // not to an individual section's height.
   const sectionMinHeight = undefined;
 
-  if (!editorMode) {
+    if (!editorMode) {
     return (
       <div
         className="relative"
         style={{
           minHeight: sectionMinHeight,
+          backgroundColor: section.settings?.backgroundColor || 'transparent',
         }}
       >
         {content}
@@ -1349,8 +1350,9 @@ function SectionRenderer({
           : 'hover:outline hover:outline-1 hover:outline-offset-2 hover:outline-emerald-300'
       }`}
       data-editor-section={section.id}
-      style={{
+            style={{
         minHeight: sectionMinHeight,
+        backgroundColor: section.settings?.backgroundColor || 'transparent',
       }}
     >
       {selectedSectionId === section.id && (
