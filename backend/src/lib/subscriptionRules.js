@@ -1,5 +1,5 @@
 
-const DAY = 24 * 60 * 60 * 1000;
+export const DAY = 24 * 60 * 60 * 1000;
 
 export function computeSubscriptionState(
   sub,
@@ -60,8 +60,9 @@ export function nextPeriodEnd(currentPeriodEnd, now = new Date()) {
   return next;
 }
 
-export function featureAllowed(plan, feature, override) {
-  if (override?.features?.includes(feature)) return true;
+export function featureAllowed(plan, feature, override, now = new Date()) {
+  const overrideUntil = override?.until ? new Date(override.until).getTime() : NaN;
+  if (overrideUntil > now.getTime() && override?.features?.includes(feature)) return true;
 
   if (!plan || !Array.isArray(plan.features)) return false;
 

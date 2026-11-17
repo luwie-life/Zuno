@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react';
 const MIN_WIDTH = 24;
 const MIN_HEIGHT = 24;
 const MIN_FONT_SIZE = 8;
-const MAX_FONT_SIZE = 160;
+const MAX_FONT_SIZE = 120;
 
 const HANDLES = [
   { id: 'nw', cursor: 'nwse-resize', x: -1, y: -1 },

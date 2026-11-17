@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App.jsx';
 import { AuthProvider } from './lib/auth.jsx';
 import { ToastProvider } from './components/ui.jsx';
+import VerificationGate from './components/VerificationGate.jsx';
 import './index.css';
 
 class Boundary extends React.Component {
@@ -16,5 +17,5 @@ class Boundary extends React.Component {
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode><Boundary><BrowserRouter><ToastProvider><AuthProvider><App /></AuthProvider></ToastProvider></BrowserRouter></Boundary></React.StrictMode>,
+  <React.StrictMode><Boundary><BrowserRouter><ToastProvider><AuthProvider><VerificationGate><App /></VerificationGate></AuthProvider></ToastProvider></BrowserRouter></Boundary></React.StrictMode>,
 );

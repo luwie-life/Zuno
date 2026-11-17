@@ -12,7 +12,7 @@ import {
 
 import { api } from '../../lib/api.js';
 import { useAuth } from '../../lib/auth.jsx';
-
+import ImageUploadField from '../../components/ImageUploadField.jsx';
 import {
   createSection,
   createElement,
@@ -178,8 +178,8 @@ export default function StorefrontEditor() {
   const [navigationOpen, setNavigationOpen] = useState(false);
 
   const [showSections, setShowSections] = useState(false);
-  const [showElements, setShowElements] = useState(false);
-
+const [showElements, setShowElements] = useState(false);
+const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -195,8 +195,7 @@ export default function StorefrontEditor() {
   const [activeTool, setActiveTool] = useState('elements');
 
   const currentRef = useRef(null);
-  const saveLock = useRef(false);
-  const uploadRef = useRef(null);
+const saveLock = useRef(false);
 
   const pages = storefront?.pages || [];
 
@@ -1073,28 +1072,61 @@ export default function StorefrontEditor() {
       setPanel('layers');
       setShowElements(true);
     }
+if (tool === 'uploads') {
+  if (!selectedSection) {
+    setError('Select a section before uploading an image.');
+    setPanel('layers');
+    return;
+  }
 
-    if (tool === 'uploads') uploadRef.current?.click();
-    if (tool === 'settings') setPanel('settings');
-  };
+  setError('');
+  setShowUploadDialog(true);
+}
 
-  const handleUpload = (event) => {
-    const file = event.target.files?.[0];
+if (tool === 'settings') setPanel('settings');
+};
 
-    if (!file) return;
+const handleEditorImageUpload = (url) => {
+  if (!url || !activePage || !selectedSection) return;
 
-    if (!file.type.startsWith('image/')) {
-      setError('Please select an image file.');
-      event.target.value = '';
-      return;
-    }
+  const element = createElement('image', {
+    src: url,
+    style: {
+      width: '100%',
+      height: 'auto',
+      objectFit: 'cover',
+    },
+  });
 
-    setNotice(
-      'Image selected. Cloudinary upload integration is the next media phase.'
-    );
+  commit((current) => ({
+    ...current,
+    pages: current.pages.map((page) =>
+      page.id !== activePage.id
+        ? page
+        : {
+            ...page,
+            sections: page.sections.map((section) =>
+              section.id !== selectedSection.id
+                ? section
+                : {
+                    ...section,
+                    elements: [
+                      ...(section.elements || []),
+                      element,
+                    ],
+                  }
+            ),
+          }
+    ),
+  }));
 
-    event.target.value = '';
-  };
+  setSelectedSectionId(selectedSection.id);
+  setSelectedElementId(element.id);
+  setShowUploadDialog(false);
+  setPanel('inspector');
+  setDrawerOpen(true);
+  setNotice('Image added. Save your storefront to persist the change.');
+};
 
   // PANEL PROPS
   const pageManagerProps = {
@@ -1575,16 +1607,50 @@ export default function StorefrontEditor() {
         </div>
       </div>
 
-      {/* HIDDEN IMAGE INPUT */}
-      <input
-        ref={uploadRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={handleUpload}
-      />
-
       {/* ADD SECTION DIALOG */}
+            {/* IMAGE UPLOAD DIALOG */}
+      {showUploadDialog && (
+        <div className="fixed inset-0 z-[130] flex items-end justify-center bg-slate-950/50 p-3 sm:items-center">
+          <div className="w-full max-w-lg rounded-3xl bg-white p-5 shadow-2xl">
+            <div className="mb-5 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">
+                  Add an image
+                </h2>
+                <p className="mt-1 text-xs text-slate-500">
+                  Upload an image or choose one from your media library.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowUploadDialog(false)}
+                className="rounded-xl p-2 hover:bg-slate-100"
+                aria-label="Close image upload"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <ImageUploadField
+              label="Storefront image"
+              value=""
+              purpose="editor"
+              showUrl={false}
+              onChange={handleEditorImageUpload}
+            />
+
+            <button
+              type="button"
+              onClick={() => setShowUploadDialog(false)}
+              className="mt-5 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+      
       {showSections && (
         <div className="fixed inset-0 z-[120] flex items-end justify-center bg-slate-950/50 p-3 sm:items-center">
           <div className="max-h-[82svh] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl">
