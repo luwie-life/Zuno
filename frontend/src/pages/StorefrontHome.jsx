@@ -8,6 +8,7 @@ import {
   getBusinessCapabilities,
   isSectionAllowedForBusiness,
   isElementAllowedForBusiness,
+  resolveStorefrontDestination,
 } from '../lib/storefront.js';
 import { useMemo } from 'react';
 import './storefront-templates.css';
@@ -579,6 +580,7 @@ function ElementRenderer({
             title: element.settings?.title || 'Get in touch',
             description: element.settings?.description || content,
             buttonText: element.settings?.buttonText || 'Contact us',
+            buttonLink: element.settings?.buttonLink,
           }}
           context={context}
         />
@@ -812,6 +814,14 @@ function ContactSection({ settings, context }) {
     settings.message ||
       `Hello ${context.biz.name}, I would like to make an enquiry.`
   );
+  const destination =
+    resolveStorefrontDestination(settings.buttonLink, context.storeBase) ||
+    (phone
+      ? {
+          href: `https://wa.me/${phone}?text=${message}`,
+          external: true,
+        }
+      : null);
 
   return (
     <section className="my-10 rounded-3xl bg-gray-950 px-6 py-10 text-white md:px-10">
@@ -825,17 +835,26 @@ function ContactSection({ settings, context }) {
         </p>
       )}
 
-      {phone && (
-        <a
-          href={`https://wa.me/${phone}?text=${message}`}
-          target="_blank"
-          rel="noreferrer"
-          className="mt-6 inline-flex rounded-full px-6 py-3 text-sm font-semibold text-white"
-          style={{ background: context.color }}
-        >
-          {settings.buttonText || 'Contact us'}
-        </a>
-      )}
+      {destination &&
+        (destination.external ? (
+          <a
+            href={destination.href}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-6 inline-flex rounded-full px-6 py-3 text-sm font-semibold text-white"
+            style={{ background: context.color }}
+          >
+            {settings.buttonText || 'Contact us'}
+          </a>
+        ) : (
+          <Link
+            to={destination.href}
+            className="mt-6 inline-flex rounded-full px-6 py-3 text-sm font-semibold text-white"
+            style={{ background: context.color }}
+          >
+            {settings.buttonText || 'Contact us'}
+          </Link>
+        ))}
     </section>
   );
 }
@@ -1034,8 +1053,9 @@ function LegacySection({ section, context }) {
         <div
           className="mb-6 rounded-xl px-4 py-3 text-center text-sm font-medium text-white"
           style={{
-  background: settings.backgroundColor || context.color,
-}}
+            background: settings.backgroundColor || context.color,
+            color: settings.textColor || '#FFFFFF',
+          }}
         >
           {settings.text}
         </div>
@@ -1215,17 +1235,32 @@ function SectionRenderer({
         );
 
         const imageOnRight = section.settings.imagePosition === 'right';
+        const hasImages = images.length > 0;
 
         return (
           <section
-            className="grid items-center gap-8 py-10 md:grid-cols-2"
+            className={
+              hasImages
+                ? 'grid items-center gap-8 py-10 md:grid-cols-2'
+                : 'py-10'
+            }
             data-editor-element-dropzone={section.id}
           >
-            <div className={imageOnRight ? 'md:order-2' : 'md:order-1'}>
-              {renderElementList(images)}
-            </div>
+            {hasImages && (
+              <div className={imageOnRight ? 'md:order-2' : 'md:order-1'}>
+                {renderElementList(images)}
+              </div>
+            )}
 
-            <div className={imageOnRight ? 'md:order-1' : 'md:order-2'}>
+            <div
+              className={
+                hasImages
+                  ? imageOnRight
+                    ? 'md:order-1'
+                    : 'md:order-2'
+                  : ''
+              }
+            >
               {renderElementList(contentElements)}
             </div>
 
@@ -1257,24 +1292,37 @@ function SectionRenderer({
           </section>
         );
 
-      case 'announcement':
-        return (
-          <div
-            className="mb-6 rounded-xl px-4 py-3 text-center text-sm font-medium text-white"
-            style={{
-  background: section.settings?.backgroundColor || context.color,
-}}
-            data-editor-element-dropzone={section.id}
-          >
-            {renderElementList(section.elements)}
-
-            {editorMode && !section.elements?.length && (
-              <div className="flex min-h-8 items-center justify-center text-[11px] text-white/70">
-                Drop elements into this banner
-              </div>
-            )}
-          </div>
+      case 'announcement': {
+        const textColor = section.settings?.textColor || '#FFFFFF';
+        const announcementElements = (section.elements || []).map(
+            (element) =>
+              ['heading', 'text'].includes(element.type)
+                ? {
+                    ...element,
+                    style: { ...element.style, color: textColor },
+                  }
+                : element
         );
+
+        return (
+            <div
+              className="mb-6 rounded-xl px-4 py-3 text-center text-sm font-medium text-white"
+              style={{
+                background: section.settings?.backgroundColor || context.color,
+                color: textColor,
+              }}
+              data-editor-element-dropzone={section.id}
+            >
+              {renderElementList(announcementElements)}
+
+              {editorMode && !section.elements?.length && (
+                <div className="flex min-h-8 items-center justify-center text-[11px] text-white/70">
+                  Drop elements into this banner
+                </div>
+              )}
+            </div>
+        );
+      }
 
       case 'footer':
         return (

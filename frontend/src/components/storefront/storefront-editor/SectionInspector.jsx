@@ -619,9 +619,9 @@ export default function SectionInspector({
           <Field
             label="Button destination"
             value={settings.buttonLink}
-            placeholder="https://wa.me/..."
+            placeholder="/contact or https://example.com"
             onChange={(value) => update('buttonLink', value)}
-            hint="This is stored as a section setting; the current contact renderer may not use it yet."
+            hint="Use an internal storefront path or a complete HTTP(S) URL. Leave blank to use the business WhatsApp number."
           />
         )}
       </Accordion>
@@ -884,6 +884,14 @@ export default function SectionInspector({
         {type === 'navigation' && (
           <ColorField
             label="Link text colour"
+            value={settings.textColor}
+            onChange={(value) => update('textColor', value)}
+          />
+        )}
+
+        {type === 'announcement' && (
+          <ColorField
+            label="Announcement text colour"
             value={settings.textColor}
             onChange={(value) => update('textColor', value)}
           />
