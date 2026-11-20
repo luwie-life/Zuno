@@ -1,5 +1,5 @@
 
-import { Plan, Subscription, Payment } from '../models/index.js';
+import { Plan, Subscription, Payment, Business, User } from '../models/index.js';
 import {
   computeSubscriptionState,
   hasAccess,
@@ -9,6 +9,7 @@ import {
 import { getSettings } from './settings.js';
 import { notFound } from '../lib/errors.js';
 import { audit } from './audit.js';
+import { sendMail } from './mailer.js';
 
 const NGN = (n) => n * 100;
 const DAY = 24 * 60 * 60 * 1000;
@@ -252,6 +253,19 @@ export async function applySubscriptionPayment(payment, tx) {
       amount: payment.amount,
     },
   });
+
+  if (['setup_fee', 'subscription'].includes(payment.purpose)) {
+    const business = await Business.findById(payment.business).select('name email owner');
+    const owner = business && await User.findById(business.owner).select('name email');
+    const recipient = business?.email || owner?.email;
+    if (recipient) await sendMail({
+      user: owner?._id,
+      to: recipient,
+      template: 'subscription_payment',
+      subject: `Payment confirmed for ${business.name}`,
+      text: `Your ${payment.purpose === 'setup_fee' ? 'setup fee' : 'subscription'} payment for ${business.name} has been verified. Reference: ${payment.reference}.`,
+    });
+  }
 }
 
 /**

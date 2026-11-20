@@ -1,4 +1,4 @@
-import { Order, Product, Customer, Business, Payment, Sale } from '../models/index.js';
+import { Order, Product, Customer, Business, Payment, Sale, User } from '../models/index.js';
 import { withTxn } from './db.js';
 import * as inv from './inventory.js';
 import { computeTotals } from '../lib/money.js';
@@ -7,6 +7,7 @@ import { bad, conflict } from '../lib/errors.js';
 import { getSettings } from './settings.js';
 import { env } from '../config/env.js';
 import { startPayment } from './payments.js';
+import { sendMail } from './mailer.js';
 
 export async function upsertCustomer(business, info, session) {
   const or = [];
@@ -54,9 +55,7 @@ export async function createOnlineOrder(business, { items: requested, customer, 
   });
 
   try {
-    const callbackUrl = env.merchantDomain
-      ? `https://${business.slug}.${env.merchantDomain}/order`
-      : `${env.frontendUrl}/store/${business.slug}/order`;
+    const callbackUrl = `${env.frontendUrl}/store/${business.slug}/order`;
     const { payment, authorizationUrl } = await startPayment({
       business: business._id, purpose: 'storefront_order', amount: order.total, email: order.customerInfo.email,
       target: { kind: 'Order', id: order._id }, callbackUrl, // Paystack appends ?reference=...
@@ -72,27 +71,49 @@ export async function createOnlineOrder(business, { items: requested, customer, 
 export async function finalizeOrderPayment(orderId, payment) {
   const order = await Order.findById(orderId);
   if (!order) return;
-  await withTxn(async (session) => {
+  const shouldNotify = await withTxn(async (session) => {
     // Atomic claim: only one caller can move reserved -> deducted
     const claimed = await Order.findOneAndUpdate({ _id: orderId, stockState: 'reserved' }, { stockState: 'deducted', paymentStatus: 'paid', $push: { history: { action: 'payment_verified', note: payment.reference } } }, { new: true, session });
     if (claimed) {
       await inv.commit({ business: order.business, items: claimed.items, type: 'sale_online', ref: { kind: 'Order', id: orderId }, session });
       await Customer.updateOne({ _id: order.customer }, { $inc: { orderCount: 1, totalSpent: order.total } }, { session });
-      return;
+      return true;
     }
     // Reservation already released (expired/cancelled) but money arrived: re-deduct if stock allows, else flag for refund.
     const late = await Order.findOneAndUpdate({ _id: orderId, stockState: 'released' }, { paymentStatus: 'paid', stockState: 'deducted', $push: { history: { action: 'late_payment', note: 'Paid after reservation expired' } } }, { new: true, session });
-    if (!late) return; // already deducted: idempotent no-op
+    if (!late) return false; // already deducted: idempotent no-op
     try {
       await inv.deduct({ business: order.business, items: late.items, type: 'sale_online', ref: { kind: 'Order', id: orderId }, session });
       await Customer.updateOne({ _id: order.customer }, { $inc: { orderCount: 1, totalSpent: order.total } }, { session });
+      return true;
     } catch {
       throw Object.assign(new Error('late_payment_no_stock'), { lateNoStock: true });
     }
   }).catch(async (e) => {
     if (!e.lateNoStock) throw e;
     await Order.updateOne({ _id: orderId }, { paymentStatus: 'refund_pending', stockState: 'released', fulfilmentStatus: 'cancelled', $push: { history: { action: 'needs_refund', note: 'Payment received after reservation expired and stock is no longer available. Refund the customer.' } } });
+    return false;
   });
+  if (shouldNotify) {
+    const business = await Business.findById(order.business).select('name email owner');
+    const owner = business && await User.findById(business.owner).select('name email');
+    if (business) {
+      const merchantEmail = business.email || owner?.email;
+      if (merchantEmail) await sendMail({
+        user: owner?._id,
+        to: merchantEmail,
+        template: 'order_paid_merchant',
+        subject: `New paid order ${order.ref}`,
+        text: `A customer paid for order ${order.ref} at ${business.name}. Total: NGN ${(order.total / 100).toFixed(2)}.`,
+      });
+    }
+    if (order.customerInfo?.email) await sendMail({
+      to: order.customerInfo.email,
+      template: 'order_paid_customer',
+      subject: `Order ${order.ref} confirmed`,
+      text: `Your payment for order ${order.ref} has been confirmed. Total: NGN ${(order.total / 100).toFixed(2)}. Thank you for shopping with ${business?.name || 'us'}.`,
+    });
+  }
 }
 
 export async function failOrderPayment(orderId) {

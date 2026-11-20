@@ -31,6 +31,7 @@ import services from './routes/services.js';
 import bookings from './routes/bookings.js';
 import serviceManagement from './routes/services.js';
 import portfolio from './routes/portfolio.js';
+import menu from './routes/menu.js';
 
 export function createApp() {
   const app = express();
@@ -134,6 +135,7 @@ export function createApp() {
 
   // Portfolio management.
   app.use('/api/portfolio', portfolio);
+  app.use('/api/menu', menu);
 
   app.use('/api/pos', pos);
   app.use('/api/inventory', inventory);

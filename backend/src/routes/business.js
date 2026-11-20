@@ -1,8 +1,10 @@
+
 import { Router } from 'express';
 import {
   Business,
   Membership,
   Product,
+  MenuItem,
   User,
   Plan,
 } from '../models/index.js';
@@ -22,7 +24,8 @@ import {
 
 import { audit } from '../services/audit.js';
 import { businessModulesFor } from '../lib/businessModules.js';
-import { normalizeStorefrontConfig } from '../lib/storefront.js';
+import { sendMail } from '../services/mailer.js';
+import { env } from '../config/env.js';
 
 const r = Router();
 
@@ -59,9 +62,11 @@ const slugSchema = z
   );
 
 const addr = z.object({
-  line: z.string().max(200).optional(),
-  city: z.string().max(80).optional(),
-  state: z.string().max(80).optional(),
+  line: z.string().trim().max(200).optional(),
+  city: z.string().trim().max(80).optional(),
+  state: z.string().trim().max(80).optional(),
+  postalCode: z.string().trim().max(20).optional(),
+  country: z.string().trim().max(80).optional(),
 });
 
 const httpsUrl = z
@@ -72,6 +77,94 @@ const httpsUrl = z
     'Must be an https URL',
   );
 
+const urlOrEmpty = httpsUrl.or(z.literal(''));
+const brandColor = z.string().regex(/^#[0-9a-fA-F]{6}$/);
+
+const socialLinks = z.object({
+  website: urlOrEmpty.optional(),
+  instagram: urlOrEmpty.optional(),
+  facebook: urlOrEmpty.optional(),
+  tiktok: urlOrEmpty.optional(),
+  youtube: urlOrEmpty.optional(),
+  linkedin: urlOrEmpty.optional(),
+  x: urlOrEmpty.optional(),
+});
+
+const TIME_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
+
+const hoursEntry = z.object({
+  dayOfWeek: z.number().int().min(0).max(6),
+  open: z.string().regex(TIME_PATTERN).optional(),
+  close: z.string().regex(TIME_PATTERN).optional(),
+  closed: z.boolean().default(false),
+}).superRefine((item, ctx) => {
+  if (item.closed) return;
+
+  if (!item.open) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['open'],
+      message: 'Opening time is required for an open day.',
+    });
+  }
+
+  if (!item.close) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['close'],
+      message: 'Closing time is required for an open day.',
+    });
+  }
+
+  if (item.open && item.close && item.open >= item.close) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['close'],
+      message: 'Closing time must be after opening time.',
+    });
+  }
+});
+
+const businessHours = z.array(hoursEntry).max(7).superRefine((hours, ctx) => {
+  if (new Set(hours.map((item) => item.dayOfWeek)).size !== hours.length) {
+    ctx.addIssue({
+      code: 'custom',
+      message: 'Business hours must not repeat a weekday.',
+    });
+  }
+});
+
+const faqs = z.array(z.object({
+  question: z.string().trim().min(1).max(240),
+  answer: z.string().trim().min(1).max(2000),
+  sortOrder: z.number().int().min(0).max(10000).optional(),
+})).max(50);
+
+const storefrontAppearance = z.object({
+  primaryColor: brandColor.optional(),
+  accentColor: brandColor.optional(),
+  backgroundColor: brandColor.optional(),
+  textColor: brandColor.optional(),
+});
+
+const templateId = z.string()
+  .trim()
+  .regex(/^[a-z0-9][a-z0-9_-]{1,63}$/i, 'Invalid template ID');
+
+function hasBusinessProfile(business) {
+  return Boolean(
+    business.category
+    && business.phone
+    && (
+      business.address?.city
+      || business.serviceArea
+      || business.serviceInfo?.serviceArea
+    ),
+  );
+}
+
+// ---- create business ----
+
 r.post('/', asyncH(async (req, res) => {
   const b = parse(
     z.object({
@@ -79,7 +172,7 @@ r.post('/', asyncH(async (req, res) => {
       slug: slugSchema,
       planKey: z.string().min(2).max(40),
       businessType: z
-        .enum(['product', 'service', 'both'])
+        .enum(['product', 'service', 'restaurant', 'hybrid'])
         .default('product'),
       category: z.string().max(80).optional(),
     }),
@@ -144,15 +237,19 @@ r.post('/', asyncH(async (req, res) => {
   res.status(201).json({ business });
 }));
 
+// ---- slug availability ----
+
 r.get('/slug-available/:slug', asyncH(async (req, res) => {
   const s = slugSchema.safeParse(req.params.slug);
 
   res.json({
     available:
-      s.success &&
-      !(await Business.exists({ slug: s.data })),
+      s.success
+      && !(await Business.exists({ slug: s.data })),
   });
 }));
+
+// ---- current business ----
 
 r.get(
   '/current',
@@ -160,10 +257,14 @@ r.get(
   asyncH(async (req, res) => {
     const b = req.business;
 
-    const [products, access] = await Promise.all([
+    const [products, menuItems, access] = await Promise.all([
       Product.countDocuments({
         business: b._id,
         archived: false,
+      }),
+      MenuItem.countDocuments({
+        business: b._id,
+        published: true,
       }),
       getAccess(b._id),
     ]);
@@ -171,8 +272,8 @@ r.get(
     const modules = businessModulesFor(b.businessType);
 
     const overrideFeatures =
-      access.access &&
-      access.sub?.override?.until > new Date()
+      access.access
+      && access.sub?.override?.until > new Date()
         ? access.sub.override.features || []
         : [];
 
@@ -185,11 +286,7 @@ r.get(
         ]
       : [];
 
-    const profileDone = !!(
-      b.category &&
-      b.phone &&
-      b.address?.city
-    );
+    const profileDone = hasBusinessProfile(b);
 
     const steps = [
       {
@@ -214,17 +311,31 @@ r.get(
             {
               key: 'publish',
               label: 'Publish your store',
-              done: b.storePublished,
+              done: Boolean(b.storePublished),
             },
           ]
-        : [
-            {
-              key: 'portfolio',
-              label: 'Add your first service or project',
-              done: b.storePublished,
-              optional: true,
-            },
-          ]),
+        : modules.includes('menu')
+          ? [
+              {
+                key: 'menu',
+                label: 'Add your first menu item',
+                done: menuItems > 0,
+                optional: true,
+              },
+              {
+                key: 'publish',
+                label: 'Publish your store',
+                done: Boolean(b.storePublished),
+              },
+            ]
+          : [
+              {
+                key: 'portfolio',
+                label: 'Add your first service or project',
+                done: Boolean(b.storePublished),
+                optional: true,
+              },
+            ]),
     ];
 
     res.json({
@@ -250,6 +361,8 @@ r.get(
         'customers.write',
         'services.read',
         'services.write',
+        'menu.read',
+        'menu.write',
         'bookings.read',
         'bookings.manage',
         'staff.manage',
@@ -280,6 +393,8 @@ r.get(
   }),
 );
 
+// ---- update business profile ----
+
 r.patch(
   '/current',
   requireBusiness('business.update'),
@@ -287,19 +402,115 @@ r.patch(
     const b = parse(
       z.object({
         name: z.string().trim().min(2).max(120),
+        slug: slugSchema,
         category: z.string().max(80),
         description: z.string().max(1000),
         phone,
+        whatsapp: phone,
         email: z.string().email(),
-        address: addr,
-        logoUrl: httpsUrl.or(z.literal('')),
-        brandColor: z
-          .string()
-          .regex(/^#[0-9a-fA-F]{6}$/),
+        address: addr.partial(),
+        serviceArea: z.string().trim().max(1000),
+        logoUrl: urlOrEmpty,
+        images: z.array(httpsUrl).max(20),
+        brandColor,
+        brandColors: z.object({
+          primary: brandColor.optional(),
+          secondary: brandColor.optional(),
+          accent: brandColor.optional(),
+        }),
+        socialLinks,
+        about: z.object({
+          heading: z.string().trim().max(120).optional(),
+          content: z.string().trim().max(5000).optional(),
+          imageUrl: urlOrEmpty.optional(),
+        }),
+        deliveryInfo: z.object({
+          available: z.boolean().optional(),
+          fee: kobo.optional(),
+          estimatedTime: z.string().trim().max(120).optional(),
+          details: z.string().trim().max(2000).optional(),
+        }),
+        serviceInfo: z.object({
+          serviceArea: z.string().trim().max(1000).optional(),
+          onsite: z.boolean().optional(),
+          remote: z.boolean().optional(),
+          details: z.string().trim().max(2000).optional(),
+        }),
+        weeklyHours: businessHours,
+        storePolicies: z.object({
+          shipping: z.string().trim().max(3000).optional(),
+          returns: z.string().trim().max(3000).optional(),
+          cancellations: z.string().trim().max(3000).optional(),
+          privacy: z.string().trim().max(3000).optional(),
+          terms: z.string().trim().max(3000).optional(),
+        }),
+        faqs,
         deliveryFee: kobo,
       }).partial(),
       req.body,
     );
+
+    if (
+      b.slug
+      && b.slug !== req.business.slug
+      && await Business.exists({
+        slug: b.slug,
+        _id: { $ne: req.business._id },
+      })
+    ) {
+      throw conflict('That store address is taken.', 'SLUG_TAKEN');
+    }
+
+    if (b.slug) {
+      b.slug = b.slug.toLowerCase();
+    }
+
+    for (const key of [
+      'address',
+      'brandColors',
+      'socialLinks',
+      'about',
+      'deliveryInfo',
+      'serviceInfo',
+      'storePolicies',
+    ]) {
+      if (b[key]) {
+        const current =
+          req.business[key]?.toObject?.()
+          || req.business[key]
+          || {};
+
+        b[key] = { ...current, ...b[key] };
+      }
+    }
+
+    if (b.brandColor && !b.brandColors?.primary) {
+      const currentColors =
+        req.business.brandColors?.toObject?.()
+        || req.business.brandColors
+        || {};
+
+      b.brandColors = {
+        ...currentColors,
+        primary: b.brandColor,
+      };
+    } else if (b.brandColors?.primary) {
+      b.brandColor = b.brandColors.primary;
+    }
+
+    if (b.deliveryInfo?.fee !== undefined) {
+      b.deliveryFee = b.deliveryInfo.fee;
+    } else if (b.deliveryFee !== undefined) {
+      const currentDelivery =
+        req.business.deliveryInfo?.toObject?.()
+        || req.business.deliveryInfo
+        || {};
+
+      b.deliveryInfo = {
+        ...currentDelivery,
+        fee: b.deliveryFee,
+      };
+    }
 
     Object.assign(req.business, b);
 
@@ -309,16 +520,13 @@ r.patch(
   }),
 );
 
+// ---- storefront settings ----
+
 r.get(
   '/current/storefront',
   requireBusiness('business.update'),
   asyncH(async (req, res) => {
-    const storefront = normalizeStorefrontConfig(
-      req.business.storefront || {},
-      req.business.name,
-    );
-
-    res.json({ storefront });
+    res.json({ storefront: req.business.storefront });
   }),
 );
 
@@ -328,46 +536,33 @@ r.put(
   asyncH(async (req, res) => {
     const body = parse(
       z.object({
-        heroTitle: z.string().max(80).optional(),
-        heroSubtitle: z.string().max(160).optional(),
-        ctaText: z.string().max(40).optional(),
-        ctaLink: z.string().max(200).optional(),
-        primaryColor: z
-          .string()
-          .regex(/^#[0-9a-fA-F]{6}$/)
-          .optional(),
-        backgroundImage: z.string().max(500).optional(),
-        bannerImage: z.string().max(500).optional(),
-        published: z.boolean().optional(),
-
-        // Dynamic storefront builder data.
-        version: z.number().int().optional(),
-        theme: z.record(z.unknown()).optional(),
-        pages: z.array(z.record(z.unknown())).optional(),
-        activePage: z.string().max(100).optional(),
-      }).partial(),
+        templateId: templateId.optional(),
+        appearance: storefrontAppearance.optional(),
+      }).strict(),
       req.body,
     );
 
-    const existing = req.business.storefront?.toObject
-      ? req.business.storefront.toObject()
-      : req.business.storefront || {};
+    const existing =
+      req.business.storefront?.toObject?.()
+      || req.business.storefront
+      || {};
 
-    const storefront = normalizeStorefrontConfig(
-      {
-        ...existing,
-        ...body,
+    req.business.storefront = {
+      ...existing,
+      ...body,
+      appearance: {
+        ...(existing.appearance || {}),
+        ...(body.appearance || {}),
       },
-      req.business.name,
-    );
-
-    req.business.storefront = storefront;
+    };
 
     await req.business.save();
 
-    res.json({ storefront });
+    res.json({ storefront: req.business.storefront });
   }),
 );
+
+// ---- publish storefront ----
 
 r.post(
   '/current/publish',
@@ -387,8 +582,9 @@ r.post(
 
       const hasCommerce = modules.includes('commerce');
       const hasServices = modules.includes('services');
+      const hasMenu = modules.includes('menu');
 
-      if (!hasCommerce && !hasServices) {
+      if (!hasCommerce && !hasServices && !hasMenu) {
         throw forbidden(
           'Publishing is not enabled for this business type.',
         );
@@ -400,14 +596,25 @@ r.post(
         );
       }
 
-      if (!(b.category && b.phone && b.address?.city)) {
+      if (!hasBusinessProfile(b)) {
         throw bad(
-          'Add your category, phone and city first.',
+          'Add your category, phone and business location or service area first.',
         );
+      }
+
+      if (!b.storefront?.templateId) {
+        throw bad('Select a storefront template before publishing.');
       }
     }
 
+    const wasPublished = Boolean(b.storePublished);
+
+    if (!b.storefront) {
+      b.storefront = {};
+    }
+
     b.storePublished = publish;
+    b.storefront.status = publish ? 'published' : 'draft';
 
     await b.save();
 
@@ -420,6 +627,28 @@ r.post(
       targetId: b._id,
       business: b._id,
     });
+
+    if (publish && !wasPublished) {
+      try {
+        const owner = await User.findById(b.owner).select('email name');
+
+        const recipient = b.email || owner?.email;
+
+        if (recipient) {
+          await sendMail({
+            user: owner?._id,
+            to: recipient,
+            template: 'store_published',
+            subject: `${b.name} is now published`,
+            text: `Your storefront is live at ${env.frontendUrl}/store/${b.slug}.`,
+          });
+        }
+      } catch (error) {
+        // Publishing has already succeeded. A notification failure
+        // must not make the publish request appear unsuccessful.
+        console.error('Store publication email failed:', error);
+      }
+    }
 
     res.json({ business: b });
   }),
@@ -482,9 +711,7 @@ r.post(
     });
 
     if (existing?.status === 'active') {
-      throw conflict(
-        'They are already on this team.',
-      );
+      throw conflict('They are already on this team.');
     }
 
     if (existing) {
@@ -530,9 +757,7 @@ r.patch(
     });
 
     if (!m || m.role === 'owner') {
-      throw bad(
-        'Member not found or cannot be changed.',
-      );
+      throw bad('Member not found or cannot be changed.');
     }
 
     m.role = b.role;
@@ -563,9 +788,7 @@ r.delete(
     });
 
     if (!m || m.role === 'owner') {
-      throw bad(
-        'Member not found or cannot be removed.',
-      );
+      throw bad('Member not found or cannot be removed.');
     }
 
     m.status = 'revoked';

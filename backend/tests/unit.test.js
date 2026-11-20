@@ -24,6 +24,7 @@ import { requireModule } from '../src/middleware/auth.js';
 import { availableBookingTimes, parseLocalDate, parseLocalTime, resolveBookingSlot, validTimezone } from '../src/lib/bookingAvailability.js';
 import { merchantOriginAllowed } from '../src/lib/merchantDomain.js';
 import { normalizeStorefrontConfig } from '../src/lib/storefront.js';
+import { renderEmailTemplate } from '../src/services/emailTemplates.js';
 
 test('merchant CORS accepts only HTTPS origins on one configured subdomain', () => {
   assert.equal(merchantOriginAllowed('https://shop.example.com', 'example.com'), true);
@@ -38,28 +39,29 @@ test('storefront config keeps a safe draft default and cleans content before pub
   const cfg = normalizeStorefrontConfig({ heroTitle: '   ', heroSubtitle: ' Welcome to my store ', ctaText: '', primaryColor: '#ff0000', published: true }, 'Acme');
   assert.equal(cfg.heroTitle, '');
   assert.equal(cfg.heroSubtitle, 'Welcome to my store');
-  assert.equal(cfg.ctaText, 'Shop now');
-  assert.equal(cfg.primaryColor, '#ff0000');
+  assert.equal(cfg.ctaText, 'Get started');
+  assert.equal(cfg.primaryColor, '#FF0000');
   assert.equal(cfg.published, true);
   assert.equal(cfg.ctaLink, '');
 });
 
-test('business type module mapping preserves product defaults and supports service and both', () => {
+test('business type module mapping covers product, service, restaurant, and hybrid businesses', () => {
   assert.deepEqual(businessModulesFor('product'), ['commerce']);
   assert.deepEqual(businessModulesFor('service'), ['services']);
-  assert.deepEqual(businessModulesFor('both'), ['commerce', 'services']);
+  assert.deepEqual(businessModulesFor('restaurant'), ['menu']);
+  assert.deepEqual(businessModulesFor('hybrid'), ['commerce', 'services', 'menu']);
   assert.deepEqual(businessModulesFor(), ['commerce']);
   assert.deepEqual(businessModulesFor('unknown'), ['commerce']);
   assert.equal(Business.schema.path('businessType').defaultValue, 'product');
 });
 
-test('storefront hero metadata has safe defaults for the lightweight storefront editor', () => {
+test('storefront metadata uses a selected template and structured appearance defaults', () => {
   const storefront = Business.schema.path('storefront');
   assert.ok(storefront);
-  assert.equal(storefront.schema.path('heroTitle').defaultValue, '');
-  assert.equal(storefront.schema.path('heroSubtitle').defaultValue, '');
-  assert.equal(storefront.schema.path('ctaText').defaultValue, 'Shop now');
-  assert.equal(storefront.schema.path('bannerImage').defaultValue, '');
+  assert.equal(storefront.schema.path('templateId').defaultValue, '');
+  assert.equal(storefront.schema.path('status').defaultValue, 'draft');
+  assert.equal(storefront.schema.path('appearance').schema.path('primaryColor').defaultValue, '#0B6B4F');
+  assert.equal(Business.schema.path('businessType').enumValues.includes('restaurant'), true);
 });
 
 test('module authorization allows services and rejects commerce for service-only businesses', async () => {
@@ -74,8 +76,18 @@ test('module authorization allows services and rejects commerce for service-only
   await requireModule('services')({ business: serviceBusiness }, {}, (nextError) => { error = nextError; });
   assert.equal(error, undefined);
   error = undefined;
-  await requireModule('commerce')({ business: { businessType: 'both' } }, {}, (nextError) => { error = nextError; });
+  await requireModule('commerce')({ business: { businessType: 'hybrid' } }, {}, (nextError) => { error = nextError; });
   assert.equal(error, undefined);
+  error = undefined;
+  await requireModule('menu')({ business: { businessType: 'restaurant' } }, {}, (nextError) => { error = nextError; });
+  assert.equal(error, undefined);
+});
+
+test('email templates include plain text and escape untrusted content in their HTML alternative', () => {
+  const rendered = renderEmailTemplate({ template: 'welcome', text: 'Hello <merchant>' });
+  assert.equal(rendered.text, 'Hello <merchant>');
+  assert.match(rendered.html, /Hello &lt;merchant&gt;/);
+  assert.match(rendered.html, /<!doctype html>/i);
 });
 
 test('booking availability validates timezone, hours, duration, and overlapping 15-minute slots', () => {

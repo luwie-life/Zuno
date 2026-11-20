@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { Business, Product, Category, Order, Payment, Service, Booking } from '../models/index.js';
+import { Business, Product, Category, Order, Payment, Service, Booking, MenuCategory, MenuItem } from '../models/index.js';
 import { asyncH, notFound, bad } from '../lib/errors.js';
 import { parse, z, objectId, phone, escapeRegex, pageParams } from '../lib/validate.js';
 import { getAccess } from '../services/subscriptions.js';
@@ -9,7 +9,6 @@ import { verifyAndApply } from '../services/payments.js';
 import { businessModulesFor } from '../lib/businessModules.js';
 import { featureAllowed } from '../lib/subscriptionRules.js';
 import { createBookingRequest, listAvailableTimes } from '../services/bookingOperations.js';
-import { normalizeStorefrontConfig } from '../lib/storefront.js';
 
 const r = Router();
 
@@ -38,8 +37,9 @@ async function liveStore(slug) {
   const modules = businessModulesFor(b.businessType);
   const hasCommerce = modules.includes('commerce');
   const hasServices = modules.includes('services');
+  const hasMenu = modules.includes('menu');
 
-  if (!hasCommerce && !hasServices) {
+  if (!hasCommerce && !hasServices && !hasMenu) {
     throw notFound('Store not found');
   }
 
@@ -57,24 +57,42 @@ async function liveStore(slug) {
       access &&
       featureAllowed(plan, 'services') &&
       featureAllowed(plan, 'bookings'),
+    acceptingMenu: hasMenu && access,
   };
 }
 
-const publicBiz = (b, accepting, acceptingServices) => ({
+const publicBiz = (b, accepting, acceptingServices, acceptingMenu) => ({
   name: b.name,
   slug: b.slug,
+  businessType: b.businessType,
   description: b.description,
   category: b.category,
   phone: b.phone,
+  whatsapp: b.whatsapp,
   email: b.email,
   address: b.address,
+  serviceArea: b.serviceArea,
   logoUrl: b.logoUrl,
+  images: b.images,
   brandColor: b.brandColor,
-  storefront: normalizeStorefrontConfig(b.storefront, b.name),
+  brandColors: b.brandColors,
+  socialLinks: b.socialLinks,
+  about: b.about,
+  deliveryInfo: b.deliveryInfo,
+  serviceInfo: b.serviceInfo,
+  weeklyHours: b.weeklyHours,
+  storePolicies: b.storePolicies,
+  faqs: b.faqs,
+  storefront: {
+    templateId: b.storefront?.templateId || '',
+    appearance: b.storefront?.appearance || {},
+    status: b.storefront?.status || 'draft',
+  },
   deliveryFee: b.deliveryFee,
   timezone: b.timezone || 'Africa/Lagos',
   acceptingOrders: accepting,
   acceptingServices,
+  acceptingMenu,
 });
 
 const publicProduct = (p) => ({
@@ -96,7 +114,8 @@ const publicService = (service) => ({
   name: service.name,
   description: service.description,
   category: service.category,
-  price: service.price,
+  price: service.price ?? null,
+  pricingDescription: service.pricingDescription || '',
   durationMinutes: service.durationMinutes,
   bookingRequirements: service.bookingRequirements,
 });
@@ -108,15 +127,43 @@ function requireCommerce(accepting) {
 }
 
 r.get('/:slug', asyncH(async (req, res) => {
-  const { b, accepting, acceptingServices } = await liveStore(req.params.slug);
+  const { b, accepting, acceptingServices, acceptingMenu } = await liveStore(req.params.slug);
 
   res.json({
-    business: publicBiz(b, accepting, acceptingServices),
+    business: publicBiz(b, accepting, acceptingServices, acceptingMenu),
     categories: accepting
       ? await Category.find({ business: b._id })
           .select('name')
           .sort('name')
       : [],
+  });
+}));
+
+r.get('/:slug/menu', asyncH(async (req, res) => {
+  const { b, acceptingMenu } = await liveStore(req.params.slug);
+  if (!acceptingMenu) throw notFound('Restaurant menu is not available for this business.');
+
+  const categories = await MenuCategory.find({ business: b._id, published: true })
+    .sort({ sortOrder: 1, name: 1 })
+    .select('name description sortOrder')
+    .lean();
+  const categoryIds = categories.map((category) => category._id);
+  const items = categoryIds.length
+    ? await MenuItem.find({
+      business: b._id,
+      category: { $in: categoryIds },
+      published: true,
+      available: true,
+    }).sort({ sortOrder: 1, name: 1 }).select('category name description price imageUrl sortOrder').lean()
+    : [];
+  const byCategory = new Map(categories.map((category) => [String(category._id), []]));
+  for (const item of items) byCategory.get(String(item.category))?.push(item);
+
+  res.json({
+    categories: categories.map((category) => ({
+      ...category,
+      items: byCategory.get(String(category._id)) || [],
+    })),
   });
 }));
 
@@ -131,6 +178,7 @@ r.get('/:slug/services', asyncH(async (req, res) => {
     business: b._id,
     status: 'active',
     published: true,
+    bookable: true,
   }).sort('name');
 
   res.json({
@@ -150,6 +198,7 @@ r.get('/:slug/services/:id/availability', asyncH(async (req, res) => {
     business: b._id,
     status: 'active',
     published: true,
+    bookable: true,
   });
 
   if (!service) {

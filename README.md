@@ -1,6 +1,6 @@
 # Zuno
 
-Nigeria-first commerce and business management SaaS: online storefront, integrated POS, one shared inventory, Paystack payments, subscriptions, secure account recovery, a platform control centre, and a branded-mobile-app application workflow.
+Nigeria-first business setup and management SaaS: verified merchant accounts, guided business profiles, normalized products/services/restaurant menus, selectable storefront templates at `/store/:slug`, integrated POS and inventory, Paystack payments, subscriptions, and secure account recovery.
 
 ```
 backend/    Express + MongoDB API  (deploy to Render)
@@ -38,7 +38,7 @@ npm run create-admin -- you@example.com "Your Name"   # password is typed at a h
 ```
 Then sign in at `/admin/login`. Create other staff by registering a normal account, then promoting it directly in the database (`platformRole: "support"` or `"billing"`); a staff-management UI is not built yet.
 
-**Emails in development:** with no SMTP set, emails are **not sent**; each is recorded as `skipped_no_provider`. Set `DEV_LOG_EMAILS=true` (non-production only) to print verification/reset links in the server console.
+**Emails in development:** with no SMTP set, emails are **not sent**; each attempt is recorded as `skipped_no_provider` and is never reported as delivered. Set `DEV_LOG_EMAILS=true` (non-production only) to print verification/reset links in the server console. Configured SMTP messages include reusable HTML and plain-text alternatives.
 
 ## Commands
 
@@ -62,7 +62,6 @@ Then sign in at `/admin/login`. Create other staff by registering a normal accou
 | `SESSION_HOURS` | Session lifetime (default 12) |
 | `FRONTEND_URL` | Public frontend URL; used in email links and Paystack callbacks |
 | `CORS_ORIGINS` | Comma-separated exact origins allowed to call the API (no wildcard) |
-| `MERCHANT_DOMAIN` | Optional root hostname for merchant subdomains, without scheme or wildcard (for example `shops.example.com`) |
 | `BACKEND_URL` | This API's public URL |
 | `TRUST_PROXY` | `true` on Render so rate limiting sees real IPs |
 | `PLATFORM_PAYSTACK_SECRET_KEY` | Zuno-owned subscriptions/setup fees only. Server-only; never used for merchant sales |
@@ -70,7 +69,7 @@ Then sign in at `/admin/login`. Create other staff by registering a normal accou
 | `SMTP_HOST/PORT/USER/PASS`, `EMAIL_FROM` | Any SMTP provider (Brevo, Mailgun, Resend SMTP, Gmail app password…) |
 | `RUN_JOBS` | `false` to disable in-process background jobs |
 
-**Frontend (`frontend/.env`)**: `VITE_API_URL` and, when merchant subdomains are activated, `VITE_MERCHANT_DOMAIN` (the same root hostname as the backend setting). Never put secrets in `VITE_*` variables.
+**Frontend (`frontend/.env`)**: `VITE_API_URL`. Never put secrets in `VITE_*` variables.
 
 ## Deployment
 
@@ -89,7 +88,7 @@ This prints only whether the variable is loaded, its URI scheme, and the hostnam
 
 **Frontend on Vercel:** root dir `frontend`, framework Vite, build `npm run build`, output `dist`, env `VITE_API_URL=https://your-api.onrender.com`. `vercel.json` already rewrites all routes to `index.html`.
 
-**Merchant subdomains (optional):** first configure wildcard DNS (`*.your-domain`) to the frontend host and provision its wildcard TLS certificate. Then set backend `MERCHANT_DOMAIN=your-domain` and frontend `VITE_MERCHANT_DOMAIN=your-domain`, and redeploy both. The existing unique business slug becomes the subdomain, so `shop.your-domain` opens that store; reserved and invalid slugs remain unavailable. Keep both settings unset until DNS and TLS are ready. No DNS records or production domains are changed by the application.
+**Storefront URLs:** storefronts use the existing `/store/:slug` URL structure. This backend foundation does not configure custom domains or subdomains.
 
 **Paystack:** Zuno's `PLATFORM_PAYSTACK_SECRET_KEY` is used only for Zuno-owned subscriptions/setup charges. Merchants connect their own Paystack secret under **Settings → Payments**; it is encrypted at rest and never returned to the browser. Each merchant checkout and refund is routed through the corresponding merchant account, with no fallback to Zuno's credentials and no split-payment routing. Configure Paystack's webhook URL as `https://YOUR-API/api/webhooks/paystack` on each relevant account. Use test keys first and complete sandbox checkout/webhook/refund tests before going live; provider API behavior has not been tested against a live Paystack account.
 
@@ -157,7 +156,7 @@ Known gaps / not built:
 - Merchant staff are added by the email of an existing account (no invitation emails).
 - Auth token lives in `localStorage` (simple for a Vercel↔Render split; an httpOnly-cookie design is stronger but needs same-site hosting).
 - Server-rendered SEO: store pages set title/description client-side only; for strong SEO add prerendering/SSR.
-- Order notifications to customers/merchants (e.g. "new order" emails) are not implemented; payment/receipt emails to buyers rely on Paystack's own receipts.
+- Subscription reminder/expiry emails and standalone payment receipts still need dedicated scheduler/workflow integration. Paid online orders and booking lifecycle emails are connected to their existing workflows.
 - Payment amounts, fees and plan features are **provisional defaults** (₦250k/₦15k, ₦450k/₦30k, ₦750k+/₦50k+; app from ₦500k + ₦25k/mo), editable in the admin UI.
 
 ## Troubleshooting

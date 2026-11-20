@@ -13,11 +13,21 @@ const serviceBody = z.object({
   name: z.string().trim().min(2).max(160),
   description: z.string().max(4000).default(''),
   category: z.string().trim().max(80).default(''),
-  price: z.number().int().min(0).max(100_000_000_000),
-  durationMinutes: z.number().int().min(15).max(720).refine((value) => value % 15 === 0, 'Duration must use 15-minute increments.'),
+  price: z.number().int().min(0).max(100_000_000_000).optional(),
+  pricingDescription: z.string().trim().max(500).default(''),
+  durationMinutes: z.number().int().min(15).max(720).refine((value) => value % 15 === 0, 'Duration must use 15-minute increments.').optional(),
+  bookable: z.boolean().default(true),
   bookingRequirements: z.string().max(1000).default(''),
   status: z.enum(['active', 'inactive']).default('active'),
   published: z.boolean().default(true),
+});
+const createServiceBody = serviceBody.superRefine((value, ctx) => {
+  if (value.price === undefined && !value.pricingDescription) {
+    ctx.addIssue({ code: 'custom', path: ['price'], message: 'Provide a price or pricing description.' });
+  }
+  if (value.bookable && value.durationMinutes === undefined) {
+    ctx.addIssue({ code: 'custom', path: ['durationMinutes'], message: 'Bookable services require a duration.' });
+  }
 });
 const hoursEntry = z.object({ dayOfWeek: z.number().int().min(0).max(6), open: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/), close: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/), closed: z.boolean().default(false) });
 const hoursBody = z.object({
@@ -39,7 +49,7 @@ r.get('/', requireBusiness('services.read'), requireFeature('services'), asyncH(
 }));
 
 r.post('/', requireBusiness('services.write'), requireFeature('services'), asyncH(async (req, res) => {
-  const body = parse(serviceBody, req.body);
+  const body = parse(createServiceBody, req.body);
   await assertLimit(req, 'services', await Service.countDocuments({ business: req.business._id }));
   const service = await Service.create({ ...body, business: req.business._id });
   await audit({ req, action: 'service.created', business: req.business._id, targetType: 'Service', targetId: service._id });
@@ -48,6 +58,14 @@ r.post('/', requireBusiness('services.write'), requireFeature('services'), async
 
 r.patch('/:id', requireBusiness('services.write'), requireFeature('services'), asyncH(async (req, res) => {
   const body = parse(serviceBody.partial(), req.body);
+  const current = await Service.findOne({ _id: req.params.id, business: req.business._id });
+  if (!current) throw notFound('Service not found');
+  if ((body.bookable ?? current.bookable) && (body.durationMinutes ?? current.durationMinutes) === undefined) {
+    throw bad('Bookable services require a duration.');
+  }
+  if (body.price === undefined && !(body.pricingDescription ?? current.pricingDescription)) {
+    if (current.price === undefined) throw bad('Provide a price or pricing description.');
+  }
   const service = await Service.findOneAndUpdate({ _id: req.params.id, business: req.business._id }, body, { new: true, runValidators: true });
   if (!service) throw notFound('Service not found');
   await audit({ req, action: 'service.updated', business: req.business._id, targetType: 'Service', targetId: service._id });

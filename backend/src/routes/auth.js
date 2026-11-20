@@ -5,7 +5,7 @@ import { asyncH, bad, unauthorized } from '../lib/errors.js';
 import { parse, z, phone } from '../lib/validate.js';
 import { hashPassword, verifyPassword, passwordProblem } from '../lib/password.js';
 import { newToken, hashToken } from '../lib/tokens.js';
-import { requireAuth, signSession } from '../middleware/auth.js';
+import { requireAuthAllowUnverified, signSession } from '../middleware/auth.js';
 import { sendMail } from '../services/mailer.js';
 import { audit } from '../services/audit.js';
 import { env } from '../config/env.js';
@@ -25,7 +25,7 @@ async function startSession(user, req) {
 async function sendVerification(user) {
   const t = newToken();
   await Token.create({ user: user._id, purpose: 'email_verify', tokenHash: t.hash, expiresAt: new Date(Date.now() + 48 * 3600_000) });
-  await sendMail({ user, to: user.email, template: 'verify_email', subject: 'Verify your Zuno email', text: `Hi ${user.name},\n\nConfirm your email address:\n${env.frontendUrl}/verify-email?token=${t.raw}\n\nThis link expires in 48 hours.` });
+  return sendMail({ user, to: user.email, template: 'verify_email', subject: 'Verify your Zuno email', text: `Hi ${user.name},\n\nConfirm your email address:\n${env.frontendUrl}/verify-email?token=${t.raw}\n\nThis link expires in 48 hours.` });
 }
 
 r.post('/register', limiter(10), asyncH(async (req, res) => {
@@ -34,9 +34,16 @@ r.post('/register', limiter(10), asyncH(async (req, res) => {
   if (problem) throw bad(problem);
   if (await User.exists({ email: b.email.toLowerCase() })) throw bad('An account with this email already exists. Try signing in or recover your account.');
   const user = await User.create({ name: b.name, email: b.email, phone: b.phone, passwordHash: await hashPassword(b.password) });
-  await sendVerification(user);
+  const verificationEmail = await sendVerification(user);
+  await sendMail({
+    user,
+    to: user.email,
+    template: 'welcome',
+    subject: 'Welcome to Zuno',
+    text: `Hi ${user.name}, welcome to Zuno. Verify your email to start setting up your business.`,
+  });
   await audit({ req, actor: user._id, actorType: 'merchant', action: 'auth.register', targetType: 'User', targetId: user._id });
-  res.status(201).json({ token: await startSession(user, req), user: publicUser(user) });
+  res.status(201).json({ token: await startSession(user, req), user: publicUser(user), verificationEmail });
 }));
 
 r.post('/login', limiter(30), perEmail(15), asyncH(async (req, res) => {
@@ -58,17 +65,17 @@ r.post('/login', limiter(30), perEmail(15), asyncH(async (req, res) => {
   res.json({ token: await startSession(user, req), user: publicUser(user) });
 }));
 
-r.post('/logout', requireAuth, asyncH(async (req, res) => {
+r.post('/logout', requireAuthAllowUnverified, asyncH(async (req, res) => {
   await Session.updateOne({ _id: req.session._id }, { revokedAt: new Date() });
   res.json({ ok: true });
 }));
 
-r.get('/me', requireAuth, asyncH(async (req, res) => {
+r.get('/me', requireAuthAllowUnverified, asyncH(async (req, res) => {
   const memberships = await Membership.find({ user: req.user._id, status: 'active' }).populate('business', 'name slug status storePublished');
   res.json({ user: publicUser(req.user), businesses: memberships.filter((m) => m.business).map((m) => ({ id: m.business._id, name: m.business.name, slug: m.business.slug, status: m.business.status, role: m.role })) });
 }));
 
-r.patch('/me', requireAuth, asyncH(async (req, res) => {
+r.patch('/me', requireAuthAllowUnverified, asyncH(async (req, res) => {
   const b = parse(z.object({ name: z.string().trim().min(2).max(120).optional(), phone: phone.optional() }), req.body);
   Object.assign(req.user, b);
   if (b.phone) req.user.phoneVerified = false;
@@ -76,7 +83,7 @@ r.patch('/me', requireAuth, asyncH(async (req, res) => {
   res.json({ user: publicUser(req.user) });
 }));
 
-r.post('/change-password', requireAuth, limiter(10), asyncH(async (req, res) => {
+r.post('/change-password', requireAuthAllowUnverified, limiter(10), asyncH(async (req, res) => {
   const b = parse(z.object({ currentPassword: z.string(), newPassword: z.string() }), req.body);
   const user = await User.findById(req.user._id).select('+passwordHash');
   if (!(await verifyPassword(b.currentPassword, user.passwordHash))) throw bad('Current password is incorrect.');
@@ -98,9 +105,10 @@ r.post('/verify-email', limiter(20), asyncH(async (req, res) => {
   res.json({ ok: true });
 }));
 
-r.post('/resend-verification', requireAuth, limiter(5), asyncH(async (req, res) => {
-  if (!req.user.emailVerified) await sendVerification(req.user);
-  res.json({ ok: true });
+r.post('/resend-verification', requireAuthAllowUnverified, limiter(5), asyncH(async (req, res) => {
+  if (req.user.emailVerified) return res.json({ ok: true, sent: false, reason: 'already_verified' });
+  const delivery = await sendVerification(req.user);
+  res.json({ ok: delivery.sent, sent: delivery.sent, reason: delivery.reason });
 }));
 
 // Always the same response, whether or not the account exists (no account enumeration).
@@ -108,7 +116,7 @@ r.post('/forgot-password', limiter(20), perEmail(3), asyncH(async (req, res) => 
   const { email } = parse(z.object({ email: z.string().trim().email() }), req.body);
   const user = await User.findOne({ email: email.toLowerCase(), status: 'active' });
   if (user) await issueResetToken(user, {});
-  res.json({ message: 'If an account exists for that email, a reset link has been sent.' });
+  res.json({ message: "If an account exists for that email, we'll send a reset link when email delivery is available." });
 }));
 
 export async function issueResetToken(user, { initiatedBy, reason } = {}) {
@@ -116,7 +124,7 @@ export async function issueResetToken(user, { initiatedBy, reason } = {}) {
   await Token.updateMany({ user: user._id, purpose: 'password_reset', usedAt: null }, { usedAt: new Date() }); // one live token at a time
   const t = newToken();
   await Token.create({ user: user._id, purpose: 'password_reset', tokenHash: t.hash, expiresAt: new Date(Date.now() + settings.recoveryTokenMinutes * 60_000), initiatedBy, meta: reason ? { reason } : undefined });
-  await sendMail({ user, to: user.email, template: initiatedBy ? 'admin_reset' : 'password_reset', subject: 'Reset your Zuno password', text: `Hi ${user.name},\n\nUse this link to choose a new password:\n${env.frontendUrl}/reset-password?token=${t.raw}\n\nIt expires in ${settings.recoveryTokenMinutes} minutes and works once. If you did not expect this, ignore this email.` });
+  return sendMail({ user, to: user.email, template: initiatedBy ? 'admin_reset' : 'password_reset', subject: 'Reset your Zuno password', text: `Hi ${user.name},\n\nUse this link to choose a new password:\n${env.frontendUrl}/reset-password?token=${t.raw}\n\nIt expires in ${settings.recoveryTokenMinutes} minutes and works once. If you did not expect this, ignore this email.` });
 }
 
 r.post('/reset-password', limiter(20), asyncH(async (req, res) => {

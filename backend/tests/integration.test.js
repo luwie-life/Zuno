@@ -32,6 +32,16 @@ before(async () => {
   await Promise.all(Object.values(M).map((m) => m.syncIndexes?.()));
   const { ensureDefaultPlans } = await import('../src/services/subscriptions.js');
   await ensureDefaultPlans();
+  await M.Plan.updateOne({ key: 'store_business' }, { $setOnInsert: {
+    key: 'store_business', name: 'Test Store Business', setupFee: 45000000, monthlyFee: 3000000,
+    features: ['online_store', 'products', 'orders', 'basic_reports', 'services', 'bookings', 'pos', 'shared_inventory', 'stock_movements', 'low_stock', 'customers', 'suppliers', 'purchasing', 'enhanced_reports'],
+    limits: { products: -1, staff: -1, services: -1, bookings: -1 }, active: true,
+  } }, { upsert: true });
+  await M.Plan.updateOne({ key: 'online_store' }, { $setOnInsert: {
+    key: 'online_store', name: 'Test Online Store', setupFee: 0, monthlyFee: 500000,
+    features: ['online_store', 'products', 'orders', 'basic_reports'],
+    limits: { products: 200, staff: 1, services: 0, bookings: 0 }, active: true,
+  } }, { upsert: true });
   await M.PlatformSettings.create({ key: 'platform' });
   const { createApp } = await import('../src/app.js');
   server = createApp().listen(0);
@@ -58,6 +68,7 @@ async function merchant(planKey = 'store_business', businessType = 'product') {
   const email = `m${n}-${Date.now()}@test.dev`;
   const reg = await api('/api/auth/register', { method: 'POST', body: { name: 'Merchant ' + n, email, password: 'a-long-test-password-1' } });
   const token = reg.body.token;
+  await M.User.updateOne({ email }, { emailVerified: true });
   const b = await api('/api/businesses', { method: 'POST', token, body: { name: 'Shop ' + n, slug: `shop-${n}-${Date.now() % 100000}`, planKey, ...(businessType !== 'product' && { businessType }) } });
   const biz = b.body.business._id;
   await M.Subscription.updateOne({ business: biz }, { setupStatus: 'paid', currentPeriodEnd: new Date(Date.now() + 20 * 86400000) }); // simulate verified payments
@@ -67,6 +78,28 @@ async function product(m, over = {}) {
   const r = await api('/api/catalog/products', { method: 'POST', token: m.token, biz: m.biz, body: { name: 'Widget', price: 100000, initialStock: 20, ...over } });
   assert.equal(r.status, 201, JSON.stringify(r.body));
   return r.body.product;
+}
+async function publishStore(m, profile = {}) {
+  const updated = await api('/api/businesses/current', {
+    method: 'PATCH',
+    token: m.token,
+    biz: m.biz,
+    body: { category: 'Retail', phone: '08030000000', address: { city: 'Lagos' }, ...profile },
+  });
+  assert.equal(updated.status, 200, JSON.stringify(updated.body));
+  const selected = await api('/api/businesses/current/storefront', {
+    method: 'PUT',
+    token: m.token,
+    biz: m.biz,
+    body: { templateId: 'clean-store', appearance: { primaryColor: '#0B6B4F' } },
+  });
+  assert.equal(selected.status, 200, JSON.stringify(selected.body));
+  return api('/api/businesses/current/publish', {
+    method: 'POST',
+    token: m.token,
+    biz: m.biz,
+    body: { publish: true },
+  });
 }
 const stock = async (id) => (({ stock, reserved }) => ({ stock, reserved }))(await M.Product.findById(id));
 
@@ -84,10 +117,109 @@ test('business types configure modules and service-only businesses cannot call c
   assert.equal((await api('/api/inventory', { token: service.token, biz: service.biz })).status, 403);
   assert.equal((await api('/api/pos/products', { token: service.token, biz: service.biz })).status, 403);
 
-  const both = await merchant('store_business', 'both');
-  const bothContext = await api('/api/businesses/current', { token: both.token, biz: both.biz });
-  assert.deepEqual(bothContext.body.modules, ['commerce', 'services']);
-  await product(both);
+  const hybrid = await merchant('store_business', 'hybrid');
+  const hybridContext = await api('/api/businesses/current', { token: hybrid.token, biz: hybrid.biz });
+  assert.deepEqual(hybridContext.body.modules, ['commerce', 'services', 'menu']);
+  await product(hybrid);
+});
+
+test('unverified accounts can verify their email but cannot access merchant APIs', { skip }, async () => {
+  const email = `unverified-${Date.now()}@test.dev`;
+  const reg = await api('/api/auth/register', { method: 'POST', body: { name: 'Unverified', email, password: 'a-long-test-password-1' } });
+  assert.equal(reg.status, 201);
+  assert.equal((await api('/api/businesses/current', { token: reg.body.token })).status, 403);
+  assert.equal((await api('/api/auth/me', { token: reg.body.token })).status, 200);
+
+  const { newToken } = await import('../src/lib/tokens.js');
+  const verification = newToken();
+  const user = await M.User.findOne({ email });
+  await M.Token.create({ user: user._id, purpose: 'email_verify', tokenHash: verification.hash, expiresAt: new Date(Date.now() + 3600000) });
+  assert.equal((await api('/api/auth/verify-email', { method: 'POST', body: { token: verification.raw } })).status, 200);
+  const created = await api('/api/businesses', { method: 'POST', token: reg.body.token, body: { name: 'Verified Shop', slug: `verified-${Date.now() % 1000000}`, planKey: 'starter' } });
+  assert.equal(created.status, 201, JSON.stringify(created.body));
+});
+
+test('restaurant menu is tenant-isolated and public storefront data is allowlisted', { skip }, async () => {
+  const restaurant = await merchant('store_business', 'restaurant');
+  const other = await merchant('store_business', 'restaurant');
+  const published = await publishStore(restaurant, { category: 'Restaurant', address: { city: 'Lagos', line: '1 Market Road' }, email: restaurant.email });
+  assert.equal(published.status, 200, JSON.stringify(published.body));
+
+  const category = await api('/api/menu/categories', {
+    method: 'POST',
+    token: restaurant.token,
+    biz: restaurant.biz,
+    body: { name: 'Lunch', sortOrder: 1 },
+  });
+  assert.equal(category.status, 201, JSON.stringify(category.body));
+  const item = await api('/api/menu/items', {
+    method: 'POST',
+    token: restaurant.token,
+    biz: restaurant.biz,
+    body: { category: category.body.category._id, name: 'Jollof rice', description: 'Smoky rice', price: 250000, published: true },
+  });
+  assert.equal(item.status, 201, JSON.stringify(item.body));
+  assert.equal((await api('/api/menu/items', { token: other.token, biz: restaurant.biz })).status, 403);
+
+  const storefront = await api(`/api/store/${restaurant.slug}`);
+  assert.equal(storefront.status, 200);
+  assert.equal(storefront.body.business.storefront.templateId, 'clean-store');
+  assert.equal(Object.hasOwn(storefront.body.business, 'owner'), false);
+  assert.equal(Object.hasOwn(storefront.body.business, 'defaultPaymentProvider'), false);
+  const menu = await api(`/api/store/${restaurant.slug}/menu`);
+  assert.equal(menu.status, 200);
+  assert.equal(menu.body.categories[0].items[0].name, 'Jollof rice');
+  assert.equal(menu.body.categories[0].items[0].price, 250000);
+});
+
+test('booking requests stay pending until merchant action and rejection releases the slot', { skip }, async () => {
+  const m = await merchant('store_business', 'service');
+  const hours = Array.from({ length: 7 }, (_, dayOfWeek) => ({ dayOfWeek, open: '09:00', close: '17:00', closed: false }));
+  const published = await publishStore(m, { serviceArea: 'Lagos', weeklyHours: hours });
+  assert.equal(published.status, 200, JSON.stringify(published.body));
+  const service = await api('/api/services', {
+    method: 'POST',
+    token: m.token,
+    biz: m.biz,
+    body: { name: 'Consultation', pricingDescription: 'Starting from NGN 500', bookable: true, durationMinutes: 60 },
+  });
+  assert.equal(service.status, 201, JSON.stringify(service.body));
+
+  const date = new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10);
+  const request = async (time, email) => api(`/api/store/${m.slug}/bookings`, {
+    method: 'POST',
+    body: {
+      serviceId: service.body.service._id,
+      date,
+      startTime: time,
+      customer: { name: 'Customer Name', email, phone: '08031112222' },
+    },
+  });
+  const pending = await request('09:00', 'first@test.dev');
+  const second = await request('10:30', 'second@test.dev');
+  assert.equal(pending.status, 201, JSON.stringify(pending.body));
+  assert.equal(pending.body.booking.status, 'pending');
+  assert.equal(second.status, 201, JSON.stringify(second.body));
+  assert.equal(await M.Payment.countDocuments({ business: m.biz }), 0);
+
+  const bookings = await api(`/api/bookings?date=${date}`, { token: m.token, biz: m.biz });
+  assert.deepEqual(bookings.body.items.map((booking) => booking.status), ['pending', 'pending']);
+  const rejected = await api(`/api/bookings/${bookings.body.items[0]._id}`, {
+    method: 'PATCH',
+    token: m.token,
+    biz: m.biz,
+    body: { status: 'rejected', reason: 'Unavailable' },
+  });
+  assert.equal(rejected.status, 200, JSON.stringify(rejected.body));
+  assert.equal(rejected.body.booking.status, 'rejected');
+  assert.equal(await M.BookingSlot.countDocuments({ booking: rejected.body.booking._id }), 0);
+  const confirmed = await api(`/api/bookings/${bookings.body.items[1]._id}`, {
+    method: 'PATCH',
+    token: m.token,
+    biz: m.biz,
+    body: { status: 'confirmed' },
+  });
+  assert.equal(confirmed.body.booking.status, 'confirmed');
 });
 
 test('tenant isolation: merchant A cannot touch merchant B data', { skip }, async () => {
@@ -133,9 +265,7 @@ test('concurrent POS sales cannot oversell', { skip }, async () => {
 
 test('online and POS sales share one inventory (20 -> 18 -> 15)', { skip }, async () => {
   const m = await merchant(); const p = await product(m, { initialStock: 20 });
-  await api('/api/businesses/current', { method: 'PATCH', token: m.token, biz: m.biz, body: { category: 'Retail', phone: '08030000000', address: { city: 'Lagos' } } });
-  await M.User.updateOne({ email: m.email }, { emailVerified: true });
-  assert.equal((await api('/api/businesses/current/publish', { method: 'POST', token: m.token, biz: m.biz, body: { publish: true } })).status, 200);
+  assert.equal((await publishStore(m)).status, 200);
   const co = await api(`/api/store/${m.slug}/checkout`, { method: 'POST', body: { items: [{ productId: p._id, qty: 2 }], customer: { name: 'Ada Obi', email: 'ada@test.dev', phone: '08031112222', address: { line: '1 Test Street', city: 'Lagos', state: 'Lagos' } } } });
   assert.equal(co.status, 201, JSON.stringify(co.body));
   assert.deepEqual(await stock(p._id), { stock: 20, reserved: 2 }); // reserved, not yet deducted
@@ -152,9 +282,7 @@ test('online and POS sales share one inventory (20 -> 18 -> 15)', { skip }, asyn
 
 test('payment verification rejects wrong amounts and a browser "success" alone never marks an order paid', { skip }, async () => {
   const m = await merchant(); const p = await product(m);
-  await api('/api/businesses/current', { method: 'PATCH', token: m.token, biz: m.biz, body: { category: 'Retail', phone: '08030000000', address: { city: 'Lagos' } } });
-  await M.User.updateOne({ email: m.email }, { emailVerified: true });
-  await api('/api/businesses/current/publish', { method: 'POST', token: m.token, biz: m.biz, body: { publish: true } });
+  await publishStore(m);
   const co = await api(`/api/store/${m.slug}/checkout`, { method: 'POST', body: { items: [{ productId: p._id, qty: 1 }], customer: { name: 'Bayo K', email: 'b@test.dev', phone: '08031112222', address: { line: '2 Test Street', city: 'Ikeja', state: 'Lagos' } } } });
   let v = await api(`/api/store/${m.slug}/orders/verify?reference=${co.body.reference}`); // user "returned" but Paystack says not paid
   assert.notEqual(v.body.order.paymentStatus, 'paid');
@@ -181,8 +309,10 @@ test('webhook: valid signature processes once; duplicates are ignored; bad signa
 
 test('subscription is not active from a monthly payment alone; setup fee is tracked separately', { skip }, async () => {
   n++;
-  const reg = await api('/api/auth/register', { method: 'POST', body: { name: 'Fresh', email: `fresh${n}-${Date.now()}@test.dev`, password: 'a-long-test-password-1' } });
-  const b = await api('/api/businesses', { method: 'POST', token: reg.body.token, body: { name: 'Fresh Shop', slug: `fresh-${Date.now() % 1000000}`, planKey: 'store_business' } });
+  const email = `fresh${n}-${Date.now()}@test.dev`;
+  const reg = await api('/api/auth/register', { method: 'POST', body: { name: 'Fresh', email, password: 'a-long-test-password-1' } });
+  await M.User.updateOne({ email }, { emailVerified: true });
+  const b = await api('/api/businesses', { method: 'POST', token: reg.body.token, body: { name: 'Fresh Shop', slug: `fresh-${Date.now() % 1000000}`, planKey: 'starter' } });
   const biz = b.body.business._id;
   const monthly = await api('/api/billing/checkout', { method: 'POST', token: reg.body.token, biz, body: { purpose: 'subscription' } });
   assert.equal(monthly.status, 409); // must pay setup first
@@ -209,6 +339,7 @@ test('plan entitlements are enforced server-side (Online Store plan has no POS)'
 test('cashier permissions: no discounts, no returns, no stock adjustments', { skip }, async () => {
   const owner = await merchant(); const p = await product(owner);
   const c = await api('/api/auth/register', { method: 'POST', body: { name: 'Cashier', email: `cash-${Date.now()}@test.dev`, password: 'a-long-test-password-1' } });
+  await M.User.updateOne({ name: 'Cashier' }, { emailVerified: true });
   await api('/api/businesses/current/members', { method: 'POST', token: owner.token, biz: owner.biz, body: { email: (await M.User.findOne({ name: 'Cashier' }).sort('-createdAt')).email, role: 'cashier' } });
   const disc = await api('/api/pos/sales', { method: 'POST', token: c.body.token, biz: owner.biz, body: { idempotencyKey: 'cashier-disc-01', paymentMethod: 'cash', discount: { type: 'percent', value: 50 }, items: [{ productId: p._id, qty: 1 }] } });
   assert.equal(disc.status, 409);

@@ -99,11 +99,16 @@ r.post('/:id/actions/send-reset', requirePlatform('recovery.reset'), asyncH(asyn
   const { reason, revokeSessions } = parse(z.object({ reason: z.string().trim().min(5).max(500), revokeSessions: z.boolean().default(false) }), req.body);
   const x = await guard(req, 'send_reset');
   const user = await User.findById(x.user);
-  await issueResetToken(user, { initiatedBy: req.user._id, reason }); // link goes ONLY to the registered email; admins never see or set a password
+  const delivery = await issueResetToken(user, { initiatedBy: req.user._id, reason }); // link goes ONLY to the registered email; admins never see or set a password
   if (revokeSessions) await Session.updateMany({ user: user._id, revokedAt: null }, { revokedAt: new Date() });
   log(x, req, 'reset_link_sent', reason); await x.save();
   await audit({ req, action: 'recovery.reset_initiated', targetType: 'User', targetId: user._id, related: { kind: 'RecoveryRequest', id: x._id }, reason, meta: { revokeSessions } });
-  res.json({ ok: true, message: 'Reset link sent to the registered email address.' });
+  res.json({
+    ok: true,
+    emailSent: delivery.sent,
+    emailReason: delivery.reason,
+    message: delivery.sent ? 'Reset link emailed to the registered address.' : 'Reset token was created, but the email was not sent.',
+  });
 }));
 
 r.post('/:id/actions/revoke-sessions', needReview, asyncH(async (req, res) => {
@@ -134,11 +139,18 @@ r.post('/:id/actions/change-email', requirePlatform('recovery.review'), asyncH(a
   const t = newToken();
   await Token.updateMany({ user: user._id, purpose: 'contact_change', usedAt: null }, { usedAt: new Date() });
   await Token.create({ user: user._id, purpose: 'contact_change', tokenHash: t.hash, expiresAt: new Date(Date.now() + 24 * 3600_000), initiatedBy: req.user._id, meta: { newEmail: newEmail.toLowerCase(), requestId: x._id } });
-  await sendMail({ user, to: newEmail, template: 'contact_change_confirm', subject: 'Confirm your new Zuno email', text: `Confirm this address as the email for your Zuno account:\n${env.frontendUrl}/confirm-contact?token=${t.raw}\n\nExpires in 24 hours.` });
+  const confirmationDelivery = await sendMail({ user, to: newEmail, template: 'contact_change_confirm', subject: 'Confirm your new Zuno email', text: `Confirm this address as the email for your Zuno account:\n${env.frontendUrl}/confirm-contact?token=${t.raw}\n\nExpires in 24 hours.` });
   await sendMail({ user, to: user.email, template: 'contact_change_notice', subject: 'A contact change was approved for your Zuno account', text: `An email change was approved on your Zuno account after a recovery review (${x.reference}). If this was not you, contact support immediately.` });
-  log(x, req, 'email_change_link_sent', reason); await x.save();
+  log(x, req, 'email_change_link_created', reason); await x.save();
   await audit({ req, action: 'recovery.email_change_initiated', targetType: 'User', targetId: user._id, related: { kind: 'RecoveryRequest', id: x._id }, reason });
-  res.json({ ok: true, message: 'Confirmation link sent to the new address. The email changes only after they confirm.' });
+  res.json({
+    ok: true,
+    emailSent: confirmationDelivery.sent,
+    emailReason: confirmationDelivery.reason,
+    message: confirmationDelivery.sent
+      ? 'Confirmation link emailed to the new address. The email changes only after they confirm.'
+      : 'Confirmation link was created, but the email was not sent. The email changes only after the recipient confirms.',
+  });
 }));
 
 r.post('/:id/actions/transfer-ownership', requirePlatform('recovery.review'), asyncH(async (req, res) => {

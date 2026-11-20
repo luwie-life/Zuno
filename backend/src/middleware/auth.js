@@ -12,7 +12,7 @@ export function signSession(session, user) {
   return jwt.sign({ sid: String(session._id), sub: String(user._id) }, env.jwtSecret, { algorithm: 'HS256', expiresIn: `${env.sessionHours}h` });
 }
 
-export const requireAuth = asyncH(async (req, res, next) => {
+const authenticate = ({ allowUnverified = false } = {}) => asyncH(async (req, res, next) => {
   const h = req.headers.authorization || '';
   if (!h.startsWith('Bearer ')) throw unauthorized();
   let payload;
@@ -21,9 +21,13 @@ export const requireAuth = asyncH(async (req, res, next) => {
   if (!session) throw unauthorized('Session expired. Please sign in again.');
   const user = await User.findById(payload.sub);
   if (!user || user.status !== 'active') throw unauthorized('Account unavailable.');
+  if (!allowUnverified && !user.emailVerified) throw forbidden('Verify your email before using the merchant dashboard.');
   req.user = user; req.session = session;
   next();
 });
+
+export const requireAuth = authenticate();
+export const requireAuthAllowUnverified = authenticate({ allowUnverified: true });
 
 /** Resolves the business from X-Business-Id and verifies the caller's active membership. Never trusts the id alone. */
 export const requireBusiness = (perm, { allowSuspended = false } = {}) => asyncH(async (req, res, next) => {

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { Booking, BookingSlot, Business, Service } from '../models/index.js';
-import { asyncH, notFound, bad } from '../lib/errors.js';
+import { asyncH, notFound, bad, conflict } from '../lib/errors.js';
 import { parse, z, pageParams } from '../lib/validate.js';
 import { requireAuth, requireBusiness, requireFeature, requireModule } from '../middleware/auth.js';
 import { changeBooking } from '../services/bookingOperations.js';
@@ -12,7 +12,7 @@ r.use(requireAuth, requireBusiness(null), requireModule('services'));
 r.get('/', requireBusiness('bookings.read'), requireFeature('bookings'), asyncH(async (req, res) => {
   const { page, limit, skip } = pageParams(req.query);
   const filter = { business: req.business._id };
-  if (['pending', 'confirmed', 'cancelled', 'completed'].includes(req.query.status)) filter.status = req.query.status;
+  if (['pending', 'confirmed', 'rejected', 'cancelled', 'completed'].includes(req.query.status)) filter.status = req.query.status;
   if (req.query.date) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(String(req.query.date))) throw bad('date must use YYYY-MM-DD format.');
     filter.localDate = String(req.query.date);
@@ -36,7 +36,7 @@ r.get('/:id/availability', requireBusiness('bookings.read'), requireFeature('boo
   const booking = await Booking.findOne({ _id: req.params.id, business: req.business._id, status: { $in: ['pending', 'confirmed'] } });
   if (!booking) throw notFound('Active booking not found');
   const [business, service, occupied] = await Promise.all([
-    Business.findById(req.business._id), Service.findOne({ _id: booking.service, business: req.business._id, status: 'active' }),
+    Business.findById(req.business._id), Service.findOne({ _id: booking.service, business: req.business._id, status: 'active', bookable: true }),
     BookingSlot.find({ business: req.business._id, localDate: date, booking: { $ne: booking._id } }).select('slotIndex -_id').lean(),
   ]);
   if (!business || !service) throw conflict('The service or business is no longer available.');
@@ -45,7 +45,7 @@ r.get('/:id/availability', requireBusiness('bookings.read'), requireFeature('boo
 
 r.patch('/:id', requireBusiness('bookings.manage'), requireFeature('bookings'), asyncH(async (req, res) => {
   const body = parse(z.object({
-    status: z.enum(['confirmed', 'cancelled', 'completed']).optional(),
+    status: z.enum(['confirmed', 'rejected', 'cancelled', 'completed']).optional(),
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     startTime: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/).optional(),
     reason: z.string().trim().max(500).optional(),

@@ -1,7 +1,8 @@
 const MODULES_BY_TYPE = Object.freeze({
   product: ['commerce'],
   service: ['services'],
-  both: ['commerce', 'services'],
+  restaurant: ['menu'],
+  hybrid: ['commerce', 'services', 'menu'],
 });
 
 export function businessModulesFor(type = 'product') {
