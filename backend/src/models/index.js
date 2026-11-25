@@ -942,7 +942,17 @@ export const Subscription = model('Subscription', new Schema({
   lastRenewalFailureReason: String,
   nextRenewalRetryAt: Date,
   renewalLockUntil: Date,
+  checkoutLockToken: String,
+  checkoutLockUntil: Date,
   pendingRenewalPaymentReference: String,
+  renewalReminder7DayFor: Date,
+  renewalReminder3DayFor: Date,
+  renewalReminderExpiryFor: Date,
+  renewalReminderGraceFor: Date,
+  renewalReminder7DayLockUntil: Date,
+  renewalReminder3DayLockUntil: Date,
+  renewalReminderExpiryLockUntil: Date,
+  renewalReminderGraceLockUntil: Date,
 
   override: {
     until: Date,

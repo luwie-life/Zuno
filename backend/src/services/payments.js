@@ -129,7 +129,7 @@ export async function startPayment({
   }
 }
 
-async function dispatch(payment, tx) {
+async function dispatch(payment) {
   switch (payment.purpose) {
     case 'storefront_order':
       await finalizeOrderPayment(payment.target.id, payment);
@@ -141,7 +141,7 @@ async function dispatch(payment, tx) {
 
     case 'setup_fee':
     case 'subscription':
-      await applySubscriptionPayment(payment, tx);
+      await applySubscriptionPayment(payment);
       break;
 
     default:
@@ -149,56 +149,12 @@ async function dispatch(payment, tx) {
   }
 }
 
-/**
- * Subscription payment application needs the original verified
- * Paystack transaction so reusable authorization details can be saved.
- *
- * If the transaction object was not supplied by the caller, retrieve
- * it directly from Paystack and validate it before applying payment.
- */
-async function getVerifiedApplicationTransaction(payment, tx) {
-  if (payment.purpose !== 'subscription' || tx) {
-    return tx;
-  }
-
-  const provider = await resolvePaymentProvider(payment, {
-    expectedContext: 'platform',
-  });
-
-  const response = await provider.adapter.verify(payment.reference);
-  const verifiedTx = response?.data;
-
-  const check = checkVerifiedTransaction(verifiedTx, {
-    reference: payment.reference,
-    amount: payment.amount,
-    currency: payment.currency,
-  });
-
-  if (!check.ok) {
-    throw new HttpError(
-      409,
-      'The successful subscription payment could not be revalidated. Payment application has been deferred.',
-      'SUBSCRIPTION_PAYMENT_REVALIDATION_FAILED',
-    );
-  }
-
-  return verifiedTx;
-}
 
 /**
  * Apply a successful payment exactly once.
- *
- * The application transaction is retrieved and validated before
- * claiming the payment, so missing transaction data cannot result
- * in an incomplete subscription application.
  */
-async function applyClaimed(payment, tx) {
+async function applyClaimed(payment) {
   if (payment.applied) return false;
-
-  const applicationTx = await getVerifiedApplicationTransaction(
-    payment,
-    tx,
-  );
 
   const claim = await Payment.findOneAndUpdate(
     {
@@ -218,7 +174,7 @@ async function applyClaimed(payment, tx) {
   if (!claim) return false;
 
   try {
-    await dispatch(claim, applicationTx);
+    await dispatch(claim);
 
     await Payment.updateOne(
       {
@@ -250,6 +206,7 @@ async function applyClaimed(payment, tx) {
     throw error;
   }
 }
+
 
 async function validateMerchantPaymentTarget(payment) {
   if (payment.purpose === 'storefront_order') {
@@ -453,7 +410,7 @@ export async function verifyAndApply(reference, options = {}) {
     const latest = await Payment.findById(payment._id);
 
     if (latest?.status === 'success' && !latest.applied) {
-      await applyClaimed(latest, tx);
+      await applyClaimed(latest);
 
       const refreshed = await Payment.findById(payment._id);
 
@@ -476,10 +433,20 @@ export async function verifyAndApply(reference, options = {}) {
     };
   }
 
-  await applyClaimed(claimed, tx);
+  await applyClaimed(claimed);
+
+  // Confirm that payment application actually completed.
+  const refreshed = await Payment.findById(payment._id);
+
+  if (!refreshed?.applied) {
+    return {
+      payment: refreshed || claimed,
+      result: 'pending_application',
+    };
+  }
 
   return {
-    payment: claimed,
+    payment: refreshed,
     result: 'success',
   };
 }

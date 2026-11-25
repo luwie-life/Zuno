@@ -174,11 +174,12 @@ export async function hasFeature(businessId, feature) {
   return featureAllowed(plan, feature, sub?.override);
 }
 
+
 /**
  * Called only after Payment has been verified server-side and claimed.
  * Payment application is idempotent per payment reference.
  */
-export async function applySubscriptionPayment(payment, tx) {
+export async function applySubscriptionPayment(payment) {
   const sub = await Subscription.findOne({
     business: payment.business,
   });
@@ -212,20 +213,9 @@ export async function applySubscriptionPayment(payment, tx) {
     sub.pendingPlan = undefined;
     sub.setupStatus = 'waived';
 
-    const authorization = tx?.authorization;
-
-    if (
-      authorization?.authorization_code &&
-      authorization.reusable
-    ) {
-      sub.authorization = {
-        code: authorization.authorization_code,
-        email: tx.customer?.email,
-        reusable: true,
-        last4: authorization.last4,
-        brand: authorization.brand,
-      };
-    }
+    // Zuno subscriptions renew manually. Remove any legacy
+    // reusable authorization rather than saving new card details.
+    sub.authorization = undefined;
 
     sub.renewalStatus = 'current';
     sub.lastRenewalFailureAt = undefined;
@@ -258,13 +248,16 @@ export async function applySubscriptionPayment(payment, tx) {
     const business = await Business.findById(payment.business).select('name email owner');
     const owner = business && await User.findById(business.owner).select('name email');
     const recipient = business?.email || owner?.email;
-    if (recipient) await sendMail({
-      user: owner?._id,
-      to: recipient,
-      template: 'subscription_payment',
-      subject: `Payment confirmed for ${business.name}`,
-      text: `Your ${payment.purpose === 'setup_fee' ? 'setup fee' : 'subscription'} payment for ${business.name} has been verified. Reference: ${payment.reference}.`,
-    });
+
+    if (recipient) {
+      await sendMail({
+        user: owner?._id,
+        to: recipient,
+        template: 'subscription_payment',
+        subject: `Payment confirmed for ${business.name}`,
+        text: `Your ${payment.purpose === 'setup_fee' ? 'setup fee' : 'subscription'} payment for ${business.name} has been verified. Reference: ${payment.reference}.`,
+      });
+    }
   }
 }
 
@@ -273,9 +266,12 @@ export async function applySubscriptionPayment(payment, tx) {
  * No Paystack request is made for a zero-cost plan.
  */
 async function applyScheduledFreeDowngrades(now = new Date()) {
+  const graceCutoff = new Date(
+  now.getTime() - 7 * 24 * 60 * 60 * 1000,
+);
   const candidates = await Subscription.find({
     scheduledPlan: { $exists: true, $ne: null },
-    currentPeriodEnd: { $lte: now },
+   currentPeriodEnd: { $lte: graceCutoff },
     suspended: false,
     cancelAtPeriodEnd: false,
     pendingRenewalPaymentReference: { $in: [null, ''] },
@@ -291,12 +287,17 @@ async function applyScheduledFreeDowngrades(now = new Date()) {
     }
 
     const result = await Subscription.updateOne(
-      {
-        _id: candidate._id,
-        scheduledPlan: targetPlan._id,
-        currentPeriodEnd: { $lte: now },
-        pendingRenewalPaymentReference: { $in: [null, ''] },
-      },
+{
+  _id: candidate._id,
+  scheduledPlan: targetPlan._id,
+  currentPeriodEnd: { $lte: graceCutoff },
+  pendingRenewalPaymentReference: { $in: [null, ''] },
+  $or: [
+    { checkoutLockUntil: { $exists: false } },
+    { checkoutLockUntil: null },
+    { checkoutLockUntil: { $lte: now } },
+  ],
+},
       {
         $set: {
           plan: targetPlan._id,
@@ -340,485 +341,332 @@ async function applyScheduledFreeDowngrades(now = new Date()) {
   return applied;
 }
 
-/**
- * Atomically acquire a renewal lock.
- */
-async function acquireRenewalLock(
-  businessId,
-  now = new Date(),
-  manual = false,
-) {
-  const lockAvailable = {
-    $or: [
-      { renewalLockUntil: { $exists: false } },
-      { renewalLockUntil: null },
-      { renewalLockUntil: { $lte: now } },
-    ],
-  };
 
-  const eligibility = manual
-    ? {
-        $or: [
-          {
-            pendingRenewalPaymentReference: {
-              $exists: true,
-              $ne: null,
-            },
-          },
-          {
-            renewalStatus: 'retry_required',
-            currentPeriodEnd: {
-              $lte: new Date(now.getTime() + DAY),
-            },
-          },
-        ],
-      }
-    : {
-        $and: [
-          {
-            $or: [
-              { nextRenewalRetryAt: { $exists: false } },
-              { nextRenewalRetryAt: null },
-              { nextRenewalRetryAt: { $lte: now } },
-            ],
-          },
-          {
-            $or: [
-              {
-                pendingRenewalPaymentReference: {
-                  $exists: true,
-                  $ne: null,
-                },
-              },
-              {
-                currentPeriodEnd: {
-                  $lte: new Date(now.getTime() + DAY),
-                },
-              },
-            ],
-          },
-        ],
-      };
+async function sendRenewalReminders(now = new Date()) {
+  const candidates = await Subscription.find({
+    currentPeriodEnd: { $exists: true, $ne: null },
+    suspended: { $ne: true },
+    cancelAtPeriodEnd: { $ne: true },
+    status: { $ne: 'cancelled' },
+    pendingRenewalPaymentReference: { $in: [null, ''] },
+  }).select('_id business plan currentPeriodEnd');
 
-  return Subscription.findOneAndUpdate(
+  const stages = [
     {
-      business: businessId,
-      suspended: false,
-      cancelAtPeriodEnd: false,
-      setupStatus: { $ne: 'unpaid' },
-      'authorization.code': { $exists: true, $ne: null },
-      $and: [
-        lockAvailable,
-        eligibility,
-      ],
+      marker: 'renewalReminder7DayFor',
+      lock: 'renewalReminder7DayLockUntil',
+      start: -7 * DAY,
+      end: -3 * DAY,
+      subject: 'Your Zuno subscription expires in 7 days',
+      message: 'Your subscription expires in 7 days.',
     },
     {
-      $set: {
-        renewalLockUntil: new Date(now.getTime() + LOCK_DURATION),
-      },
+      marker: 'renewalReminder3DayFor',
+      lock: 'renewalReminder3DayLockUntil',
+      start: -3 * DAY,
+      end: 0,
+      subject: 'Your Zuno subscription expires in 3 days',
+      message: 'Your subscription expires in 3 days.',
     },
-    { new: true },
-  );
-}
-
-async function deferVerification(
-  sub,
-  reference,
-  reason = 'verification_pending',
-) {
-  await Subscription.updateOne(
-    { _id: sub._id },
     {
-      $set: {
-        renewalStatus: 'retry_required',
-        nextRenewalRetryAt: new Date(
-          Date.now() + VERIFY_RETRY_DELAY,
-        ),
-        ...(reference
-          ? { pendingRenewalPaymentReference: reference }
-          : {}),
-        lastRenewalFailureReason: reason,
-      },
+      marker: 'renewalReminderExpiryFor',
+      lock: 'renewalReminderExpiryLockUntil',
+      start: 0,
+      end: 3 * DAY,
+      subject: 'Your Zuno subscription expires today',
+      message: 'Your subscription period has ended today.',
     },
-  );
-}
-
-async function quarantineRenewalPayment(
-  sub,
-  reference,
-  reason = 'payment_verification_mismatch_needs_review',
-) {
-  await Subscription.updateOne(
-    { _id: sub._id },
     {
-      $set: {
-        renewalStatus: 'retry_required',
-        lastRenewalFailureAt: new Date(),
-        lastRenewalFailureReason: reason,
-        nextRenewalRetryAt: new Date(
-          Date.now() + REVIEW_RETRY_DELAY,
-        ),
-        pendingRenewalPaymentReference: reference,
-      },
+      marker: 'renewalReminderGraceFor',
+      lock: 'renewalReminderGraceLockUntil',
+      start: 3 * DAY,
+      end: 7 * DAY,
+      subject: 'Your Zuno subscription grace period is ending',
+      message: 'Your subscription is in its 7-day grace period. Renew now to keep your business active on Zuno.',
     },
-  );
-}
+  ];
 
-async function recordRenewalFailure(
-  sub,
-  reason = 'charge_failed',
-) {
-  await Subscription.updateOne(
-    { _id: sub._id },
-    {
-      $set: {
-        renewalStatus: 'retry_required',
-        lastRenewalFailureAt: new Date(),
-        lastRenewalFailureReason: reason,
-        nextRenewalRetryAt: new Date(
-          Date.now() + CHARGE_RETRY_DELAY,
-        ),
-      },
-      $unset: {
-        pendingRenewalPaymentReference: 1,
-      },
-      $inc: {
-        failedRenewals: 1,
-      },
-    },
-  );
-}
+  const CLAIM_DURATION = 5 * 60 * 1000;
+  let sent = 0;
 
-async function verifyRenewalPayment(sub, reference) {
-  const { verifyAndApply } = await import('./payments.js');
+  for (const sub of candidates) {
+    const periodEnd = new Date(sub.currentPeriodEnd);
+    const elapsed = now.getTime() - periodEnd.getTime();
 
-  try {
-    const result = await verifyAndApply(reference);
-
-    if (
-      result.result === 'success' ||
-      result.result === 'already_processed'
-    ) {
-      return 'success';
-    }
-
-    if (result.result === 'pending_application') {
-      await deferVerification(
-        sub,
-        reference,
-        'payment_application_pending',
-      );
-
-      return 'pending';
-    }
-
-    if (result.result === 'rejected') {
-      await quarantineRenewalPayment(
-        sub,
-        reference,
-        result.reason || 'payment_verification_mismatch_needs_review',
-      );
-
-      return 'review';
-    }
-
-    if (result.result === 'failed') {
-      await recordRenewalFailure(
-        sub,
-        result.reason || 'payment_failed',
-      );
-
-      return 'failed';
-    }
-
-    await deferVerification(sub, reference);
-
-    return 'pending';
-  } catch (error) {
-    await deferVerification(
-      sub,
-      reference,
-      'verification_error',
+    const stage = stages.find(
+      (item) => elapsed >= item.start && elapsed < item.end,
     );
 
-    return 'pending';
+    if (!stage) continue;
+
+    const [plan, business] = await Promise.all([
+      Plan.findById(sub.plan).select('name monthlyFee'),
+      Business.findById(sub.business).select('name email owner'),
+    ]);
+
+    if (!plan || Number(plan.monthlyFee) <= 0 || !business) {
+      continue;
+    }
+
+    const owner = business.owner
+      ? await User.findById(business.owner).select('name email')
+      : null;
+
+    const recipient = business.email || owner?.email;
+
+    if (!recipient) continue;
+
+    // Acquire a temporary lease. Another maintenance process
+    // cannot claim the same reminder while this lease is active.
+    const leaseUntil = new Date(now.getTime() + CLAIM_DURATION);
+
+    const claimed = await Subscription.updateOne(
+      {
+        _id: sub._id,
+        currentPeriodEnd: periodEnd,
+        [stage.marker]: { $ne: periodEnd },
+        $or: [
+          { [stage.lock]: { $exists: false } },
+          { [stage.lock]: null },
+          { [stage.lock]: { $lte: now } },
+        ],
+      },
+      {
+        $set: {
+          [stage.lock]: leaseUntil,
+        },
+      },
+    );
+
+    if (!claimed.modifiedCount) continue;
+
+    const releaseLease = async () => {
+      await Subscription.updateOne(
+        {
+          _id: sub._id,
+          currentPeriodEnd: periodEnd,
+          [stage.lock]: leaseUntil,
+        },
+        {
+          $unset: {
+            [stage.lock]: 1,
+          },
+        },
+      );
+    };
+
+    const monthlyFee = new Intl.NumberFormat('en-NG', {
+      style: 'currency',
+      currency: 'NGN',
+      maximumFractionDigits: 0,
+    }).format(Number(plan.monthlyFee) / 100);
+
+    try {
+      const result = await sendMail({
+        user: owner?._id,
+        to: recipient,
+        template: 'subscription_reminder',
+        subject: stage.subject,
+        text: [
+          `Hello ${owner?.name || 'there'},`,
+          '',
+          stage.message,
+          '',
+          `Business: ${business.name}`,
+          `Plan: ${plan.name}`,
+          `Monthly subscription: ${monthlyFee}`,
+          `Subscription period ends: ${periodEnd.toLocaleDateString('en-NG')}`,
+          '',
+          'To keep your subscription active, sign in to your Zuno dashboard and open Billing to renew.',
+          'Zuno will not automatically charge your saved payment method.',
+        ].join('\n'),
+      });
+
+      if (result?.sent) {
+        // Record successful delivery only if this process
+        // still owns the lease.
+        const completed = await Subscription.updateOne(
+          {
+            _id: sub._id,
+            currentPeriodEnd: periodEnd,
+            [stage.marker]: { $ne: periodEnd },
+            [stage.lock]: leaseUntil,
+          },
+          {
+            $set: {
+              [stage.marker]: periodEnd,
+            },
+            $unset: {
+              [stage.lock]: 1,
+            },
+          },
+        );
+
+        if (completed.modifiedCount) {
+          sent += 1;
+        }
+      } else {
+        await releaseLease();
+      }
+    } catch (error) {
+      await releaseLease();
+
+      console.error(
+        'subscription reminder email failed',
+        sub._id,
+        error.message,
+      );
+    }
   }
+
+  return sent;
 }
 
-async function processLockedRenewal(sub, now = new Date()) {
-  const { initPaymentFor } = await import('./payments.js');
-  const { chargeAuthorization } = await import('../lib/paystack.js');
 
-  // Reconcile any existing payment before creating another.
-  if (sub.pendingRenewalPaymentReference) {
-    const existingPayment = await Payment.findOne({
-      reference: sub.pendingRenewalPaymentReference,
+/**
+ * Subscription maintenance.
+ *
+ * This job never creates a payment or charges a saved authorization.
+ * It only reconciles subscription payments already initiated by merchants
+ * and applies scheduled Free-plan downgrades.
+ */
+export async function runSubscriptionMaintenance(now = new Date()) {
+  const freeDowngrades = await applyScheduledFreeDowngrades(now);
+  const renewalReminders = await sendRenewalReminders(now);
+  const candidates = await Subscription.find({
+    pendingRenewalPaymentReference: {
+      $exists: true,
+      $nin: [null, ''],
+    },
+  }).select('_id business pendingRenewalPaymentReference');
+
+  let checked = 0;
+  let resolved = 0;
+  let pending = 0;
+  let missing = 0;
+
+  const clearPendingReference = async (sub, reference) => {
+    await Subscription.updateOne(
+      {
+        _id: sub._id,
+        pendingRenewalPaymentReference: reference,
+      },
+      {
+        $unset: {
+          pendingRenewalPaymentReference: 1,
+          renewalLockUntil: 1,
+        },
+      },
+    );
+  };
+
+  for (const sub of candidates) {
+    const reference = sub.pendingRenewalPaymentReference;
+
+    const payment = await Payment.findOne({
+      reference,
       business: sub.business,
       purpose: 'subscription',
     });
 
-    if (!existingPayment) {
-      await deferVerification(
-        sub,
-        sub.pendingRenewalPaymentReference,
-        'payment_record_not_found',
-      );
+    if (!payment) {
+      await clearPendingReference(sub, reference);
+      missing += 1;
 
-      return;
+      await audit({
+        actorType: 'system',
+        action: 'billing.pending_payment_reference_cleared',
+        business: sub.business,
+        related: {
+          kind: 'Subscription',
+          id: sub._id,
+        },
+        meta: {
+          reason: 'payment_record_not_found',
+        },
+      });
+
+      continue;
     }
 
-    if (existingPayment.status === 'success') {
-      await verifyRenewalPayment(
-        sub,
-        existingPayment.reference,
-      );
+    if (['failed', 'abandoned'].includes(payment.status)) {
+      await clearPendingReference(sub, reference);
+      resolved += 1;
 
-      return;
+      await audit({
+        actorType: 'system',
+        action: 'billing.pending_payment_reference_cleared',
+        business: sub.business,
+        related: {
+          kind: 'Payment',
+          id: payment._id,
+        },
+        meta: {
+          reason: payment.status,
+        },
+      });
+
+      continue;
     }
 
-    if (['failed', 'abandoned'].includes(existingPayment.status)) {
+    checked += 1;
+
+    try {
+      const { verifyAndApply } = await import('./payments.js');
+
+      const result = await verifyAndApply(reference, {
+        expectedContext: 'platform',
+      });
+
       if (
-        VERIFICATION_MISMATCH_REASONS.has(
-          existingPayment.failureReason,
+        ['success', 'already_processed', 'failed', 'rejected'].includes(
+          result.result,
         )
       ) {
-        await quarantineRenewalPayment(
-          sub,
-          existingPayment.reference,
-          existingPayment.failureReason,
-        );
-
-        return;
+        await clearPendingReference(sub, reference);
+        resolved += 1;
+      } else {
+        // Pending verification/application stays attached to this
+        // reference. Never create another payment automatically.
+        pending += 1;
       }
+    } catch (error) {
+      // A temporary verification error is not proof of payment failure.
+      // Keep the reference so the same payment can be checked later.
+      pending += 1;
 
-      await recordRenewalFailure(
-        sub,
-        existingPayment.failureReason || existingPayment.status,
+      console.error(
+        'subscription payment reconciliation failed',
+        reference,
+        error.message,
       );
-
-      return;
     }
-
-    await verifyRenewalPayment(
-      sub,
-      existingPayment.reference,
-    );
-
-    return;
   }
 
-  const latestSub = await Subscription.findById(sub._id);
-
-  if (!latestSub) return;
-
-  if (latestSub.pendingRenewalPaymentReference) return;
-
-  if (
-    latestSub.cancelAtPeriodEnd ||
-    latestSub.suspended ||
-    latestSub.setupStatus === 'unpaid'
-  ) {
-    return;
-  }
-
-  const plan = await Plan.findById(
-    latestSub.scheduledPlan || latestSub.plan,
-  );
-
-  if (!plan) {
-    await recordRenewalFailure(latestSub, 'plan_not_found');
-    return;
-  }
-
-  // Free plans never create Paystack payments.
-  if (Number(plan.monthlyFee) === 0) {
-    if (latestSub.scheduledPlan) {
-      await applyScheduledFreeDowngrades(now);
-    }
-
-    return;
-  }
-
-  if (Number(plan.monthlyFee) < 0) {
-    await recordRenewalFailure(latestSub, 'invalid_plan_amount');
-    return;
-  }
-
-  if (!latestSub.authorization?.code) return;
-
-  const payment = await initPaymentFor({
-    business: latestSub.business,
-    purpose: 'subscription',
-    amount: plan.monthlyFee,
-    meta: {
-      planId: plan._id,
-      renewal: true,
-    },
-  });
-
-  await Subscription.updateOne(
-    { _id: latestSub._id },
+  // Remove reusable authorizations left behind by the previous
+  // automatic-renewal implementation.
+  const legacyAuthorizations = await Subscription.updateMany(
     {
-      $set: {
-        pendingRenewalPaymentReference: payment.reference,
-        lastRenewalAttemptAt: now,
-        renewalStatus: 'retry_required',
+      'authorization.code': {
+        $exists: true,
+        $ne: null,
+      },
+    },
+    {
+      $unset: {
+        authorization: 1,
       },
     },
   );
 
-  try {
-    await chargeAuthorization({
-      authorization_code: latestSub.authorization.code,
-      email: latestSub.authorization.email,
-      amount: plan.monthlyFee,
-      currency: 'NGN',
-      reference: payment.reference,
-    });
-  } catch (error) {
-    // A timeout does not prove the charge failed.
-    // Verify the same reference rather than creating another charge.
-  }
-
-  await verifyRenewalPayment(
-    latestSub,
-    payment.reference,
-  );
-}
-
-async function runRenewal(
-  businessId,
-  now = new Date(),
-  manual = false,
-) {
-  const sub = await acquireRenewalLock(
-    businessId,
-    now,
-    manual,
-  );
-
-  if (!sub) {
-    return {
-      attempted: false,
-      reason: 'not_due_or_locked',
-    };
-  }
-
-  try {
-    await processLockedRenewal(sub, now);
-
-    return { attempted: true };
-  } catch (error) {
-    const current = await Subscription.findById(sub._id);
-
-    if (current?.pendingRenewalPaymentReference) {
-      await deferVerification(
-        current,
-        current.pendingRenewalPaymentReference,
-        'renewal_processing_error',
-      );
-    } else {
-      await recordRenewalFailure(
-        sub,
-        'renewal_processing_error',
-      );
-    }
-
-    return {
-      attempted: true,
-      error: true,
-    };
-  } finally {
-    await Subscription.updateOne(
-      { _id: sub._id },
-      { $unset: { renewalLockUntil: 1 } },
-    );
-  }
-}
-
-/**
- * Scheduler entry point.
- */
-export async function expireAndRenewDue(now = new Date()) {
-  const freeDowngrades = await applyScheduledFreeDowngrades(now);
-
-  const candidates = await Subscription.find({
-    suspended: false,
-    cancelAtPeriodEnd: false,
-    setupStatus: { $ne: 'unpaid' },
-    'authorization.code': { $exists: true, $ne: null },
-    $or: [
-      {
-        pendingRenewalPaymentReference: {
-          $exists: true,
-          $ne: null,
-        },
-      },
-      {
-        currentPeriodEnd: {
-          $lte: new Date(now.getTime() + DAY),
-        },
-      },
-    ],
-    $and: [
-      {
-        $or: [
-          { nextRenewalRetryAt: { $exists: false } },
-          { nextRenewalRetryAt: null },
-          { nextRenewalRetryAt: { $lte: now } },
-        ],
-      },
-      {
-        $or: [
-          { renewalLockUntil: { $exists: false } },
-          { renewalLockUntil: null },
-          { renewalLockUntil: { $lte: now } },
-        ],
-      },
-    ],
-  }).select('business');
-
-  let attempted = 0;
-
-  for (const candidate of candidates) {
-    const result = await runRenewal(candidate.business, now);
-
-    if (result.attempted) {
-      attempted += 1;
-    }
-  }
-
   return {
-    attempted,
     freeDowngrades,
-  };
-}
-
-/**
- * Manual retry entry point for the billing API.
- */
-export async function retrySubscriptionRenewal(businessId) {
-  const result = await runRenewal(
-    businessId,
-    new Date(),
-    true,
-  );
-
-  if (!result.attempted) {
-    return {
-      ok: false,
-      reason: result.reason,
-    };
-  }
-
-  const sub = await Subscription.findOne({
-    business: businessId,
-  });
-
-  return {
-    ok: true,
-    renewalStatus: sub?.renewalStatus || 'current',
-    pending: !!sub?.pendingRenewalPaymentReference,
-    nextRetryAt: sub?.nextRenewalRetryAt || null,
+    renewalReminders,
+    checked,
+    resolved,
+    pending,
+    missing,
+    legacyAuthorizationsCleared:
+      legacyAuthorizations.modifiedCount || 0,
   };
 }

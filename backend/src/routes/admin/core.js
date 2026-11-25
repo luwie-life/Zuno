@@ -29,11 +29,13 @@ import {
   escapeRegex,
 } from '../../lib/validate.js';
 import { requireAuth, requirePlatform } from '../../middleware/auth.js';
-import { getAccess } from '../../services/subscriptions.js';
+import {
+  getAccess,
+  runSubscriptionMaintenance,
+} from '../../services/subscriptions.js';
 import { getSettings } from '../../services/settings.js';
 import { audit } from '../../services/audit.js';
 import { releaseExpiredReservations } from '../../services/orders.js';
-import { expireAndRenewDue } from '../../services/subscriptions.js';
 import { reconcilePayments } from '../../services/payments.js';
 
 const r = Router();
@@ -709,7 +711,7 @@ r.patch('/settings', requirePlatform('*'), asyncH(async (req, res) => {
 
 r.post('/jobs/run', requirePlatform('subscriptions.write'), asyncH(async (req, res) => {
   const released = await releaseExpiredReservations();
-  const renewals = await expireAndRenewDue();
+  const subscriptionMaintenance = await runSubscriptionMaintenance();
   const reconciled = await reconcilePayments();
 
   await audit({
@@ -717,14 +719,18 @@ r.post('/jobs/run', requirePlatform('subscriptions.write'), asyncH(async (req, r
     action: 'jobs.run_manual',
     meta: {
       released,
-      renewals,
+      subscriptionMaintenance,
       reconciled,
     },
   });
 
   res.json({
     released,
-    renewals,
+    subscriptionMaintenance,
+
+    // Compatibility alias for any existing admin UI consuming this key.
+    renewals: subscriptionMaintenance,
+
     reconciled,
   });
 }));

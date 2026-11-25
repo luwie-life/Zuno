@@ -55,7 +55,22 @@ export function nextPeriodEnd(currentPeriodEnd, now = new Date()) {
       : now;
 
   const next = new Date(base);
-  next.setMonth(next.getMonth() + 1);
+  const originalDay = next.getUTCDate();
+
+  // Move to the first day before advancing the month to prevent overflow.
+  next.setUTCDate(1);
+  next.setUTCMonth(next.getUTCMonth() + 1);
+
+  // Clamp to the final valid day of the destination month.
+  const lastDay = new Date(
+    Date.UTC(
+      next.getUTCFullYear(),
+      next.getUTCMonth() + 1,
+      0,
+    ),
+  ).getUTCDate();
+
+  next.setUTCDate(Math.min(originalDay, lastDay));
 
   return next;
 }

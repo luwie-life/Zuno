@@ -5,13 +5,12 @@ import {
   AlertCircle,
   CheckCircle2,
   Clock3,
-  CreditCard,
   RefreshCw,
 } from 'lucide-react';
 
 import { api } from '../../lib/api.js';
 import { useAuth } from '../../lib/auth.jsx';
-import { naira, date, dateTime, label } from '../../lib/format.js';
+import { naira, date, label } from '../../lib/format.js';
 import {
   Badge,
   Card,
@@ -36,19 +35,23 @@ const STATE_TEXT = {
   suspended: 'Suspended',
 };
 
-function RenewalStatus({ data }) {
-  if (data.renewalPaymentPending) {
+function ManualRenewalStatus({ data }) {
+  const hasPendingPayment =
+    Boolean(data.pendingRenewalReference) ||
+    data.payments?.some((payment) => payment.status === 'initialized');
+
+  if (hasPendingPayment) {
     return (
       <Notice tone="warn">
         <div className="flex items-start gap-2">
           <Clock3 className="mt-0.5 h-5 w-5 shrink-0" />
           <div>
             <p className="font-semibold">
-              Renewal payment is being verified
+              Your payment is being verified
             </p>
             <p className="mt-1 text-sm">
-              We are checking the existing payment with Paystack. Do not
-              initiate another renewal payment while this is being resolved.
+              We are checking your existing payment with Paystack.
+              Please verify its status before starting another payment.
             </p>
           </div>
         </div>
@@ -56,33 +59,16 @@ function RenewalStatus({ data }) {
     );
   }
 
-  if (data.renewalStatus === 'retry_required') {
+  if (data.state === 'grace') {
     return (
       <Notice tone="warn">
         <div className="flex items-start gap-2">
           <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
           <div>
-            <p className="font-semibold">Renewal needs attention</p>
+            <p className="font-semibold">Your subscription needs renewal</p>
             <p className="mt-1 text-sm">
-              {data.lastRenewalFailureReason
-                ? `Latest issue: ${label(data.lastRenewalFailureReason)}.`
-                : 'Your latest automatic renewal was unsuccessful.'}
-            </p>
-
-            {data.lastRenewalFailureAt && (
-              <p className="mt-1 text-xs text-muted">
-                Last failure: {dateTime(data.lastRenewalFailureAt)}
-              </p>
-            )}
-
-            {data.nextRenewalRetryAt && (
-              <p className="mt-1 text-xs text-muted">
-                Next automatic retry: {dateTime(data.nextRenewalRetryAt)}
-              </p>
-            )}
-
-            <p className="mt-2 text-xs">
-              Check your saved payment method or request a retry below.
+              Your paid period has ended. Your 7-day grace period allows
+              you to continue using paid features while you renew.
             </p>
           </div>
         </div>
@@ -90,18 +76,76 @@ function RenewalStatus({ data }) {
     );
   }
 
-  if (data.card) {
+  if (data.state === 'expired') {
+    return (
+      <Notice tone="warn">
+        Your paid subscription and grace period have ended.
+        Renew your plan to restore paid features.
+      </Notice>
+    );
+  }
+
+  if (data.state === 'suspended') {
+    return (
+      <Notice tone="warn">
+        Your subscription is suspended. Contact Zuno support for assistance.
+      </Notice>
+    );
+  }
+
+  if (data.state === 'cancelled') {
+    return (
+      <Notice tone="warn">
+        Your subscription has been cancelled. Choose a plan to restore
+        paid features.
+      </Notice>
+    );
+  }
+
+  if (data.state === 'pending_setup') {
+    return (
+      <Notice tone="warn">
+        Your account setup is not complete yet.
+      </Notice>
+    );
+  }
+
+  if (data.state === 'pending_payment') {
+    return (
+      <Notice tone="warn">
+        Complete your subscription payment to activate your paid plan.
+      </Notice>
+    );
+  }
+
+  if (data.state === 'none') {
+    return (
+      <Notice>
+        You do not currently have an active subscription.
+        Choose a plan to get started.
+      </Notice>
+    );
+  }
+
+  if (data.cancelAtPeriodEnd) {
+    return (
+      <Notice tone="warn">
+        Your subscription is scheduled to end at the end of your paid period.
+        You can reverse this cancellation before then.
+      </Notice>
+    );
+  }
+
+  if (data.state === 'active') {
     return (
       <Notice tone="ok">
         <div className="flex items-start gap-2">
           <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
           <div>
-            <p className="font-semibold">
-              Automatic renewal is set up
-            </p>
+            <p className="font-semibold">Manual renewal is enabled</p>
             <p className="mt-1 text-sm">
-              Your saved Paystack authorisation can be used for eligible
-              automatic renewals.
+              Your subscription is not automatically charged. You decide
+              when to make each monthly payment through Paystack.
             </p>
           </div>
         </div>
@@ -111,8 +155,8 @@ function RenewalStatus({ data }) {
 
   return (
     <Notice>
-      Automatic renewal is not set up yet. A qualifying Paystack card payment
-      may create a reusable payment authorisation.
+      Your subscription status is currently {data.state}.
+      Contact support if you need assistance.
     </Notice>
   );
 }
@@ -194,7 +238,16 @@ export default function Billing() {
   if (!data) return null;
 
   const d = data;
-  const isFree = Number(d.plan?.monthlyFee || 0) === 0;
+  const currentPlan = d.plan;
+  const scheduledPlan = d.scheduledPlan;
+  const isFree = Number(currentPlan?.monthlyFee || 0) === 0;
+
+  const unresolvedPayment = d.payments?.find(
+    (payment) => payment.status === 'initialized',
+  );
+
+  const pendingReference =
+    d.pendingRenewalReference || unresolvedPayment?.reference;
 
   const pay = () =>
     run(async () => {
@@ -207,39 +260,34 @@ export default function Billing() {
       window.location.href = result.authorizationUrl;
     });
 
-  const retryRenewal = () =>
+  const verifyPayment = (reference) =>
     run(async () => {
-      const result = await api('/billing/retry-renewal', {
-        method: 'POST',
-        biz: true,
-      });
+      const result = await api(
+        `/billing/verify?reference=${encodeURIComponent(reference)}`,
+        { biz: true },
+      );
+
+      const successful = [
+        'success',
+        'already_processed',
+      ].includes(result.result);
+
+      if (successful) {
+        toast('Payment confirmed', 'ok');
+      } else if (
+        result.result === 'pending' ||
+        result.result === 'pending_application'
+      ) {
+        toast('Payment is still being verified', 'ok');
+      } else {
+        toast('We could not confirm that payment', 'bad');
+      }
 
       await reload();
       await refresh();
 
-      if (result.pending) {
-        toast(
-          'Payment is still being verified. We will not create another charge.',
-          'ok',
-        );
-      } else if (result.renewalStatus === 'current') {
-        toast('Your renewal has been resolved.', 'ok');
-      } else {
-        toast('Retry processed. Check your renewal status below.', 'ok');
-      }
-
       return result;
     });
-
-  const renewalNeedsAttention =
-    d.renewalStatus === 'retry_required';
-
-  const renewalButtonLabel = d.renewalPaymentPending
-    ? 'Check payment status'
-    : 'Retry renewal';
-
-  const currentPlan = d.plan;
-  const scheduledPlan = d.scheduledPlan;
 
   return (
     <>
@@ -297,23 +345,14 @@ export default function Billing() {
                     : 'Not paid yet'}
               </dd>
             </div>
-
-            {d.card && (
-              <div className="flex items-center justify-between gap-3">
-                <dt>Saved payment method</dt>
-                <dd className="flex items-center gap-1 text-right">
-                  <CreditCard className="h-4 w-4" />
-                  {d.card.brand || 'Card'} •••• {d.card.last4}
-                </dd>
-              </div>
-            )}
           </dl>
 
           {d.pendingPlan && (
             <div className="mt-4">
               <Notice tone="warn">
-                Your change to <strong>{d.pendingPlan.name}</strong> is waiting
-                for payment. Complete the subscription payment to activate it.
+                Your change to <strong>{d.pendingPlan.name}</strong> is
+                waiting for payment. Complete the subscription payment
+                to activate it.
               </Notice>
             </div>
           )}
@@ -325,7 +364,7 @@ export default function Billing() {
                 <strong>{scheduledPlan.name}</strong>.
                 {Number(scheduledPlan.monthlyFee) === 0
                   ? ' The Free plan takes effect after your paid period and 7-day grace period.'
-                  : ' The new plan takes effect at your next successful renewal.'}
+                  : ' The new plan takes effect at the scheduled time.'}
               </Notice>
             </div>
           )}
@@ -334,7 +373,7 @@ export default function Billing() {
             {(d.pendingPlan || (isFree && d.scheduledPlan)) && (
               <button
                 className="btn-primary"
-                disabled={busy || d.renewalPaymentPending}
+                disabled={busy || !!pendingReference}
                 onClick={pay}
               >
                 Pay {d.pendingPlan?.name || d.scheduledPlan?.name} subscription
@@ -343,21 +382,36 @@ export default function Billing() {
 
             {!isFree &&
               !d.pendingPlan &&
-              !d.scheduledPlan &&
-              ['expired', 'pending_payment'].includes(d.state) && (
+              !d.scheduledPlan && (
                 <button
                   className="btn-primary"
-                  disabled={busy || d.renewalPaymentPending}
+                  disabled={busy || !!pendingReference}
                   onClick={pay}
                 >
-                  Pay monthly subscription
+                  {d.state === 'active'
+                    ? 'Renew subscription'
+                    : 'Renew subscription now'}
                 </button>
               )}
           </div>
 
+          {pendingReference && (
+            <div className="mt-3">
+              <button
+                className="btn-secondary inline-flex items-center gap-2"
+                disabled={busy}
+                onClick={() => verifyPayment(pendingReference)}
+              >
+                <RefreshCw className={`h-4 w-4 ${busy ? 'animate-spin' : ''}`} />
+                Verify existing payment
+              </button>
+            </div>
+          )}
+
           <p className="mt-4 text-xs text-muted">
-            Payments are completed on Paystack's secure page. Zuno never sees
-            your card details. Paid subscriptions activate only after
+            Renewals are initiated by you. Zuno does not automatically
+            charge your card. Payments are completed through Paystack's
+            secure checkout and subscriptions activate only after
             server-side payment verification.
           </p>
 
@@ -375,6 +429,7 @@ export default function Billing() {
                     });
 
                     await reload();
+                    await refresh();
                   }, 'Cancellation reverted')
                 }
               >
@@ -409,65 +464,29 @@ export default function Billing() {
 
         <Card className="p-5">
           <h2 className="font-semibold">
-            Renewal and payment status
+            Monthly renewal
           </h2>
 
           <div className="mt-4">
-            <RenewalStatus data={d} />
+            <ManualRenewalStatus data={d} />
           </div>
 
-          {renewalNeedsAttention && (
-            <div className="mt-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="text-sm">
-                  <p className="font-medium">
-                    {d.renewalPaymentPending
-                      ? 'Existing payment needs verification'
-                      : 'Automatic renewal needs attention'}
-                  </p>
-                  <p className="mt-1 text-xs text-muted">
-                    Failed attempts: {d.failedRenewals || 0}
-                  </p>
-                </div>
-
-                <button
-                  className="btn-primary inline-flex items-center gap-2"
-                  disabled={busy}
-                  onClick={retryRenewal}
-                >
-                  <RefreshCw
-                    className={`h-4 w-4 ${busy ? 'animate-spin' : ''}`}
-                  />
-                  {renewalButtonLabel}
-                </button>
-              </div>
+          <div className="mt-4 space-y-3 text-sm">
+            <div className="flex items-start gap-2">
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-forest" />
+              <p>Receive reminders before your subscription expires.</p>
             </div>
-          )}
 
-          {d.lastRenewalAttemptAt && (
-            <div className="mt-4 border-t border-line pt-3 text-xs text-muted">
-              Last renewal attempt: {dateTime(d.lastRenewalAttemptAt)}
+            <div className="flex items-start gap-2">
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-forest" />
+              <p>Renew securely through Paystack when you're ready.</p>
             </div>
-          )}
 
-          {d.card ? (
-            <div className="mt-4 flex items-center gap-2 rounded-lg border border-line p-3 text-sm">
-              <CreditCard className="h-5 w-5 text-muted" />
-              <div>
-                <p className="font-medium">
-                  Saved payment authorisation
-                </p>
-                <p className="text-xs text-muted">
-                  {d.card.brand || 'Card'} ending in {d.card.last4}
-                </p>
-              </div>
+            <div className="flex items-start gap-2">
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-forest" />
+              <p>Your subscription is extended after payment verification.</p>
             </div>
-          ) : (
-            <p className="mt-3 text-xs text-muted">
-              A reusable payment authorisation may be saved after a qualifying
-              Paystack card payment.
-            </p>
-          )}
+          </div>
         </Card>
       </div>
 
@@ -514,7 +533,7 @@ export default function Billing() {
                   ) : (
                     <button
                       className="btn-secondary !min-h-[36px] !py-1"
-                      disabled={busy || d.renewalPaymentPending}
+                      disabled={busy || !!pendingReference}
                       onClick={() =>
                         run(async () => {
                           const result = await api('/billing/change-plan', {
@@ -566,6 +585,7 @@ export default function Billing() {
               'Amount',
               'Status',
               'Reference',
+              'Action',
             ]}
           >
             {d.payments.map((payment) => (
@@ -594,6 +614,18 @@ export default function Billing() {
 
                 <td className="px-4 py-2.5 text-xs text-muted">
                   {payment.reference}
+                </td>
+
+                <td className="px-4 py-2.5">
+                  {payment.status === 'initialized' && (
+                    <button
+                      className="text-sm font-medium text-forest underline"
+                      disabled={busy}
+                      onClick={() => verifyPayment(payment.reference)}
+                    >
+                      Verify
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}
