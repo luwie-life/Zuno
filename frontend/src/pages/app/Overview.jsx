@@ -193,7 +193,7 @@ function StatusMessage({ type, children }) {
 }
 
 export function NewBusiness() {
-  const { switchBusiness } = useAuth();
+  const { switchBusiness, user } = useAuth();
   const nav = useNavigate();
   const [sp] = useSearchParams();
 
@@ -375,7 +375,13 @@ export function NewBusiness() {
       });
 
       await switchBusiness(result.business._id);
-      nav('/app', { replace: true });
+
+nav(
+  user?.emailVerified
+    ? '/app'
+    : '/verify-email?pending=1',
+  { replace: true }
+);
     } catch (err) {
       setError(err);
       setStep(2);
