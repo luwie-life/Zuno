@@ -1,11 +1,7 @@
 
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  AnimatePresence,
-  motion,
-  useReducedMotion,
-} from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import {
   ArrowDown,
   ArrowRight,
@@ -13,15 +9,27 @@ import {
   CalendarDays,
   Check,
   ChevronDown,
+  CirclePlay,
   Globe2,
-  Heart,
   Layers3,
+  Menu,
   Package,
   ShoppingBag,
   Sparkles,
   Store,
   Users,
+  X,
 } from 'lucide-react';
+
+const C = {
+  forest: '#0B3D2E',
+  green: '#1C6F52',
+  mango: '#E9A23B',
+  ink: '#12201A',
+  paper: '#F6F7F5',
+  muted: '#68756D',
+  line: '#DCE2DD',
+};
 
 const ease = [0.22, 1, 0.36, 1];
 
@@ -33,7 +41,7 @@ function Reveal({ children, className = '', delay = 0 }) {
       className={className}
       initial={reduce ? false : { opacity: 0, y: 28 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.16 }}
+      viewport={{ once: true, amount: 0.15 }}
       transition={{
         duration: reduce ? 0 : 0.75,
         delay,
@@ -45,11 +53,11 @@ function Reveal({ children, className = '', delay = 0 }) {
   );
 }
 
-function Eyebrow({ children, light = false }) {
+function Eyebrow({ children, light = false, mango = false }) {
   return (
     <div
-      className={`mb-5 flex items-center gap-2.5 text-[10px] font-bold uppercase tracking-[.18em] ${
-        light ? 'text-[#C9E2B6]' : 'text-[#557A57]'
+      className={`mb-5 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.19em] ${
+        light ? 'text-white/55' : mango ? 'text-[#0B3D2E]' : 'text-[#1C6F52]'
       }`}
     >
       <span className="h-1.5 w-1.5 rounded-full bg-current" />
@@ -58,203 +66,184 @@ function Eyebrow({ children, light = false }) {
   );
 }
 
-function CTA({ to = '/register', children = 'Start with Zuno', secondary = false }) {
+function PrimaryLink({ to = '/register', children = 'Get started' }) {
   return (
     <Link
       to={to}
-      className={`group inline-flex min-h-[52px] items-center justify-center gap-3 rounded-full px-6 text-[13px] font-semibold transition-all duration-300 hover:-translate-y-0.5 ${
-        secondary
-          ? 'border border-[#DCE3D8] bg-white text-[#253D2C] hover:border-[#174D35]'
-          : 'bg-[#174D35] text-white shadow-[0_12px_30px_-15px_rgba(23,77,53,.55)] hover:bg-[#246343]'
-      }`}
+      className="group inline-flex min-h-[52px] items-center gap-3 rounded-full bg-[#E9A23B] px-5 text-[13px] font-bold text-[#12201A] transition hover:-translate-y-0.5 hover:bg-[#F3B653]"
     >
       {children}
-      <span
-        className={`flex h-7 w-7 items-center justify-center rounded-full transition-transform group-hover:translate-x-1 ${
-          secondary ? 'bg-[#EEF2EC]' : 'bg-white/15'
-        }`}
-      >
+      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#12201A]/10 transition group-hover:translate-x-1">
         <ArrowUpRight size={15} />
       </span>
     </Link>
   );
 }
 
-function BrowserBar({ children = 'yourbusiness.zuno.com.ng' }) {
+function TextLink({ to, children, light = false }) {
   return (
-    <div className="flex h-11 items-center gap-2 border-b border-[#E9EDE6] bg-[#FAFBF8] px-4">
-      <span className="h-2 w-2 rounded-full bg-[#E6B1A7]" />
-      <span className="h-2 w-2 rounded-full bg-[#E8D49D]" />
-      <span className="h-2 w-2 rounded-full bg-[#A8C7A5]" />
-      <div className="mx-auto flex h-6 max-w-[280px] flex-1 items-center justify-center gap-1.5 rounded-md border border-[#EEF0EB] bg-white text-[9px] text-[#879287]">
-        <Globe2 size={10} />
-        {children}
-      </div>
-    </div>
+    <Link
+      to={to}
+      className={`group inline-flex items-center gap-2 text-[13px] font-semibold transition ${
+        light ? 'text-white' : 'text-[#0B3D2E]'
+      }`}
+    >
+      {children}
+      <ArrowRight
+        size={15}
+        className="transition group-hover:translate-x-1"
+      />
+    </Link>
   );
 }
 
-function ProductArtwork() {
-  return (
-    <div className="relative flex h-full min-h-[245px] items-center justify-center overflow-hidden bg-[#DCD8CB]">
-      <div className="absolute -right-10 -top-10 h-48 w-48 rounded-full bg-[#C8C3B4]" />
-      <div className="absolute -bottom-20 -left-16 h-56 w-56 rounded-full border border-white/30" />
-      <div className="absolute bottom-8 left-8 right-8 h-3 rounded-full bg-[#B6B1A2]/50 blur-md" />
-
-      <motion.div
-        className="relative flex h-[170px] w-[130px] items-center justify-center rounded-t-[48%] bg-[#A7A28F] shadow-[0_30px_45px_-20px_rgba(0,0,0,.3)]"
-        animate={{ y: [0, -5, 0], rotate: [0, 1, 0] }}
-        transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
-      >
-        <div className="absolute inset-x-4 top-0 h-7 rounded-b-full bg-[#858573]" />
-        <span className="mt-6 text-[9px] font-bold tracking-[.22em] text-white/80">
-          FORME
-        </span>
-      </motion.div>
-
-      <div className="absolute bottom-7 right-7 rounded-xl border border-white/70 bg-white/75 px-3 py-2.5 shadow-lg backdrop-blur">
-        <p className="text-[8px] text-[#899085]">A new collection</p>
-        <p className="mt-1 text-[10px] font-semibold text-[#354235]">
-          Made to be yours
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function ServiceArtwork() {
-  return (
-    <div className="relative flex min-h-[245px] items-center justify-center overflow-hidden bg-[#E7E9DF] p-6">
-      <div className="absolute -right-12 -top-12 h-56 w-56 rounded-full border border-[#BFC9B8]" />
-      <div className="absolute -bottom-20 -left-10 h-56 w-56 rounded-full border border-[#BFC9B8]" />
-
-      <div className="relative w-full max-w-[270px] rounded-2xl bg-[#FCFCF8] p-5 shadow-[0_25px_55px_-30px_rgba(0,0,0,.25)]">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-[8px] font-bold tracking-[.16em] text-[#8B9587]">
-              STUDIO NO. 08
-            </p>
-            <h3 className="mt-2 font-display text-2xl tracking-[-.05em] text-[#29382B]">
-              Your time,
-              <br />
-              your moment.
-            </h3>
-          </div>
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#E8EDE3] text-[#547653]">
-            <CalendarDays size={17} />
-          </div>
-        </div>
-
-        <div className="mt-5 flex items-center gap-2 rounded-xl bg-[#F1F3EC] p-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-[#577653]">
-            <Check size={14} />
-          </div>
-          <div>
-            <p className="text-[9px] font-semibold text-[#3D4B3D]">
-              Service appointment
-            </p>
-            <p className="mt-0.5 text-[8px] text-[#8D9689]">
-              Booking request received
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
+/* A custom storefront scene, not a generic browser mockup. */
 function StorefrontScene() {
-  const [business, setBusiness] = useState('products');
+  const [kind, setKind] = useState('products');
+  const isService = kind === 'services';
 
   return (
-    <div className="relative mx-auto w-full max-w-[630px]">
-      <div className="absolute -inset-10 rounded-full bg-[#DDE8D8] blur-[70px]" />
+    <div className="relative mx-auto w-full max-w-[620px]">
+      <div className="absolute -inset-10 rounded-[45%] bg-[#1C6F52]/25 blur-[75px]" />
 
-      <div className="relative overflow-hidden rounded-[24px] border border-white bg-white shadow-[0_35px_90px_-45px_rgba(16,42,24,.35)]">
-        <BrowserBar />
-
-        <div className="flex items-center justify-between border-b border-[#F0F2ED] px-5 py-4 sm:px-7">
-          <span className="font-display text-[13px] font-bold tracking-[-.04em] text-[#29382B]">
-            FORME STUDIO
-          </span>
-          <div className="hidden items-center gap-5 text-[9px] text-[#778176] sm:flex">
-            <span>DISCOVER</span>
-            <span>ABOUT</span>
-            <span>CONTACT</span>
+      <div className="relative overflow-hidden rounded-[24px] border border-white/10 bg-[#F6F7F5] shadow-[0_40px_120px_-40px_rgba(0,0,0,.7)]">
+        {/* storefront top bar */}
+        <div className="flex items-center justify-between border-b border-[#DCE2DD] bg-white px-5 py-4">
+          <div className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-[#1C6F52]" />
+            <span className="text-[10px] font-semibold text-[#12201A]">
+              yourbusiness.zuno.com.ng
+            </span>
           </div>
-          <ShoppingBag size={15} className="text-[#526451]" />
+          <span className="text-[9px] font-bold uppercase tracking-[.12em] text-[#68756D]">
+            Live preview
+          </span>
         </div>
 
-        <div className="grid sm:grid-cols-[.92fr_1.08fr]">
-          <div className="flex flex-col justify-center bg-[#F7F6F0] px-5 py-7 sm:px-7 sm:py-9">
+        <div className="grid sm:grid-cols-[.82fr_1.18fr]">
+          <div className="flex flex-col justify-center px-5 py-8 sm:px-7 sm:py-10">
             <AnimatePresence mode="wait">
               <motion.div
-                key={business}
+                key={kind}
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.25 }}
               >
-                <p className="text-[8px] font-bold tracking-[.17em] text-[#899184]">
-                  {business === 'products' ? 'THE EVERYDAY EDIT' : 'A LITTLE TIME FOR YOU'}
+                <p className="text-[8px] font-bold tracking-[.17em] text-[#68756D]">
+                  {isService ? 'A LITTLE TIME FOR YOU' : 'THE EVERYDAY EDIT'}
                 </p>
-                <h3 className="mt-4 font-display text-[clamp(26px,4vw,43px)] leading-[.98] tracking-[-.06em] text-[#29382B]">
-                  {business === 'products'
-                    ? 'Thoughtful things. Beautifully yours.'
-                    : 'Your next favourite appointment.'}
+
+                <h3 className="mt-4 font-display text-[clamp(29px,4vw,48px)] leading-[.92] tracking-[-.065em] text-[#12201A]">
+                  {isService
+                    ? 'Your next favourite appointment.'
+                    : 'Good things, made to be yours.'}
                 </h3>
-                <p className="mt-4 max-w-[210px] text-[9px] leading-5 text-[#7B8377]">
-                  {business === 'products'
-                    ? 'A considered collection for the way you live.'
-                    : 'Discover the service, meet the people and make time for yourself.'}
+
+                <p className="mt-4 max-w-[190px] text-[10px] leading-5 text-[#68756D]">
+                  {isService
+                    ? 'Explore the services. Find your time. Make it yours.'
+                    : 'A collection of pieces made for everyday living.'}
                 </p>
-                <span className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#293F2E] px-4 py-2.5 text-[9px] font-semibold text-white">
-                  {business === 'products' ? 'Explore collection' : 'Explore services'}
-                  <ArrowUpRight size={11} />
+
+                <span className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#0B3D2E] px-4 py-2.5 text-[9px] font-bold text-white">
+                  {isService ? 'Explore services' : 'Explore collection'}
+                  <ArrowRight size={11} />
                 </span>
               </motion.div>
             </AnimatePresence>
           </div>
 
-          <div className="min-h-[245px]">
-            <AnimatePresence mode="wait">
+          <div
+            className={`relative flex min-h-[270px] items-center justify-center overflow-hidden ${
+              isService ? 'bg-[#D9E8DF]' : 'bg-[#E9A23B]'
+            }`}
+          >
+            <div className="absolute -right-12 -top-12 h-64 w-64 rounded-full border border-[#12201A]/15" />
+            <div className="absolute -bottom-20 -left-12 h-60 w-60 rounded-full border border-[#12201A]/15" />
+
+            {isService ? (
               <motion.div
-                key={business}
-                initial={{ opacity: 0, scale: 0.97 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.97 }}
-                transition={{ duration: 0.3 }}
-                className="h-full"
+                key="service-card"
+                initial={{ scale: 0.94, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="relative w-[78%] rounded-[20px] bg-white p-5 shadow-[0_20px_50px_-20px_rgba(0,0,0,.25)]"
               >
-                {business === 'products' ? <ProductArtwork /> : <ServiceArtwork />}
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-[8px] font-bold tracking-[.15em] text-[#68756D]">
+                      STUDIO 08
+                    </p>
+                    <p className="mt-3 font-display text-[30px] leading-[.95] tracking-[-.06em] text-[#12201A]">
+                      Your time.
+                      <br />
+                      Your moment.
+                    </p>
+                  </div>
+                  <CalendarDays size={21} className="text-[#1C6F52]" />
+                </div>
+
+                <div className="mt-5 rounded-xl bg-[#EEF5F1] p-3">
+                  <div className="flex items-center gap-2 text-[9px] font-semibold text-[#0B3D2E]">
+                    <Check size={13} />
+                    Booking request received
+                  </div>
+                </div>
               </motion.div>
-            </AnimatePresence>
+            ) : (
+              <motion.div
+                key="product"
+                className="relative flex h-[210px] w-[150px] items-center justify-center rounded-t-[48%] bg-[#0B3D2E] shadow-[0_30px_50px_-20px_rgba(0,0,0,.35)]"
+                animate={{ y: [0, -8, 0], rotate: [0, 1.5, 0] }}
+                transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
+              >
+                <div className="absolute inset-x-4 top-0 h-8 rounded-b-full bg-[#1C6F52]" />
+                <div className="mt-6 text-center">
+                  <p className="text-[10px] font-bold tracking-[.24em] text-white">
+                    FORME
+                  </p>
+                  <p className="mt-2 text-[7px] tracking-[.18em] text-white/45">
+                    MADE TO LAST
+                  </p>
+                </div>
+              </motion.div>
+            )}
+
+            <div className="absolute bottom-5 right-5 rounded-xl bg-white px-3 py-2 shadow-lg">
+              <p className="text-[8px] text-[#68756D]">
+                {isService ? 'Your calendar' : 'Your collection'}
+              </p>
+              <p className="mt-1 text-[10px] font-bold text-[#12201A]">
+                {isService ? 'Make time for clients' : 'Made for your life'}
+              </p>
+            </div>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#F0F2ED] px-5 py-4 sm:px-7">
-          <p className="text-[9px] font-semibold text-[#687568]">
-            Preview your business
-          </p>
-          <div className="flex rounded-full bg-[#F0F3ED] p-1">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#DCE2DD] bg-white px-5 py-4">
+          <span className="text-[9px] font-semibold text-[#68756D]">
+            A little look at what you can create
+          </span>
+
+          <div className="flex rounded-full bg-[#F0F2EF] p-1">
             <button
               type="button"
-              onClick={() => setBusiness('products')}
-              className={`rounded-full px-3 py-2 text-[9px] font-semibold transition ${
-                business === 'products'
-                  ? 'bg-[#174D35] text-white'
-                  : 'text-[#667466] hover:text-[#174D35]'
+              onClick={() => setKind('products')}
+              className={`rounded-full px-3 py-2 text-[9px] font-bold transition ${
+                !isService
+                  ? 'bg-[#0B3D2E] text-white'
+                  : 'text-[#68756D] hover:text-[#12201A]'
               }`}
             >
               Products
             </button>
             <button
               type="button"
-              onClick={() => setBusiness('services')}
-              className={`rounded-full px-3 py-2 text-[9px] font-semibold transition ${
-                business === 'services'
-                  ? 'bg-[#174D35] text-white'
-                  : 'text-[#667466] hover:text-[#174D35]'
+              onClick={() => setKind('services')}
+              className={`rounded-full px-3 py-2 text-[9px] font-bold transition ${
+                isService
+                  ? 'bg-[#0B3D2E] text-white'
+                  : 'text-[#68756D] hover:text-[#12201A]'
               }`}
             >
               Services
@@ -263,135 +252,164 @@ function StorefrontScene() {
         </div>
       </div>
 
+      {/* Floating labels are part of the illustration, not extra product claims. */}
       <motion.div
-        className="absolute -bottom-7 -left-3 hidden rounded-2xl border border-white bg-white p-4 shadow-[0_20px_50px_-25px_rgba(0,0,0,.3)] sm:block"
+        className="absolute -left-5 top-8 hidden rounded-xl border border-white/10 bg-[#12201A] px-4 py-3 shadow-xl sm:block"
         animate={{ y: [0, -6, 0] }}
-        transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
+        transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut' }}
       >
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#EAF1E8] text-[#4D754F]">
-            <Store size={15} />
-          </div>
-          <div>
-            <p className="text-[9px] font-semibold text-[#344236]">
-              Your business, online
-            </p>
-            <p className="mt-1 text-[8px] text-[#929A90]">
-              A place that feels like yours
-            </p>
-          </div>
-        </div>
+        <p className="text-[8px] font-bold tracking-[.16em] text-[#E9A23B]">
+          YOUR BUSINESS
+        </p>
+        <p className="mt-1.5 text-[11px] font-semibold text-white">
+          Your own online home.
+        </p>
       </motion.div>
     </div>
   );
 }
 
-const chapters = [
-  {
-    number: '01',
-    title: 'Be more than a page in someone’s feed.',
-    body: 'Give your business a home of its own. A place customers can visit, explore and remember.',
-    label: 'Your online presence',
-    icon: Globe2,
-    points: ['Your business identity', 'Products and services', 'A dedicated storefront'],
-  },
-  {
-    number: '02',
-    title: 'Make what you offer easy to find.',
-    body: 'Bring your products or services into focus. Let customers understand what you do without having to piece it all together.',
-    label: 'Your catalogue',
-    icon: Package,
-    points: ['Organised product listings', 'Service presentations', 'A clearer customer experience'],
-  },
-  {
-    number: '03',
-    title: 'Keep the work moving.',
-    body: 'Orders, booking requests and customer details are part of the business too. Keep important activity close at hand.',
-    label: 'Your workspace',
-    icon: Layers3,
-    points: ['Customer orders', 'Booking requests', 'Customer information'],
-  },
-];
+function ChapterLabel({ number, children, light = false }) {
+  return (
+    <div
+      className={`flex items-center gap-3 text-[10px] font-bold uppercase tracking-[.18em] ${
+        light ? 'text-white/45' : 'text-[#68756D]'
+      }`}
+    >
+      <span>{number}</span>
+      <span className={`h-px w-8 ${light ? 'bg-white/25' : 'bg-[#0B3D2E]/25'}`} />
+      <span>{children}</span>
+    </div>
+  );
+}
 
-function ChapterScene({ chapter }) {
-  const Icon = chapter.icon;
+function BusinessCanvas() {
+  const [active, setActive] = useState('storefront');
+
+  const tabs = [
+    { id: 'storefront', label: 'Storefront', icon: Store },
+    { id: 'catalogue', label: 'Catalogue', icon: Package },
+    { id: 'activity', label: 'Activity', icon: Layers3 },
+  ];
+
+  const content = {
+    storefront: {
+      title: 'A place to be found.',
+      description: 'Give customers a clear, considered place to discover your business.',
+      rows: ['Your business name', 'Your products or services', 'Your own storefront'],
+    },
+    catalogue: {
+      title: 'A clearer way to offer.',
+      description: 'Keep the things you sell or the services you provide organised.',
+      rows: ['Product collections', 'Service listings', 'Details customers need'],
+    },
+    activity: {
+      title: 'The work behind the scenes.',
+      description: 'Keep important customer activity closer to the business.',
+      rows: ['Orders and requests', 'Booking activity', 'Customer information'],
+    },
+  };
+
+  const current = content[active];
 
   return (
-    <div className="relative mx-auto w-full max-w-[470px]">
-      <div className="absolute -inset-8 rounded-full bg-[#DDE7D8] blur-[65px]" />
-      <div className="relative overflow-hidden rounded-[22px] border border-white bg-white p-5 shadow-[0_30px_70px_-45px_rgba(16,42,24,.35)] sm:p-7">
-        <div className="flex items-center justify-between border-b border-[#EDF0EB] pb-5">
-          <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#EAF1E8] text-[#47734B]">
-              <Icon size={18} />
-            </span>
-            <div>
-              <p className="text-[10px] font-bold text-[#344236]">Business workspace</p>
-              <p className="mt-1 text-[8px] text-[#9AA196]">A clearer way to work</p>
-            </div>
+    <div className="overflow-hidden rounded-[24px] border border-white/10 bg-[#17251E] shadow-[0_35px_100px_-45px_rgba(0,0,0,.7)]">
+      <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+        <div className="flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-[#E9A23B]" />
+          <span className="text-[10px] font-bold text-white">Zuno workspace</span>
+        </div>
+        <span className="text-[9px] text-white/35">Illustrative preview</span>
+      </div>
+
+      <div className="grid sm:grid-cols-[150px_1fr]">
+        <div className="border-b border-white/10 p-3 sm:border-b-0 sm:border-r">
+          <p className="px-2 pb-3 pt-1 text-[8px] font-bold tracking-[.15em] text-white/30">
+            YOUR BUSINESS
+          </p>
+          <div className="space-y-1">
+            {tabs.map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setActive(id)}
+                className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-3 text-left text-[10px] font-semibold transition ${
+                  active === id
+                    ? 'bg-[#E9A23B] text-[#12201A]'
+                    : 'text-white/55 hover:bg-white/[.05] hover:text-white'
+                }`}
+              >
+                <Icon size={14} />
+                {label}
+              </button>
+            ))}
           </div>
-          <span className="font-mono text-[9px] text-[#9AA196]">{chapter.number}</span>
         </div>
 
-        <div className="mt-6">
-          <p className="text-[8px] font-bold uppercase tracking-[.17em] text-[#8B9587]">
-            {chapter.label}
-          </p>
-          <h3 className="mt-2 font-display text-2xl leading-tight tracking-[-.05em] text-[#29382B]">
-            {chapter.title}
-          </h3>
-        </div>
-
-        <div className="mt-6 space-y-2.5">
-          {chapter.points.map((point, index) => (
+        <div className="min-h-[290px] p-5 sm:p-7">
+          <AnimatePresence mode="wait">
             <motion.div
-              key={point}
-              initial={{ opacity: 0, x: 12 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: index * 0.08, duration: 0.45 }}
-              className="flex items-center gap-3 rounded-xl border border-[#EEF1EB] p-3.5"
+              key={active}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.2 }}
             >
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#F0F3ED] text-[#53734E]">
-                {index === 0 ? <Check size={14} /> : index === 1 ? <Layers3 size={14} /> : <ArrowUpRight size={14} />}
-              </span>
-              <span className="flex-1 text-[10px] font-medium text-[#4A554B]">
-                {point}
-              </span>
-              <Check size={13} className="text-[#71916D]" />
-            </motion.div>
-          ))}
-        </div>
+              <p className="text-[8px] font-bold uppercase tracking-[.16em] text-[#E9A23B]">
+                {tabs.find(tab => tab.id === active)?.label}
+              </p>
+              <h3 className="mt-3 font-display text-3xl leading-[.98] tracking-[-.06em] text-white sm:text-4xl">
+                {current.title}
+              </h3>
+              <p className="mt-3 max-w-[360px] text-[11px] leading-6 text-white/50">
+                {current.description}
+              </p>
 
-        <div className="mt-5 rounded-xl bg-[#173F2D] px-4 py-3.5">
-          <p className="text-[9px] font-medium text-white/80">
-            The next chapter is yours to build.
-          </p>
+              <div className="mt-6 space-y-2">
+                {current.rows.map((row, index) => (
+                  <div
+                    key={row}
+                    className="flex items-center gap-3 rounded-xl border border-white/[.07] bg-white/[.03] px-3 py-3"
+                  >
+                    <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#1C6F52]/30 text-[#A5D5B9]">
+                      <Check size={12} />
+                    </span>
+                    <span className="text-[10px] font-medium text-white/75">
+                      {row}
+                    </span>
+                    <span className="ml-auto font-mono text-[8px] text-white/25">
+                      0{index + 1}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </AnimatePresence>
         </div>
       </div>
     </div>
   );
 }
 
-function FAQ({ question, answer }) {
+function FAQItem({ question, answer }) {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="border-b border-[#E3E8E0]">
+    <div className="border-b border-[#DCE2DD]">
       <button
         type="button"
-        onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
-        className="flex w-full items-center justify-between gap-5 py-5 text-left sm:py-6"
+        onClick={() => setOpen(value => !value)}
+        className="flex w-full items-center justify-between gap-5 py-5 text-left"
       >
-        <span className="text-[13px] font-semibold text-[#2D3D30] sm:text-[15px]">
+        <span className="text-[14px] font-semibold text-[#12201A]">
           {question}
         </span>
         <span
           className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition ${
             open
-              ? 'rotate-180 bg-[#174D35] text-white'
-              : 'bg-[#EEF2EC] text-[#637164]'
+              ? 'rotate-180 bg-[#0B3D2E] text-white'
+              : 'bg-[#E9EDE8] text-[#0B3D2E]'
           }`}
         >
           <ChevronDown size={15} />
@@ -404,10 +422,9 @@ function FAQ({ question, answer }) {
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.24 }}
             className="overflow-hidden"
           >
-            <p className="max-w-2xl pb-6 pr-10 text-[13px] leading-7 text-[#778277]">
+            <p className="max-w-2xl pb-6 text-[13px] leading-7 text-[#68756D]">
               {answer}
             </p>
           </motion.div>
@@ -418,499 +435,468 @@ function FAQ({ question, answer }) {
 }
 
 export default function Home() {
-  const [activeChapter, setActiveChapter] = useState(0);
+  const reduce = useReducedMotion();
 
   return (
-    <div className="overflow-hidden bg-[#FCFCFA] text-[#1C3023]">
-      {/* HERO — the business taking shape */}
-      <section className="relative isolate">
-        <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-          <div className="absolute -right-[18%] -top-[15%] h-[650px] w-[650px] rounded-full bg-[#E7EFE2]" />
-          <div className="absolute right-[22%] top-[30%] h-[320px] w-[320px] rounded-full bg-[#F1EFE6] blur-[75px]" />
-          <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-[#FCFCFA] to-transparent" />
+    <main className="overflow-hidden bg-[#F6F7F5] text-[#12201A]">
+      {/* HERO: bold, dark, and visual-first */}
+      <section className="relative overflow-hidden bg-[#0B3D2E] text-white">
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute -right-40 -top-40 h-[700px] w-[700px] rounded-full border border-white/[.07]" />
+          <div className="absolute -right-16 top-16 h-[500px] w-[500px] rounded-full border border-white/[.07]" />
+          <div className="absolute right-[18%] top-[25%] h-[330px] w-[330px] rounded-full bg-[#1C6F52]/30 blur-[100px]" />
+          <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#0B3D2E] to-transparent" />
         </div>
 
-        <div className="mx-auto grid max-w-[1440px] items-center gap-16 px-5 pb-24 pt-16 sm:px-8 sm:pt-20 lg:min-h-[720px] lg:grid-cols-[.9fr_1.1fr] lg:gap-10 lg:px-12 lg:pb-28">
-          <motion.div
-            initial="hidden"
-            animate="visible"
-            variants={{
-              hidden: {},
-              visible: { transition: { staggerChildren: 0.1 } },
-            }}
-            className="relative z-10"
-          >
-            <motion.div
-              variants={{
-                hidden: { opacity: 0, y: 20 },
-                visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease } },
-              }}
-            >
-              <Eyebrow>For the business you're becoming</Eyebrow>
-            </motion.div>
+        <div className="relative mx-auto grid max-w-[1440px] items-center gap-16 px-5 pb-20 pt-16 sm:px-8 sm:pb-28 sm:pt-24 lg:min-h-[760px] lg:grid-cols-[.9fr_1.1fr] lg:gap-10 lg:px-12">
+          <Reveal>
+            <Eyebrow light>Make your next move</Eyebrow>
 
-            <motion.h1
-              variants={{
-                hidden: { opacity: 0, y: 24 },
-                visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease } },
-              }}
-              className="max-w-[700px] font-display text-[clamp(3.4rem,6.4vw,6.6rem)] font-medium leading-[.91] tracking-[-.078em] text-[#172B1E]"
-            >
-              Your business has
-              <span className="mt-2 block text-[#4F7951]">somewhere to go.</span>
-            </motion.h1>
+            <h1 className="max-w-[680px] font-display text-[clamp(3.4rem,7vw,7.4rem)] font-medium leading-[.86] tracking-[-.085em]">
+              Your business
+              <br />
+              has <span className="text-[#E9A23B]">more</span>
+              <br />
+              in it.
+            </h1>
 
-            <motion.p
-              variants={{
-                hidden: { opacity: 0, y: 20 },
-                visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease } },
-              }}
-              className="mt-8 max-w-[490px] text-[15px] leading-8 text-[#6F7B70] sm:text-[17px]"
-            >
-              Give it a place online. Bring what you offer into focus. Keep
-              the everyday work moving. Build your next chapter with Zuno.
-            </motion.p>
-
-            <motion.div
-              variants={{
-                hidden: { opacity: 0, y: 20 },
-                visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease } },
-              }}
-              className="mt-9 flex flex-wrap items-center gap-3"
-            >
-              <CTA>Build with Zuno</CTA>
-              <a
-                href="#the-story"
-                className="group inline-flex min-h-[52px] items-center gap-3 rounded-full px-4 text-[12px] font-semibold text-[#526354] transition hover:text-[#174D35]"
-              >
-                Take a look around
-                <span className="flex h-8 w-8 items-center justify-center rounded-full border border-[#D9E2D7] transition group-hover:translate-y-1 group-hover:border-[#174D35]">
-                  <ArrowDown size={14} />
-                </span>
-              </a>
-            </motion.div>
-
-            <motion.div
-              variants={{
-                hidden: { opacity: 0 },
-                visible: { opacity: 1, transition: { duration: 0.7, ease } },
-              }}
-              className="mt-10 flex flex-wrap gap-x-6 gap-y-3 border-t border-[#DDE5DA] pt-6 text-[10px] font-medium text-[#748074]"
-            >
-              <span className="flex items-center gap-2">
-                <Check size={13} className="text-[#4F7951]" />
-                Products and services
-              </span>
-              <span className="flex items-center gap-2">
-                <Check size={13} className="text-[#4F7951]" />
-                Built around your business
-              </span>
-            </motion.div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 35, scale: 0.97 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ duration: 0.9, delay: 0.15, ease }}
-            className="relative mx-auto w-full max-w-[650px]"
-          >
-            <div className="mb-4 flex items-center justify-between px-1 sm:px-2">
-              <div>
-                <p className="text-[9px] font-bold tracking-[.17em] text-[#667364]">
-                  A BUSINESS, BROUGHT TO LIFE
-                </p>
-                <p className="mt-1 text-[10px] text-[#969D92]">
-                  Explore a customer-facing experience
-                </p>
-              </div>
-              <span className="rounded-full border border-[#DCE4D8] bg-white/80 px-3 py-1.5 text-[8px] font-semibold text-[#557052]">
-                INTERACTIVE PREVIEW
-              </span>
-            </div>
-            <StorefrontScene />
-          </motion.div>
-        </div>
-
-        <div className="border-y border-[#E9EDE6] bg-white/70">
-          <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-5 px-5 py-5 sm:px-8 lg:px-12">
-            <p className="text-[9px] font-bold tracking-[.18em] text-[#929B90]">
-              BUILT FOR YOUR KIND OF BUSINESS
+            <p className="mt-8 max-w-[460px] text-[14px] leading-8 text-white/65 sm:text-[16px]">
+              Give it a place to show up, a better way to present what you do,
+              and tools to keep the work moving.
             </p>
-            <div className="flex flex-wrap gap-x-7 gap-y-3 text-[10px] font-semibold tracking-[.08em] text-[#69766A]">
-              <span>RETAIL</span>
-              <span>FASHION</span>
-              <span>BEAUTY</span>
-              <span>FREELANCERS</span>
+
+            <div className="mt-9 flex flex-wrap items-center gap-3">
+              <PrimaryLink>Build with Zuno</PrimaryLink>
+              <TextLink to="/pricing" light>
+                See what’s possible
+              </TextLink>
+            </div>
+
+            <a
+              href="#the-next-step"
+              className="mt-12 inline-flex items-center gap-3 text-[9px] font-bold uppercase tracking-[.15em] text-white/35 transition hover:text-white/80"
+            >
+              Keep scrolling
+              <ArrowDown size={13} />
+            </a>
+          </Reveal>
+
+          <Reveal delay={0.12}>
+            <StorefrontScene />
+          </Reveal>
+        </div>
+
+        <div className="relative border-t border-white/10">
+          <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-4 px-5 py-5 sm:px-8 lg:px-12">
+            <span className="text-[9px] font-bold tracking-[.18em] text-white/35">
+              MADE FOR THE WAY YOU WORK
+            </span>
+            <div className="flex flex-wrap gap-x-6 gap-y-2 text-[9px] font-bold tracking-[.12em] text-white/55">
+              <span>PRODUCTS</span>
+              <span>SERVICES</span>
               <span>INDEPENDENT BRANDS</span>
+              <span>CREATIVE BUSINESSES</span>
             </div>
           </div>
         </div>
       </section>
 
-      {/* SCROLL STORY */}
-      <section id="the-story" className="scroll-mt-24 bg-white py-24 sm:py-32">
+      {/* CHAPTER 01 */}
+      <section
+        id="the-next-step"
+        className="scroll-mt-24 bg-[#F6F7F5] py-24 sm:py-32"
+      >
         <div className="mx-auto max-w-[1440px] px-5 sm:px-8 lg:px-12">
-          <Reveal className="max-w-[780px]">
-            <Eyebrow>Every business has a next chapter</Eyebrow>
-            <h2 className="font-display text-4xl leading-[1.02] tracking-[-.065em] text-[#1C3023] sm:text-6xl lg:text-7xl">
-              It starts with
-              <span className="text-[#5B805B]"> showing up.</span>
-            </h2>
-            <p className="mt-6 max-w-[580px] text-[14px] leading-8 text-[#7A857A] sm:text-[16px]">
-              And it keeps going with the work you do every day. Zuno helps
-              you bring the important parts of your business closer together.
-            </p>
-          </Reveal>
+          <div className="grid gap-12 lg:grid-cols-[.9fr_1.1fr] lg:items-end">
+            <Reveal>
+              <ChapterLabel number="01">Be seen</ChapterLabel>
+              <h2 className="mt-7 max-w-[680px] font-display text-5xl leading-[.9] tracking-[-.08em] sm:text-7xl lg:text-[6.4rem]">
+                First, give
+                <br />
+                them a reason
+                <br />
+                <span className="text-[#1C6F52]">to find you.</span>
+              </h2>
+            </Reveal>
 
-          <div className="mt-16 grid gap-12 lg:grid-cols-[.85fr_1.15fr] lg:gap-20">
-            <div className="space-y-5">
-              {chapters.map((chapter, index) => {
-                const Icon = chapter.icon;
-                const selected = activeChapter === index;
+            <Reveal delay={0.1}>
+              <p className="max-w-[480px] text-[15px] leading-8 text-[#68756D]">
+                Your business deserves more than a post that disappears into a
+                feed. Give people a place to discover what you do, explore your
+                offer and come back when they’re ready.
+              </p>
+              <div className="mt-7">
+                <TextLink to="/pricing">Make your business visible</TextLink>
+              </div>
+            </Reveal>
+          </div>
 
-                return (
-                  <button
-                    key={chapter.number}
-                    type="button"
-                    onClick={() => setActiveChapter(index)}
-                    className={`group w-full rounded-[20px] border p-6 text-left transition-all duration-300 sm:p-7 ${
-                      selected
-                        ? 'border-[#DCE7D8] bg-[#F5F7F2] shadow-[0_20px_55px_-40px_rgba(20,50,30,.3)]'
-                        : 'border-transparent bg-white hover:border-[#E8ECE6] hover:bg-[#FAFBF8]'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <span
-                          className={`flex h-10 w-10 items-center justify-center rounded-xl transition ${
-                            selected
-                              ? 'bg-[#174D35] text-white'
-                              : 'bg-[#F0F3ED] text-[#587658]'
-                          }`}
-                        >
-                          <Icon size={17} />
-                        </span>
-                        <span className="font-mono text-[10px] text-[#9BA598]">
-                          CHAPTER {chapter.number}
+          <Reveal className="mt-16">
+            <div className="relative overflow-hidden rounded-[24px] bg-[#E9A23B] p-5 sm:p-10 lg:p-14">
+              <div className="absolute -right-24 -top-32 h-[500px] w-[500px] rounded-full border border-[#12201A]/15" />
+              <div className="absolute -right-4 top-10 h-[330px] w-[330px] rounded-full border border-[#12201A]/15" />
+
+              <div className="relative grid items-center gap-10 lg:grid-cols-[.7fr_1.3fr]">
+                <div>
+                  <p className="text-[9px] font-bold uppercase tracking-[.17em] text-[#12201A]/55">
+                    Your online home
+                  </p>
+                  <h3 className="mt-5 max-w-[360px] font-display text-4xl leading-[.95] tracking-[-.07em] sm:text-5xl">
+                    Your name.
+                    <br />
+                    Your style.
+                    <br />
+                    Your space.
+                  </h3>
+                  <p className="mt-5 max-w-[300px] text-[12px] leading-7 text-[#12201A]/70">
+                    Create a storefront that feels like your business—not
+                    somebody else’s template.
+                  </p>
+                </div>
+
+                <div className="relative mx-auto w-full max-w-[650px]">
+                  <div className="rotate-[1deg] overflow-hidden rounded-[18px] bg-[#F6F7F5] shadow-[0_30px_70px_-35px_rgba(18,32,26,.5)] transition-transform duration-500 hover:rotate-0">
+                    <div className="flex items-center justify-between border-b border-[#DCE2DD] bg-white px-4 py-3">
+                      <span className="text-[9px] font-bold text-[#12201A]">
+                        FORME / STORE
+                      </span>
+                      <span className="text-[8px] text-[#68756D]">
+                        yourbusiness.zuno.com.ng
+                      </span>
+                    </div>
+                    <div className="grid sm:grid-cols-[1fr_1fr]">
+                      <div className="flex flex-col justify-center p-5 sm:p-8">
+                        <p className="text-[8px] font-bold tracking-[.16em] text-[#68756D]">
+                          THE NEW COLLECTION
+                        </p>
+                        <p className="mt-4 font-display text-4xl leading-[.92] tracking-[-.06em] text-[#12201A]">
+                          Everyday
+                          <br />
+                          made
+                          <br />
+                          better.
+                        </p>
+                        <span className="mt-5 inline-flex w-fit rounded-full bg-[#0B3D2E] px-4 py-2 text-[8px] font-bold text-white">
+                          Discover
                         </span>
                       </div>
-                      <ArrowRight
-                        size={15}
-                        className={`transition-all ${
-                          selected
-                            ? 'translate-x-0 text-[#4D754F]'
-                            : '-translate-x-1 text-[#AAB2A7] group-hover:translate-x-0'
-                        }`}
-                      />
+                      <div className="relative flex min-h-[230px] items-center justify-center overflow-hidden bg-[#1C6F52]">
+                        <div className="absolute h-52 w-52 rounded-full border border-white/20" />
+                        <div className="relative flex h-[150px] w-[110px] items-center justify-center rounded-t-[45%] bg-[#E9A23B] shadow-2xl">
+                          <span className="text-[9px] font-bold tracking-[.2em] text-[#12201A]">
+                            FORME
+                          </span>
+                        </div>
+                        <span className="absolute bottom-4 right-4 rounded-lg bg-white px-3 py-2 text-[8px] font-bold text-[#12201A]">
+                          New arrivals
+                        </span>
+                      </div>
                     </div>
-
-                    <h3 className="mt-5 max-w-[450px] font-display text-[25px] leading-[1.08] tracking-[-.045em] text-[#29382B] sm:text-[29px]">
-                      {chapter.title}
-                    </h3>
-                    <p className="mt-3 max-w-[450px] text-[12px] leading-7 text-[#788176] sm:text-[13px]">
-                      {chapter.body}
-                    </p>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="lg:sticky lg:top-28 lg:self-start">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={activeChapter}
-                  initial={{ opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -12 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <ChapterScene chapter={chapters[activeChapter]} />
-                </motion.div>
-              </AnimatePresence>
-              <p className="mt-5 text-center text-[9px] font-medium tracking-wide text-[#9AA196]">
-                ILLUSTRATIVE WORKSPACE PREVIEW
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* BUSINESS TYPES */}
-      <section className="bg-[#F2F5EF] py-24 sm:py-32">
-        <div className="mx-auto max-w-[1440px] px-5 sm:px-8 lg:px-12">
-          <Reveal className="grid gap-8 lg:grid-cols-[1fr_.7fr] lg:items-end">
-            <div>
-              <Eyebrow>Different paths. Same ambition.</Eyebrow>
-              <h2 className="max-w-[720px] font-display text-4xl leading-[1.02] tracking-[-.065em] text-[#1C3023] sm:text-6xl">
-                Your business doesn't have to fit a template.
-              </h2>
-            </div>
-            <p className="max-w-[430px] text-[13px] leading-8 text-[#7A857A] lg:justify-self-end">
-              Whether you make things, offer a service or bring both together,
-              build an online presence that reflects the way you work.
-            </p>
-          </Reveal>
-
-          <div className="mt-14 grid gap-4 lg:grid-cols-3">
-            {[
-              {
-                no: '01',
-                title: 'You make or sell things.',
-                description: 'Give your products a home. Present your catalogue and keep orders organised.',
-                tag: 'PRODUCT BUSINESSES',
-                icon: Package,
-                tone: 'bg-[#E7E2D6]',
-                accent: '#817C68',
-              },
-              {
-                no: '02',
-                title: 'You offer a service.',
-                description: 'Show people what you do, introduce your services and manage booking requests.',
-                tag: 'SERVICE BUSINESSES',
-                icon: CalendarDays,
-                tone: 'bg-[#E1E9DF]',
-                accent: '#58785C',
-              },
-              {
-                no: '03',
-                title: 'You do a bit of both.',
-                description: 'Bring your products and services into one business experience.',
-                tag: 'HYBRID BUSINESSES',
-                icon: Layers3,
-                tone: 'bg-[#EAE1DA]',
-                accent: '#99745E',
-              },
-            ].map((item, index) => {
-              const Icon = item.icon;
-
-              return (
-                <Reveal key={item.no} delay={index * 0.08}>
-                  <article className="group h-full overflow-hidden rounded-[22px] border border-[#E3E9E0] bg-[#FCFCFA] transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_25px_65px_-45px_rgba(15,40,22,.35)]">
-                    <div className={`relative flex h-[190px] items-center justify-center overflow-hidden ${item.tone}`}>
-                      <div className="absolute h-48 w-48 rounded-full border border-black/[.07]" />
-                      <div className="absolute h-36 w-36 rounded-full border border-black/[.07]" />
-                      <motion.div
-                        whileHover={{ scale: 1.08, rotate: 5 }}
-                        className="relative flex h-[76px] w-[76px] items-center justify-center rounded-[23px] bg-white shadow-[0_20px_45px_-20px_rgba(0,0,0,.22)]"
-                      >
-                        <Icon size={29} strokeWidth={1.5} style={{ color: item.accent }} />
-                      </motion.div>
-                      <span className="absolute left-5 top-5 font-mono text-[10px] text-black/35">
-                        {item.no}
-                      </span>
-                      <span className="absolute bottom-5 right-5 text-[8px] font-bold tracking-[.16em] text-black/35">
-                        ZUNO / BUSINESS
-                      </span>
-                    </div>
-
-                    <div className="p-7 sm:p-8">
-                      <p className="text-[9px] font-bold tracking-[.16em] text-[#6A866B]">
-                        {item.tag}
-                      </p>
-                      <h3 className="mt-3 font-display text-[27px] leading-tight tracking-[-.045em] text-[#26372A]">
-                        {item.title}
-                      </h3>
-                      <p className="mt-4 text-[13px] leading-7 text-[#7A857A]">
-                        {item.description}
-                      </p>
-                    </div>
-                  </article>
-                </Reveal>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* THE ZUNO DIFFERENCE */}
-      <section className="relative overflow-hidden bg-[#153C2C] py-24 text-white sm:py-32">
-        <div className="pointer-events-none absolute -right-40 -top-52 h-[650px] w-[650px] rounded-full border border-white/[.08]" />
-        <div className="pointer-events-none absolute -right-10 -top-24 h-[400px] w-[400px] rounded-full border border-white/[.08]" />
-
-        <div className="mx-auto grid max-w-[1440px] gap-14 px-5 sm:px-8 lg:grid-cols-[.85fr_1.15fr] lg:items-center lg:px-12">
-          <Reveal>
-            <Eyebrow light>More than the first impression</Eyebrow>
-            <h2 className="max-w-[560px] font-display text-4xl leading-[1.02] tracking-[-.065em] sm:text-6xl">
-              Your business doesn't end at the storefront.
-            </h2>
-            <p className="mt-6 max-w-[460px] text-[13px] leading-8 text-white/60 sm:text-[15px]">
-              Customers discover you. They explore what you offer. Orders
-              and booking requests arrive. You manage the work that follows.
-              Zuno brings those important moments closer together.
-            </p>
-            <Link
-              to="/pricing"
-              className="mt-8 inline-flex items-center gap-3 text-[12px] font-semibold text-[#D9EDB9] transition hover:gap-4"
-            >
-              Explore Zuno plans <ArrowRight size={15} />
-            </Link>
-          </Reveal>
-
-          <Reveal>
-            <div className="relative mx-auto grid w-full max-w-[600px] grid-cols-2 gap-3">
-              {[
-                [Globe2, 'Be discovered', 'Your online presence'],
-                [Package, 'Show your offer', 'Products and services'],
-                [ShoppingBag, 'Welcome customers', 'Orders and bookings'],
-                [Users, 'Know your customers', 'Customer information'],
-              ].map(([Icon, title, subtitle], index) => (
-                <motion.div
-                  key={title}
-                  whileHover={{ y: -4 }}
-                  className="rounded-2xl border border-white/10 bg-white/[.055] p-5 backdrop-blur-sm sm:p-6"
-                >
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#D9EDB9] text-[#183F2C]">
-                    <Icon size={19} />
                   </div>
-                  <p className="mt-7 text-[13px] font-semibold text-white">{title}</p>
-                  <p className="mt-1.5 text-[10px] text-white/45">{subtitle}</p>
-                  <span className="mt-6 block font-mono text-[9px] text-white/25">
-                    0{index + 1} / ZUNO
-                  </span>
-                </motion.div>
-              ))}
+                  <motion.div
+                    className="absolute -bottom-5 -left-3 hidden rounded-xl bg-[#0B3D2E] px-4 py-3 text-white shadow-xl sm:block"
+                    animate={reduce ? {} : { y: [0, -5, 0] }}
+                    transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+                  >
+                    <p className="text-[8px] font-bold tracking-[.15em] text-[#E9A23B]">
+                      YOUR BUSINESS
+                    </p>
+                    <p className="mt-1 text-[10px] font-semibold">
+                      Looking like you.
+                    </p>
+                  </motion.div>
+                </div>
+              </div>
             </div>
           </Reveal>
         </div>
       </section>
 
-      {/* STARTING POINT */}
+      {/* CHAPTER 02: dark product story */}
+      <section className="relative bg-[#12201A] py-24 text-white sm:py-32">
+        <div className="pointer-events-none absolute right-0 top-0 h-[500px] w-[500px] rounded-full bg-[#1C6F52]/15 blur-[100px]" />
+
+        <div className="relative mx-auto grid max-w-[1440px] gap-14 px-5 sm:px-8 lg:grid-cols-[.8fr_1.2fr] lg:items-center lg:px-12">
+          <Reveal>
+            <ChapterLabel number="02" light>Keep it together</ChapterLabel>
+            <h2 className="mt-7 max-w-[570px] font-display text-5xl leading-[.9] tracking-[-.08em] sm:text-7xl">
+              The front
+              <br />
+              of your business.
+              <br />
+              <span className="text-[#E9A23B]">And the rest.</span>
+            </h2>
+            <p className="mt-7 max-w-[430px] text-[14px] leading-8 text-white/55">
+              There’s the part customers see—and the work that happens every
+              day. Zuno brings important parts of your business closer together.
+            </p>
+          </Reveal>
+
+          <Reveal delay={0.12}>
+            <BusinessCanvas />
+          </Reveal>
+        </div>
+      </section>
+
+      {/* CHAPTER 03: products and services */}
       <section className="bg-white py-24 sm:py-32">
-        <div className="mx-auto grid max-w-[1440px] gap-12 px-5 sm:px-8 lg:grid-cols-[.8fr_1.2fr] lg:px-12">
+        <div className="mx-auto max-w-[1440px] px-5 sm:px-8 lg:px-12">
           <Reveal>
-            <Eyebrow>A good place to begin</Eyebrow>
-            <h2 className="max-w-[470px] font-display text-4xl leading-[1.02] tracking-[-.06em] text-[#1C3023] sm:text-6xl">
-              Start where you are. Build from there.
-            </h2>
-            <p className="mt-6 max-w-[400px] text-[13px] leading-8 text-[#7A857A]">
-              You don't need every answer today. Start by bringing your
-              business online and build a stronger way of working as you grow.
-            </p>
-            <div className="mt-8">
-              <CTA />
+            <ChapterLabel number="03">Your kind of business</ChapterLabel>
+            <div className="mt-7 grid gap-8 lg:grid-cols-[1fr_.65fr] lg:items-end">
+              <h2 className="max-w-[850px] font-display text-5xl leading-[.9] tracking-[-.08em] sm:text-7xl lg:text-[6.5rem]">
+                Different work.
+                <br />
+                <span className="text-[#1C6F52]">Same ambition.</span>
+              </h2>
+              <p className="max-w-[390px] text-[13px] leading-7 text-[#68756D]">
+                Whether you sell something people can hold or offer a service
+                people need, Zuno gives your business room to show up.
+              </p>
             </div>
           </Reveal>
 
-          <div>
-            {[
-              ['01', 'Set up your business', 'Bring your business details together in one workspace.', Store],
-              ['02', 'Create your online presence', 'Show customers your business, products and services.', Globe2],
-              ['03', 'Manage what happens next', 'Keep orders, bookings and customer activity organised.', Layers3],
-            ].map(([number, title, body, Icon], index) => (
-              <Reveal key={number} delay={index * 0.07}>
-                <div className="group flex gap-5 border-t border-[#E7EBE4] py-7 sm:gap-8 sm:py-9">
-                  <span className="pt-1 font-mono text-[11px] text-[#9BA598]">
-                    {number}
+          <div className="mt-14 grid gap-4 md:grid-cols-3">
+            <Reveal>
+              <article className="group relative flex min-h-[330px] flex-col overflow-hidden rounded-[20px] bg-[#F6F7F5] p-7 transition duration-300 hover:-translate-y-1 sm:p-9">
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] font-bold tracking-[.16em] text-[#68756D]">
+                    PRODUCT BUSINESSES
                   </span>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between gap-4">
-                      <h3 className="font-display text-[22px] tracking-[-.04em] text-[#29382C] sm:text-[25px]">
-                        {title}
-                      </h3>
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#F0F3ED] text-[#4B704C] transition group-hover:bg-[#173F2D] group-hover:text-white">
-                        <Icon size={17} />
-                      </span>
-                    </div>
-                    <p className="mt-3 max-w-[430px] text-[13px] leading-7 text-[#788176]">
-                      {body}
-                    </p>
-                  </div>
+                  <Package size={18} className="text-[#0B3D2E]" />
                 </div>
-              </Reveal>
-            ))}
-            <div className="border-t border-[#E7EBE4]" />
+                <h3 className="mt-12 font-display text-3xl leading-[.98] tracking-[-.06em]">
+                  Make your
+                  <br />
+                  products the
+                  <br />
+                  main event.
+                </h3>
+                <p className="mt-4 text-[12px] leading-6 text-[#68756D]">
+                  Present your products, collections and the details that help
+                  people choose.
+                </p>
+                <div className="absolute -bottom-8 -right-3 flex h-32 w-32 items-center justify-center rounded-t-[50%] bg-[#E9A23B] transition duration-500 group-hover:rotate-6">
+                  <span className="text-[8px] font-bold tracking-[.16em] text-[#12201A]">
+                    YOUR COLLECTION
+                  </span>
+                </div>
+              </article>
+            </Reveal>
+
+            <Reveal delay={0.08}>
+              <article className="group relative flex min-h-[330px] flex-col overflow-hidden rounded-[20px] bg-[#0B3D2E] p-7 text-white transition duration-300 hover:-translate-y-1 sm:p-9">
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] font-bold tracking-[.16em] text-white/45">
+                    SERVICE BUSINESSES
+                  </span>
+                  <CalendarDays size={18} className="text-[#E9A23B]" />
+                </div>
+                <h3 className="mt-12 font-display text-3xl leading-[.98] tracking-[-.06em]">
+                  Let people
+                  <br />
+                  find the
+                  <br />
+                  right time.
+                </h3>
+                <p className="mt-4 max-w-[260px] text-[12px] leading-6 text-white/55">
+                  Show your services and make it easier for customers to send
+                  booking requests.
+                </p>
+                <div className="absolute -bottom-8 -right-3 flex h-32 w-32 items-center justify-center rounded-t-[50%] bg-[#1C6F52] transition duration-500 group-hover:-rotate-6">
+                  <span className="text-[8px] font-bold tracking-[.16em] text-white">
+                    YOUR SERVICES
+                  </span>
+                </div>
+              </article>
+            </Reveal>
+
+            <Reveal delay={0.16}>
+              <article className="group relative flex min-h-[330px] flex-col overflow-hidden rounded-[20px] bg-[#E9A23B] p-7 transition duration-300 hover:-translate-y-1 sm:p-9">
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] font-bold tracking-[.16em] text-[#12201A]/55">
+                    INDEPENDENT BUSINESSES
+                  </span>
+                  <Layers3 size={18} className="text-[#0B3D2E]" />
+                </div>
+                <h3 className="mt-12 font-display text-3xl leading-[.98] tracking-[-.06em]">
+                  Your business
+                  <br />
+                  doesn’t fit
+                  <br />
+                  one box.
+                </h3>
+                <p className="mt-4 max-w-[260px] text-[12px] leading-6 text-[#12201A]/70">
+                  Bring different parts of what you offer into one business
+                  presence.
+                </p>
+                <div className="absolute -bottom-8 -right-3 flex h-32 w-32 items-center justify-center rounded-t-[50%] bg-[#12201A] transition duration-500 group-hover:rotate-6">
+                  <span className="text-[8px] font-bold tracking-[.16em] text-white">
+                    YOUR WAY
+                  </span>
+                </div>
+              </article>
+            </Reveal>
           </div>
         </div>
       </section>
 
-      {/* FAQ */}
-      <section className="bg-[#F7F8F5] py-24 sm:py-32">
-        <div className="mx-auto grid max-w-[1440px] gap-12 px-5 sm:px-8 lg:grid-cols-[.8fr_1.2fr] lg:px-12">
+      {/* CHAPTER 04: momentum */}
+      <section className="relative overflow-hidden bg-[#1C6F52] py-24 text-white sm:py-32">
+        <div className="pointer-events-none absolute -left-28 -top-32 h-[500px] w-[500px] rounded-full border border-white/10" />
+        <div className="pointer-events-none absolute -left-8 -top-12 h-[350px] w-[350px] rounded-full border border-white/10" />
+
+        <div className="relative mx-auto grid max-w-[1440px] gap-14 px-5 sm:px-8 lg:grid-cols-[1fr_.8fr] lg:items-center lg:px-12">
           <Reveal>
-            <Eyebrow>Questions, answered</Eyebrow>
-            <h2 className="max-w-[430px] font-display text-4xl leading-[1.03] tracking-[-.06em] text-[#1C3023] sm:text-5xl">
-              Know what you're building with.
+            <ChapterLabel number="04" light />
+            <h2 className="mt-7 max-w-[700px] font-display text-5xl leading-[.9] tracking-[-.08em] sm:text-7xl lg:text-[6.5rem]">
+              Make the next
+              <br />
+              step feel
+              <br />
+              <span className="text-[#E9A23B]">like a step up.</span>
             </h2>
-            <p className="mt-5 max-w-[360px] text-[13px] leading-7 text-[#788176]">
-              A few useful details about getting started with Zuno.
+            <p className="mt-7 max-w-[450px] text-[14px] leading-8 text-white/65">
+              Start with what you need today. Build a stronger business presence
+              as your plans—and your business—get bigger.
             </p>
-            <Link
-              to="/support"
-              className="mt-7 inline-flex items-center gap-2 text-[12px] font-semibold text-[#3E6744] transition hover:gap-3"
-            >
-              Visit the help centre <ArrowUpRight size={14} />
-            </Link>
           </Reveal>
 
-          <Reveal>
-            <div className="border-t border-[#E1E6DE]">
-              {[
-                [
-                  'What is Zuno?',
-                  'Zuno is a business platform that helps businesses establish an online presence and organise important parts of their operations, including products, orders, inventory, customers and service bookings.',
-                ],
-                [
-                  'Who is Zuno for?',
-                  'Zuno is designed for product businesses, service businesses and businesses that do both. This includes retailers, fashion brands, salons, barbers, freelancers, studios and other independent businesses.',
-                ],
-                [
-                  'Can I create a storefront?',
-                  'Yes. Zuno provides storefront tools to present your business and showcase the products or services you offer to customers.',
-                ],
-                [
-                  'Can I manage bookings?',
-                  'Zuno includes service and booking capabilities for appointment-based businesses. You can present services and manage booking requests from your business workspace.',
-                ],
-                [
-                  'Do I need technical skills?',
-                  'Zuno is designed to help you set up and manage your business without having to build everything from scratch.',
-                ],
-              ].map(([question, answer]) => (
-                <FAQ key={question} question={question} answer={answer} />
-              ))}
+          <Reveal delay={0.12}>
+            <div className="relative mx-auto flex min-h-[370px] w-full max-w-[480px] items-center justify-center">
+              <svg
+                viewBox="0 0 440 360"
+                className="absolute inset-0 h-full w-full"
+                fill="none"
+                aria-hidden="true"
+              >
+                <path
+                  d="M40 300 C90 300 80 230 145 230 S200 160 260 160 S330 100 395 55"
+                  stroke="rgba(255,255,255,.45)"
+                  strokeWidth="2"
+                  strokeDasharray="5 8"
+                />
+                <circle cx="145" cy="230" r="8" fill="#E9A23B" />
+                <circle cx="260" cy="160" r="8" fill="#E9A23B" />
+                <circle cx="395" cy="55" r="8" fill="#E9A23B" />
+              </svg>
+
+              <motion.div
+                className="absolute left-[5%] top-[60%] flex h-16 w-16 items-center justify-center rounded-2xl bg-[#12201A] text-white shadow-xl"
+                animate={reduce ? {} : { y: [0, -6, 0] }}
+                transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+              >
+                <Store size={23} />
+              </motion.div>
+
+              <motion.div
+                className="absolute left-[33%] top-[38%] flex h-20 w-20 items-center justify-center rounded-[24px] bg-[#E9A23B] text-[#12201A] shadow-xl"
+                animate={reduce ? {} : { rotate: [0, 4, 0], y: [0, -8, 0] }}
+                transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
+              >
+                <Package size={27} />
+              </motion.div>
+
+              <motion.div
+                className="absolute right-[5%] top-[10%] flex h-24 w-24 items-center justify-center rounded-[28px] bg-[#F6F7F5] text-[#0B3D2E] shadow-xl"
+                animate={reduce ? {} : { y: [0, -9, 0] }}
+                transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut' }}
+              >
+                <Globe2 size={30} />
+              </motion.div>
+
+              <div className="absolute bottom-[3%] right-[18%] rounded-full border border-white/20 bg-white/[.08] px-4 py-2 text-[9px] font-bold tracking-[.12em] text-white/75">
+                KEEP MOVING
+              </div>
             </div>
           </Reveal>
         </div>
       </section>
 
-      {/* FINAL MOMENT */}
-      <section className="bg-[#F7F8F5] px-5 pb-20 sm:px-8 sm:pb-28">
+      {/* FINAL CTA */}
+      <section className="bg-[#F6F7F5] px-5 py-24 sm:px-8 sm:py-32">
         <Reveal>
-          <div className="relative mx-auto max-w-[1440px] overflow-hidden rounded-[26px] bg-[#DDE8D4] px-7 py-16 sm:px-14 sm:py-24 lg:px-20">
-            <div className="pointer-events-none absolute -right-20 -top-52 h-[500px] w-[500px] rounded-full border border-[#426544]/10" />
-            <div className="pointer-events-none absolute -right-2 -top-36 h-[360px] w-[360px] rounded-full border border-[#426544]/10" />
+          <div className="relative mx-auto max-w-[1440px] overflow-hidden rounded-[26px] bg-[#0B3D2E] px-7 py-16 text-white sm:px-14 sm:py-24 lg:px-20">
+            <div className="pointer-events-none absolute -right-28 -top-40 h-[560px] w-[560px] rounded-full border border-white/10" />
+            <div className="pointer-events-none absolute -right-3 -top-20 h-[350px] w-[350px] rounded-full border border-white/10" />
 
-            <div className="relative z-10 max-w-[760px]">
-              <Eyebrow>Your next chapter starts here</Eyebrow>
-              <h2 className="font-display text-4xl leading-[1.02] tracking-[-.065em] text-[#173323] sm:text-6xl lg:text-7xl">
-                Give your ambition a place to grow.
+            <div className="relative max-w-[800px]">
+              <Eyebrow light>Every big thing starts somewhere</Eyebrow>
+              <h2 className="font-display text-5xl leading-[.9] tracking-[-.08em] sm:text-7xl lg:text-[6.5rem]">
+                Let’s see what
+                <br />
+                your business
+                <br />
+                <span className="text-[#E9A23B]">can become.</span>
               </h2>
-              <p className="mt-6 max-w-[530px] text-[13px] leading-8 text-[#637362] sm:text-[15px]">
-                Build your presence. Organise your business. Make room for
-                what's next.
+              <p className="mt-7 max-w-[500px] text-[14px] leading-8 text-white/60">
+                Give your business a place to show up—and a better way to move
+                forward.
               </p>
-              <div className="mt-9 flex flex-wrap items-center gap-3">
-                <CTA />
-                <CTA to="/pricing" secondary>
-                  Explore pricing
-                </CTA>
+              <div className="mt-9 flex flex-wrap items-center gap-4">
+                <PrimaryLink>Start with Zuno</PrimaryLink>
+                <TextLink to="/pricing" light>
+                  Explore plans
+                </TextLink>
               </div>
             </div>
 
-            <motion.div
-              className="pointer-events-none absolute -bottom-20 right-12 hidden h-64 w-64 items-center justify-center rounded-full border border-[#557451]/15 lg:flex"
-              animate={{ rotate: 360 }}
-              transition={{ duration: 80, repeat: Infinity, ease: 'linear' }}
-            >
-              <div className="flex h-44 w-44 items-center justify-center rounded-full border border-[#557451]/20">
-                <div className="flex h-24 w-24 items-center justify-center rounded-full bg-[#173F2D] shadow-2xl">
-                  <Sparkles size={28} className="text-[#D9EDB9]" />
-                </div>
-              </div>
-            </motion.div>
+            <div className="pointer-events-none absolute bottom-8 right-10 hidden text-[#E9A23B] lg:block">
+              <Sparkles size={86} strokeWidth={1.2} />
+            </div>
           </div>
         </Reveal>
       </section>
-    </div>
+
+      {/* FAQ */}
+      <section className="bg-white py-20 sm:py-28">
+        <div className="mx-auto grid max-w-[1440px] gap-12 px-5 sm:px-8 lg:grid-cols-[.7fr_1.3fr] lg:px-12">
+          <Reveal>
+            <Eyebrow>Before you begin</Eyebrow>
+            <h2 className="font-display text-4xl leading-[.95] tracking-[-.07em] sm:text-5xl">
+              A few things
+              <br />
+              worth knowing.
+            </h2>
+            <TextLink to="/support">
+              Visit help centre
+            </TextLink>
+          </Reveal>
+
+          <Reveal>
+            <div className="border-t border-[#DCE2DD]">
+              {[
+                [
+                  'What is Zuno?',
+                  'Zuno is a business platform that helps businesses establish an online presence and organise important parts of their operations.',
+                ],
+                [
+                  'Who is Zuno for?',
+                  'Zuno is designed for product businesses, service businesses and businesses that offer both.',
+                ],
+                [
+                  'Can I create a storefront?',
+                  'Zuno provides storefront tools to present your business and showcase the products or services you offer.',
+                ],
+                [
+                  'Can I manage service bookings?',
+                  'Zuno includes service and booking capabilities for appointment-based businesses.',
+                ],
+                [
+                  'Do I need technical skills?',
+                  'Zuno is designed to help you set up and manage your business without building everything from scratch.',
+                ],
+              ].map(([question, answer]) => (
+                <FAQItem
+                  key={question}
+                  question={question}
+                  answer={answer}
+                />
+              ))}
+            </div>
+          </Reveal>
+        </div>
+      </section>
+    </main>
   );
 }
