@@ -18,7 +18,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { api } from '../lib/api.js';
+import { api, getToken } from '../lib/api.js';
 import { useAuth } from '../lib/auth.jsx';
 import { Wordmark } from '../components/Layouts.jsx';
 import { ErrorNote, Input, Spinner, Loading } from '../components/ui.jsx';
@@ -668,12 +668,19 @@ export function Reset() {
   );
 }
 
+
 function TokenPage({ title, path, successText }) {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { user, refresh, loading: authLoading } = useAuth();
+
   const [state, setState] = useState('working');
   const [error, setError] = useState(null);
+  const [sameAccount, setSameAccount] = useState(false);
 
   useEffect(() => {
+    if (authLoading) return;
+
     const token = searchParams.get('token');
 
     if (!token) {
@@ -681,57 +688,226 @@ function TokenPage({ title, path, successText }) {
       return;
     }
 
+    let cancelled = false;
+
     api(path, {
       method: 'POST',
       body: { token },
       auth: false,
     })
-      .then(() => setState('success'))
+      .then(async (result) => {
+        const belongsToCurrentUser =
+          path === '/auth/verify-email' &&
+          user &&
+          String(user.id) === String(result.userId);
+
+        if (belongsToCurrentUser && getToken()) {
+          await refresh();
+        }
+
+        if (!cancelled) {
+          setSameAccount(Boolean(belongsToCurrentUser));
+          setState('success');
+        }
+      })
       .catch((err) => {
-        setError(err);
-        setState('error');
+        if (!cancelled) {
+          setError(err);
+          setState('error');
+        }
       });
-  }, [path, searchParams]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [path, searchParams, authLoading, user?.id, refresh]);
 
   return (
     <AuthShell>
       <AuthHeading title={title} />
 
-      {state === 'working' && <Loading text="Checking your link..." />}
+      {state === 'working' && (
+        <Loading text="Confirming your email address..." />
+      )}
 
       {state === 'success' && (
         <div className="space-y-5">
-          <div className="rounded-xl bg-forest-50 p-5">
+          <div className="rounded-xl border border-forest/10 bg-forest-50 p-5">
             <CheckCircle2 className="mb-3 h-7 w-7 text-forest" />
-            <p className="text-sm leading-6 text-ink">{successText}</p>
+            <p className="font-semibold text-ink">
+              Email verified successfully
+            </p>
+            <p className="mt-2 text-sm leading-6 text-muted">
+              {successText}
+            </p>
           </div>
-          <Link to="/login" className="btn-primary w-full">Continue to sign in</Link>
+
+          <button
+            type="button"
+            onClick={() =>
+              navigate(
+                sameAccount ? '/app' : '/login',
+                { replace: true }
+              )
+            }
+            className="btn-primary w-full"
+          >
+            {sameAccount
+              ? 'Continue to your dashboard'
+              : 'Continue to sign in'}
+          </button>
         </div>
       )}
 
       {state === 'error' && (
         <>
           <ErrorNote error={error} />
-          <Link to="/login" className="btn-secondary mt-5 w-full">Back to sign in</Link>
+          <Link
+            to="/verify-email"
+            className="btn-secondary mt-5 w-full"
+          >
+            Request another verification link
+          </Link>
         </>
       )}
 
       {state === 'missing' && (
         <p className="text-sm leading-6 text-muted">
-          This link is incomplete. Please open the link from the email we sent.
+          This link is incomplete. Open the complete verification
+          link from the email we sent.
         </p>
       )}
     </AuthShell>
   );
 }
 
-export const VerifyEmail = () => (
-  <TokenPage
-    title="Verify your email"
-    path="/auth/verify-email"
-    successText="Your email address has been verified."
-  />
-);
+function VerificationPending() {
+  const { user, refresh } = useAuth();
+  const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState(null);
+
+  const resend = async () => {
+    setBusy(true);
+    setError(null);
+
+    try {
+      const result = await api('/auth/resend-verification', {
+        method: 'POST',
+      });
+
+      if (result?.reason === 'already_verified') {
+        await refresh();
+        window.location.assign('/app');
+        return;
+      }
+
+      if (result?.sent === false) {
+        throw new Error(
+          'We could not send the email. Please try again shortly.'
+        );
+      }
+
+      setSent(true);
+    } catch (err) {
+      setError(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <AuthShell>
+      <div className="mx-auto max-w-md">
+        <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-forest-50 text-forest">
+          <ShieldCheck className="h-7 w-7" />
+        </div>
+
+        <AuthHeading
+          eyebrow="One last step"
+          title="Your business is ready."
+          description="Verify your email address to unlock your Zuno dashboard."
+        />
+
+        <div className="mt-6 rounded-2xl border border-line bg-paper p-4">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted">
+            Verification email sent to
+          </p>
+          <p className="mt-1 break-all font-semibold text-ink">
+            {user?.email || 'your registered email address'}
+          </p>
+        </div>
+
+        <div className="mt-5 space-y-4">
+          {error && <ErrorNote error={error} />}
+
+          {sent && (
+            <div className="rounded-xl border border-forest/15 bg-forest-50 p-4 text-sm leading-6 text-forest">
+              Your verification email has been sent. Check your inbox
+              and spam folder.
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={resend}
+            disabled={busy || sent}
+            className="btn-primary w-full !min-h-[50px]"
+          >
+            {busy
+              ? <Spinner className="text-white" />
+              : sent
+                ? 'Verification email sent'
+                : 'Resend verification email'}
+          </button>
+
+          <p className="text-center text-xs leading-5 text-muted">
+            Open the verification link in this browser to confirm
+            your account and continue.
+          </p>
+
+          <button
+            type="button"
+            onClick={async () => {
+              await refresh();
+              if (user?.emailVerified) {
+                window.location.assign('/app');
+              }
+            }}
+            className="w-full text-sm font-semibold text-forest hover:underline"
+          >
+            I've verified my email — continue
+          </button>
+
+          <p className="text-center text-xs text-muted">
+            Having trouble accessing your email?{' '}
+            <Link
+              to="/recover"
+              className="font-semibold text-forest underline"
+            >
+              Recover your account
+            </Link>
+          </p>
+        </div>
+      </div>
+    </AuthShell>
+  );
+}
+
+export const VerifyEmail = () => {
+  const [searchParams] = useSearchParams();
+
+  return searchParams.get('token')
+    ? (
+      <TokenPage
+        title="Verify your email"
+        path="/auth/verify-email"
+        successText="Your email address has been verified."
+      />
+    )
+    : <VerificationPending />;
+};
+
 
 export const ConfirmContact = () => (
   <TokenPage

@@ -45,7 +45,6 @@ export function createPaystackAdapter(secret) {
 const platformAdapter = () => createPaystackAdapter(env.platformPaystackSecret);
 export const initializeTransaction = (p) => platformAdapter().initialize(p);
 export const verifyTransaction = (reference) => platformAdapter().verify(reference);
-export const chargeAuthorization = (p) => call(env.platformPaystackSecret, 'POST', '/transaction/charge_authorization', p);
 export const createRefund = (p) => platformAdapter().refund(p);
 
 // Paystack signs the RAW request body with HMAC-SHA512 using your secret key (x-paystack-signature header).

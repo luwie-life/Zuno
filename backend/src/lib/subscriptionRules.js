@@ -31,9 +31,20 @@ export function computeSubscriptionState(
     return 'active';
   }
 
+  // A scheduled cancellation ends access at the paid-through date.
+  // The grace period applies only to subscriptions intended to renew.
+  if (
+    sub.cancelAtPeriodEnd &&
+    (!sub.currentPeriodEnd || sub.currentPeriodEnd <= now)
+  ) {
+    return 'cancelled';
+  }
+
   if (!sub.currentPeriodEnd) return 'pending_payment';
 
   if (sub.currentPeriodEnd > now) return 'active';
+
+  if (sub.cancelAtPeriodEnd) return 'cancelled';
 
   const graceEnd = new Date(
     sub.currentPeriodEnd.getTime() + graceDays * DAY,
@@ -55,7 +66,22 @@ export function nextPeriodEnd(currentPeriodEnd, now = new Date()) {
       : now;
 
   const next = new Date(base);
-  next.setMonth(next.getMonth() + 1);
+  const originalDay = next.getUTCDate();
+
+  // Move to the first day before advancing the month to prevent overflow.
+  next.setUTCDate(1);
+  next.setUTCMonth(next.getUTCMonth() + 1);
+
+  // Clamp to the final valid day of the destination month.
+  const lastDay = new Date(
+    Date.UTC(
+      next.getUTCFullYear(),
+      next.getUTCMonth() + 1,
+      0,
+    ),
+  ).getUTCDate();
+
+  next.setUTCDate(Math.min(originalDay, lastDay));
 
   return next;
 }

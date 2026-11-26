@@ -29,7 +29,6 @@ import adminRecovery from './routes/admin/recovery.js';
 import payments from './routes/payments.js';
 import services from './routes/services.js';
 import bookings from './routes/bookings.js';
-import serviceManagement from './routes/services.js';
 import portfolio from './routes/portfolio.js';
 import menu from './routes/menu.js';
 
@@ -131,7 +130,6 @@ export function createApp() {
 
   app.use('/api/services', services);
   app.use('/api/bookings', bookings);
-  app.use('/api/services', serviceManagement);
 
   // Portfolio management.
   app.use('/api/portfolio', portfolio);

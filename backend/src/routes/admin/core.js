@@ -29,14 +29,50 @@ import {
   escapeRegex,
 } from '../../lib/validate.js';
 import { requireAuth, requirePlatform } from '../../middleware/auth.js';
-import { getAccess } from '../../services/subscriptions.js';
+import {
+  getAccess,
+  runSubscriptionMaintenance,
+} from '../../services/subscriptions.js';
 import { getSettings } from '../../services/settings.js';
 import { audit } from '../../services/audit.js';
 import { releaseExpiredReservations } from '../../services/orders.js';
-import { expireAndRenewDue } from '../../services/subscriptions.js';
 import { reconcilePayments } from '../../services/payments.js';
+import { timingSafeEqual } from 'node:crypto';
+import { env } from '../../config/env.js';
 
 const r = Router();
+
+function validCronSecret(provided) {
+  const expected = Buffer.from(env.cronSecret || '');
+  const received = Buffer.from(String(provided || ''));
+
+  return (
+    expected.length >= 32 &&
+    expected.length === received.length &&
+    timingSafeEqual(expected, received)
+  );
+}
+
+// Service-to-service endpoint for an external scheduled job.
+// Registered before requireAuth so a cron service does not need a
+// temporary platform administrator session.
+r.post('/jobs/cron', asyncH(async (req, res) => {
+  if (!validCronSecret(req.get('x-zuno-cron-secret'))) {
+    throw forbidden('Invalid cron credentials.');
+  }
+
+  const released = await releaseExpiredReservations();
+  const subscriptionMaintenance = await runSubscriptionMaintenance();
+  const reconciled = await reconcilePayments();
+
+  res.json({
+    released,
+    subscriptionMaintenance,
+    renewals: subscriptionMaintenance,
+    reconciled,
+  });
+}));
+
 r.use(requireAuth);
 
 r.get('/me', requirePlatform(), (req, res) => res.json({
@@ -709,7 +745,7 @@ r.patch('/settings', requirePlatform('*'), asyncH(async (req, res) => {
 
 r.post('/jobs/run', requirePlatform('subscriptions.write'), asyncH(async (req, res) => {
   const released = await releaseExpiredReservations();
-  const renewals = await expireAndRenewDue();
+  const subscriptionMaintenance = await runSubscriptionMaintenance();
   const reconciled = await reconcilePayments();
 
   await audit({
@@ -717,14 +753,18 @@ r.post('/jobs/run', requirePlatform('subscriptions.write'), asyncH(async (req, r
     action: 'jobs.run_manual',
     meta: {
       released,
-      renewals,
+      subscriptionMaintenance,
       reconciled,
     },
   });
 
   res.json({
     released,
-    renewals,
+    subscriptionMaintenance,
+
+    // Compatibility alias for any existing admin UI consuming this key.
+    renewals: subscriptionMaintenance,
+
     reconciled,
   });
 }));

@@ -2,7 +2,10 @@ import mongoose from 'mongoose';
 import { env, assertEnv } from './config/env.js';
 import { createApp } from './app.js';
 import { connectMongo } from './services/mongo.js';
-import { ensureDefaultPlans, expireAndRenewDue } from './services/subscriptions.js';
+import {
+  ensureDefaultPlans,
+  runSubscriptionMaintenance,
+} from './services/subscriptions.js';
 import { releaseExpiredReservations } from './services/orders.js';
 import { reconcilePayments } from './services/payments.js';
 import { getSettings } from './services/settings.js';
@@ -25,11 +28,14 @@ export async function startServer({ connect = connectMongo, initialize = async (
   console.log(`Zuno API listening on :${env.port} (${env.nodeEnv})`);
 
   if (env.runJobs) {
-    // Reservation expiry every minute; renewals + payment reconciliation every 30 minutes.
+    // Reservation expiry every minute; safe subscription maintenance
+    // and payment reconciliation every 30 minutes.
+    // Subscription maintenance never initiates or charges a payment.
     // On Render free instances that sleep, also trigger POST /api/admin/jobs/run from a cron service.
     setInterval(() => releaseExpiredReservations().catch((e) => console.error('job: reservations', e.message)), 60_000).unref();
+
     setInterval(async () => {
-      await expireAndRenewDue().catch((e) => console.error('job: renewals', e.message));
+      await runSubscriptionMaintenance().catch((e) => console.error('job: subscription maintenance', e.message));
       await reconcilePayments().catch((e) => console.error('job: reconcile', e.message));
     }, 30 * 60_000).unref();
   }

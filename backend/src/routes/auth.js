@@ -102,7 +102,10 @@ r.post('/verify-email', limiter(20), asyncH(async (req, res) => {
   const t = await Token.findOneAndUpdate({ tokenHash: hashToken(token), purpose: 'email_verify', usedAt: null, expiresAt: { $gt: new Date() } }, { usedAt: new Date() });
   if (!t) throw bad('This verification link is invalid or has expired.');
   await User.updateOne({ _id: t.user }, { emailVerified: true });
-  res.json({ ok: true });
+  res.json({
+  ok: true,
+  userId: String(t.user),
+});
 }));
 
 r.post('/resend-verification', requireAuthAllowUnverified, limiter(5), asyncH(async (req, res) => {

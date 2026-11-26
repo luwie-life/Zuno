@@ -1,13 +1,10 @@
-
+import { randomUUID } from 'node:crypto';
 import { Router } from 'express';
 import { Plan, Subscription, Payment } from '../models/index.js';
 import { asyncH, bad, notFound, conflict } from '../lib/errors.js';
 import { parse, z } from '../lib/validate.js';
 import { requireAuth, requireBusiness } from '../middleware/auth.js';
-import {
-  getAccess,
-  retrySubscriptionRenewal,
-} from '../services/subscriptions.js';
+import { getAccess } from '../services/subscriptions.js';
 import { startPayment, verifyAndApply } from '../services/payments.js';
 import { env } from '../config/env.js';
 import { audit } from '../services/audit.js';
@@ -75,20 +72,8 @@ r.get(
       currentPeriodEnd: sub?.currentPeriodEnd,
       cancelAtPeriodEnd: sub?.cancelAtPeriodEnd,
 
-      renewalStatus: sub?.renewalStatus || 'current',
-      failedRenewals: sub?.failedRenewals || 0,
-      lastRenewalAttemptAt: sub?.lastRenewalAttemptAt || null,
-      lastRenewalFailureAt: sub?.lastRenewalFailureAt || null,
-      lastRenewalFailureReason: sub?.lastRenewalFailureReason || null,
-      nextRenewalRetryAt: sub?.nextRenewalRetryAt || null,
-      renewalPaymentPending: !!sub?.pendingRenewalPaymentReference,
-
-      card: sub?.authorization?.last4
-        ? {
-            last4: sub.authorization.last4,
-            brand: sub.authorization.brand,
-          }
-        : null,
+      pendingRenewalReference:
+        sub?.pendingRenewalPaymentReference || null,
 
       plans: plans.map(planView),
       payments,
@@ -96,34 +81,9 @@ r.get(
   }),
 );
 
-// Manually retry an unsuccessful automatic renewal.
-r.post(
-  '/retry-renewal',
-  requireBusiness('billing.manage', { allowSuspended: true }),
-  asyncH(async (req, res) => {
-    const result = await retrySubscriptionRenewal(req.business._id);
 
-    if (!result.ok) {
-      throw conflict(
-        result.reason === 'not_due_or_locked'
-          ? 'Renewal is not currently eligible for retry. Please refresh your billing page.'
-          : 'Renewal could not be started. Please try again.',
-      );
-    }
 
-    await audit({
-      req,
-      action: 'billing.renewal_retry_requested',
-      business: req.business._id,
-      meta: {
-        renewalStatus: result.renewalStatus,
-        pending: result.pending,
-      },
-    });
-
-    res.json(result);
-  }),
-);
+// Start a subscription payment. Amount always comes from the Plan record.
 
 // Start a subscription payment. Amount always comes from the Plan record.
 r.post(
@@ -137,89 +97,150 @@ r.post(
       req.body,
     );
 
-    const sub = await Subscription.findOne({
-      business: req.business._id,
-    });
+const businessId = req.business._id;
+const lockToken = randomUUID();
+const lockNow = new Date();
+const lockUntil = new Date(lockNow.getTime() + 5 * 60_000);
 
-    if (!sub) throw notFound('No subscription found');
+    // Atomically acquire the checkout lock. Only one request per
+    // subscription can initialize a renewal checkout at a time.
+const sub = await Subscription.findOneAndUpdate(
+  {
+    business: businessId,
+    $or: [
+      { checkoutLockUntil: { $exists: false } },
+      { checkoutLockUntil: null },
+      { checkoutLockUntil: { $lte: lockNow } },
+    ],
+  },
+  {
+    $set: {
+      checkoutLockToken: lockToken,
+      checkoutLockUntil: lockUntil,
+    },
+  },
+  { new: true },
+);
 
-    if (sub.pendingRenewalPaymentReference) {
+    if (!sub) {
+      const existingSub = await Subscription.findOne({
+        business: businessId,
+      });
+
+      if (!existingSub) throw notFound('No subscription found');
+
       throw conflict(
-        'A renewal payment is already being processed. Please wait while we verify it.',
+        'Another billing operation is in progress. Please wait and try again.',
       );
     }
 
-    if (sub.scheduledPlan) {
-      throw conflict(
-        'Your plan change is scheduled for the end of your current billing period. No payment is required right now.',
-      );
-    }
+    try {
+      if (sub.pendingRenewalPaymentReference) {
+        throw conflict(
+          'A renewal payment is already being processed. Please wait while we verify it.',
+        );
+      }
 
-    const unresolvedPayment = await Payment.findOne({
-      business: req.business._id,
-      purpose: 'subscription',
-      status: 'initialized',
-    }).sort('-createdAt');
+      if (sub.scheduledPlan) {
+        throw conflict(
+          'Your plan change is scheduled for the end of your current billing period. No payment is required right now.',
+        );
+      }
 
-    if (unresolvedPayment) {
-      throw conflict(
-        'You already have a subscription payment awaiting verification. Please verify it before starting another checkout.',
-      );
-    }
-
-    // A pending plan is an immediate upgrade. Otherwise use the current plan.
-    const plan = await Plan.findById(
-      sub.pendingPlan || sub.plan,
-    );
-
-    if (!plan || !plan.active) {
-      throw notFound('Plan not found or unavailable');
-    }
-
-    const amount = Number(plan.monthlyFee);
-
-    // Free plans never go through Paystack.
-    if (!Number.isFinite(amount) || amount <= 0) {
-      throw conflict(
-        'The Free plan does not require payment. Select a paid plan to continue.',
-      );
-    }
-
-    const { payment, authorizationUrl } = await startPayment({
-      business: req.business._id,
-      purpose: 'subscription',
-      amount,
-      email: req.user.email,
-      meta: {
-        planId: plan._id,
-        planKey: plan.key,
-      },
-      callbackUrl: `${env.frontendUrl}/app/billing`,
-    });
-
-    await audit({
-      req,
-      action: 'billing.checkout_started',
-      business: req.business._id,
-      related: {
-        kind: 'Payment',
-        id: payment._id,
-      },
-      meta: {
+      const unresolvedPayment = await Payment.findOne({
+        business: businessId,
         purpose: 'subscription',
-        plan: plan.key,
-        amount,
-      },
-    });
+        status: 'initialized',
+      }).sort('-createdAt');
 
-    res.status(201).json({
-      authorizationUrl,
-      reference: payment.reference,
-      amount,
-      plan: planView(plan),
-    });
+      if (unresolvedPayment) {
+        throw conflict(
+          'You already have a subscription payment awaiting verification. Please verify it before starting another checkout.',
+        );
+      }
+
+      const plan = await Plan.findById(sub.pendingPlan || sub.plan);
+
+      if (!plan || !plan.active) {
+        throw notFound('Plan not found or unavailable');
+      }
+
+      const amount = Number(plan.monthlyFee);
+
+      if (!Number.isFinite(amount) || amount <= 0) {
+        throw conflict(
+          'The Free plan does not require payment. Select a paid plan to continue.',
+        );
+      }
+
+      const { payment, authorizationUrl } = await startPayment({
+        business: businessId,
+        purpose: 'subscription',
+        amount,
+        email: req.user.email,
+        meta: {
+          planId: plan._id,
+          planKey: plan.key,
+        },
+        callbackUrl: `${env.frontendUrl}/app/billing`,
+      });
+
+      // Save the reference only while this request still owns the lock.
+      const linked = await Subscription.updateOne(
+        {
+            _id: sub._id,
+            checkoutLockToken: lockToken,
+            pendingRenewalPaymentReference: { $in: [null, ''] },
+          },
+        {
+          $set: {
+            pendingRenewalPaymentReference: payment.reference,
+          },
+        },
+      );
+
+      if (!linked.modifiedCount) {
+        throw new Error(
+          'Could not link the initialized payment to the subscription.',
+        );
+      }
+
+      await audit({
+        req,
+        action: 'billing.checkout_started',
+        business: businessId,
+        related: {
+          kind: 'Payment',
+          id: payment._id,
+        },
+        meta: {
+          purpose: 'subscription',
+          plan: plan.key,
+          amount,
+        },
+      });
+
+      res.status(201).json({
+        authorizationUrl,
+        reference: payment.reference,
+        amount,
+        plan: planView(plan),
+      });
+    } finally {
+      // Release only the lock acquired by this request.
+await Subscription.updateOne(
+  { _id: sub._id, checkoutLockToken: lockToken },
+  {
+    $unset: {
+      checkoutLockToken: 1,
+      checkoutLockUntil: 1,
+    },
+  },
+);
+    }
   }),
 );
+
 
 // Server-side payment verification.
 r.get(
@@ -245,6 +266,7 @@ r.get(
   }),
 );
 
+
 // Request a plan change.
 r.post(
   '/change-plan',
@@ -257,80 +279,122 @@ r.post(
       req.body,
     );
 
-    const [sub, next] = await Promise.all([
-      Subscription.findOne({
-        business: req.business._id,
-      }),
-      Plan.findOne({
-        key: planKey,
-        active: true,
-      }),
-    ]);
+    const businessId = req.business._id;
+    const lockToken = randomUUID();
+    const lockNow = new Date();
+    const lockUntil = new Date(lockNow.getTime() + 5 * 60_000);
 
-    if (!sub || !next) throw notFound('Plan not found');
+    const sub = await Subscription.findOneAndUpdate(
+      {
+        business: businessId,
+        $or: [
+          { checkoutLockUntil: { $exists: false } },
+          { checkoutLockUntil: null },
+          { checkoutLockUntil: { $lte: lockNow } },
+        ],
+      },
+      {
+        $set: {
+          checkoutLockToken: lockToken,
+          checkoutLockUntil: lockUntil,
+        },
+      },
+      { new: true },
+    );
 
-    if (sub.pendingRenewalPaymentReference) {
+    if (!sub) {
+      const existingSub = await Subscription.findOne({
+        business: businessId,
+      });
+
+      if (!existingSub) throw notFound('No subscription found');
+
       throw conflict(
-        'A renewal payment is being verified. Please wait before changing your plan.',
+        'Another billing operation is in progress. Please wait and try again.',
       );
     }
 
-    const cur = await Plan.findById(sub.plan);
+    try {
+      const next = await Plan.findOne({
+        key: planKey,
+        active: true,
+      });
 
-    if (!cur) throw notFound('Current plan not found');
+      if (!next) throw notFound('Plan not found');
 
-    if (String(cur._id) === String(next._id)) {
-      throw bad('You are already on this plan.');
-    }
-
-    const currentPrice = Number(cur.monthlyFee || 0);
-    const nextPrice = Number(next.monthlyFee || 0);
-
-    // Free-to-paid or paid-to-higher-tier changes require immediate checkout.
-    if (nextPrice > currentPrice) {
-      sub.pendingPlan = next._id;
-      sub.scheduledPlan = undefined;
-    } else {
-      // Downgrades, including switching to Free, happen at period end.
-      if (!sub.currentPeriodEnd) {
-        // No paid period exists, so a Free or lower-priced plan can apply now.
-        sub.plan = next._id;
-        sub.pendingPlan = undefined;
-        sub.scheduledPlan = undefined;
-
-        if (nextPrice === 0) {
-          sub.status = 'active';
-          sub.setupStatus = 'waived';
-          sub.currentPeriodEnd = undefined;
-        }
-      } else {
-        sub.scheduledPlan = next._id;
-        sub.pendingPlan = undefined;
+      if (sub.pendingRenewalPaymentReference) {
+        throw conflict(
+          'A renewal payment is being verified. Please wait before changing your plan.',
+        );
       }
-    }
 
-    await sub.save();
+      const cur = await Plan.findById(sub.plan);
 
-    await audit({
-      req,
-      action: 'billing.plan_change_requested',
-      business: req.business._id,
-      meta: {
-        from: cur.key,
-        to: next.key,
+      if (!cur) throw notFound('Current plan not found');
+
+      if (String(cur._id) === String(next._id)) {
+        throw bad('You are already on this plan.');
+      }
+
+      const currentPrice = Number(cur.monthlyFee || 0);
+      const nextPrice = Number(next.monthlyFee || 0);
+
+      // Free-to-paid or paid-to-higher-tier changes require immediate checkout.
+      if (nextPrice > currentPrice) {
+        sub.pendingPlan = next._id;
+        sub.scheduledPlan = undefined;
+      } else {
+        // Downgrades, including switching to Free, happen at period end.
+        if (!sub.currentPeriodEnd) {
+          sub.plan = next._id;
+          sub.pendingPlan = undefined;
+          sub.scheduledPlan = undefined;
+
+          if (nextPrice === 0) {
+            sub.status = 'active';
+            sub.setupStatus = 'waived';
+            sub.currentPeriodEnd = undefined;
+          }
+        } else {
+          sub.scheduledPlan = next._id;
+          sub.pendingPlan = undefined;
+        }
+      }
+
+      await sub.save();
+
+      await audit({
+        req,
+        action: 'billing.plan_change_requested',
+        business: businessId,
+        meta: {
+          from: cur.key,
+          to: next.key,
+          immediate: String(sub.plan) === String(next._id),
+          scheduled: String(sub.scheduledPlan) === String(next._id),
+        },
+      });
+
+      res.json({
+        ok: true,
+        upgrade: !!sub.pendingPlan,
+        downgradeAtPeriodEnd: !!sub.scheduledPlan,
         immediate: String(sub.plan) === String(next._id),
-        scheduled: String(sub.scheduledPlan) === String(next._id),
-      },
-    });
-
-    res.json({
-      ok: true,
-      upgrade: !!sub.pendingPlan,
-      downgradeAtPeriodEnd: !!sub.scheduledPlan,
-      immediate: String(sub.plan) === String(next._id),
-    });
+      });
+    } finally {
+      await Subscription.updateOne(
+        { _id: sub._id, checkoutLockToken: lockToken },
+        {
+          $unset: {
+            checkoutLockToken: 1,
+            checkoutLockUntil: 1,
+          },
+        },
+      );
+    }
   }),
 );
+
 
 // Schedule or revert cancellation.
 r.post(

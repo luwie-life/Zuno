@@ -12,7 +12,8 @@ import {
 import { asyncH, bad, conflict, forbidden } from '../lib/errors.js';
 import { parse, z, phone, kobo } from '../lib/validate.js';
 import {
-  requireAuth,
+  requireAuthAllowUnverified,
+  requireVerifiedEmail,
   requireBusiness,
   assertLimit,
 } from '../middleware/auth.js';
@@ -29,7 +30,9 @@ import { env } from '../config/env.js';
 
 const r = Router();
 
-r.use(requireAuth);
+// Authentication is still mandatory.
+// Unverified accounts are temporarily allowed through onboarding only.
+r.use(requireAuthAllowUnverified);
 
 const RESERVED = new Set([
   'admin',
@@ -248,6 +251,9 @@ r.get('/slug-available/:slug', asyncH(async (req, res) => {
       && !(await Business.exists({ slug: s.data })),
   });
 }));
+
+// All business management routes below this point require verified email.
+r.use(requireVerifiedEmail);
 
 // ---- current business ----
 

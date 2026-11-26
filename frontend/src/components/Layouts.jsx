@@ -248,12 +248,34 @@ export function MarketingLayout() {
 }
 
 
-export function RequireAuth({ children }) {
+export function RequireAuth({ children, allowUnverified = false }) {
   const { user, loading } = useAuth();
   const loc = useLocation();
+
   if (loading) return <Loading />;
-  if (!user && !getToken()) return <Navigate to="/login" state={{ from: loc.pathname }} replace />;
+
+  if (!user && !getToken()) {
+    return (
+      <Navigate
+        to="/login"
+        state={{ from: loc.pathname }}
+        replace
+      />
+    );
+  }
+
   if (!user) return <Navigate to="/login" replace />;
+
+  if (!allowUnverified && !user.emailVerified) {
+    return (
+      <Navigate
+        to="/verify-email?pending=1"
+        state={{ from: loc.pathname }}
+        replace
+      />
+    );
+  }
+
   return children;
 }
 
