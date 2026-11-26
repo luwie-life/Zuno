@@ -1063,3 +1063,595 @@
     padding: 0 14px;
   }
 }
+
+/* =========================================================
+   ZUNO STOREFRONT MOTION SYSTEM
+   ========================================================= */
+
+[data-zuno-template] {
+  --zuno-motion-fast: 180ms;
+  --zuno-motion-medium: 320ms;
+  --zuno-motion-slow: 700ms;
+  --zuno-motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Section entrance */
+
+.zuno-template-section {
+  animation: zuno-section-enter 720ms var(--zuno-motion-ease) both;
+}
+
+.zuno-template-section:nth-child(2) {
+  animation-delay: 70ms;
+}
+
+.zuno-template-section:nth-child(3) {
+  animation-delay: 140ms;
+}
+
+.zuno-template-section:nth-child(4) {
+  animation-delay: 210ms;
+}
+
+.zuno-template-section:nth-child(5) {
+  animation-delay: 280ms;
+}
+
+.zuno-template-section:nth-child(n + 6) {
+  animation-delay: 320ms;
+}
+
+@keyframes zuno-section-enter {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Hero content entrance */
+
+[data-zuno-template] section.relative.mb-10 > div {
+  animation: zuno-hero-enter 900ms var(--zuno-motion-ease) both;
+}
+
+@keyframes zuno-hero-enter {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Images */
+
+[data-zuno-template] img {
+  transition:
+    transform 700ms var(--zuno-motion-ease),
+    filter 500ms ease;
+}
+
+[data-zuno-template] a:hover img {
+  transform: scale(1.025);
+}
+
+/* Product and service cards */
+
+[data-zuno-template] article,
+[data-zuno-template] [data-zuno-section-type="portfolio_grid"] a {
+  transition:
+    transform 350ms var(--zuno-motion-ease),
+    box-shadow 350ms var(--zuno-motion-ease),
+    border-color 250ms ease;
+}
+
+[data-zuno-template] article:hover,
+[data-zuno-template] [data-zuno-section-type="portfolio_grid"] a:hover {
+  transform: translateY(-5px);
+}
+
+/* Buttons */
+
+[data-zuno-template] button,
+[data-zuno-template] .btn-primary,
+[data-zuno-template] .btn-secondary,
+[data-zuno-template] .zuno-store-nav__action {
+  transition:
+    transform 220ms var(--zuno-motion-ease),
+    background-color 220ms ease,
+    color 220ms ease,
+    box-shadow 220ms ease;
+}
+
+[data-zuno-template] button:hover:not(:disabled),
+[data-zuno-template] .btn-primary:hover,
+[data-zuno-template] .btn-secondary:hover,
+[data-zuno-template] .zuno-store-nav__action:hover {
+  transform: translateY(-2px);
+}
+
+/* =========================================================
+   DISTINCT TEMPLATE PRESENTATION
+   ========================================================= */
+
+/* Minimal fashion */
+
+[data-zuno-template="fashion-minimal"] {
+  --zuno-section-space: 76px;
+}
+
+[data-zuno-template="fashion-minimal"]
+  [data-zuno-section-type="featured_products"] article,
+[data-zuno-template="fashion-minimal"]
+  [data-zuno-section-type="product_grid"] article {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+[data-zuno-template="fashion-minimal"]
+  [data-zuno-section-type="featured_products"] article img,
+[data-zuno-template="fashion-minimal"]
+  [data-zuno-section-type="product_grid"] article img {
+  aspect-ratio: 3 / 4;
+  border-radius: 0 !important;
+}
+
+[data-zuno-template="fashion-minimal"] h2 {
+  font-family: var(--zuno-heading-font);
+  font-weight: 400;
+}
+
+/* Luxury boutique */
+
+[data-zuno-template="fashion-luxury"] {
+  --zuno-section-space: 88px;
+}
+
+[data-zuno-template="fashion-luxury"] h2 {
+  font-family: var(--zuno-heading-font);
+  font-weight: 400;
+  letter-spacing: -0.045em;
+}
+
+[data-zuno-template="fashion-luxury"]
+  [data-zuno-section-type="featured_products"] article,
+[data-zuno-template="fashion-luxury"]
+  [data-zuno-section-type="product_grid"] article {
+  border: 0 !important;
+  border-radius: 2px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+[data-zuno-template="fashion-luxury"]
+  [data-zuno-section-type="featured_products"] article img,
+[data-zuno-template="fashion-luxury"]
+  [data-zuno-section-type="product_grid"] article img {
+  aspect-ratio: 3 / 4;
+  border-radius: 2px !important;
+}
+
+/* Streetwear */
+
+[data-zuno-template="fashion-streetwear"] {
+  --zuno-section-space: 60px;
+}
+
+[data-zuno-template="fashion-streetwear"] h2 {
+  font-family: var(--zuno-heading-font);
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: -0.06em;
+}
+
+[data-zuno-template="fashion-streetwear"]
+  [data-zuno-section-type="featured_products"] article,
+[data-zuno-template="fashion-streetwear"]
+  [data-zuno-section-type="product_grid"] article {
+  border-radius: 0 !important;
+  border-color: #171717 !important;
+  background: #fff !important;
+}
+
+[data-zuno-template="fashion-streetwear"]
+  [data-zuno-section-type="featured_products"] article img,
+[data-zuno-template="fashion-streetwear"]
+  [data-zuno-section-type="product_grid"] article img {
+  aspect-ratio: 1 / 1;
+  border-radius: 0 !important;
+}
+
+/* Beauty and skincare */
+
+[data-zuno-template="beauty-studio"],
+[data-zuno-template="skincare"] {
+  --zuno-section-space: 78px;
+}
+
+[data-zuno-template="beauty-studio"] h2,
+[data-zuno-template="skincare"] h2 {
+  font-family: var(--zuno-heading-font);
+  font-weight: 400;
+}
+
+[data-zuno-template="beauty-studio"] article,
+[data-zuno-template="skincare"] article {
+  border-radius: 24px !important;
+  border-color: var(--zuno-border) !important;
+  background: var(--zuno-surface) !important;
+}
+
+[data-zuno-template="beauty-studio"] article img,
+[data-zuno-template="skincare"] article img {
+  aspect-ratio: 4 / 5;
+  border-radius: 20px !important;
+}
+
+/* Restaurant */
+
+[data-zuno-template="restaurant"] {
+  --zuno-section-space: 72px;
+}
+
+[data-zuno-template="restaurant"] h2 {
+  font-family: var(--zuno-heading-font);
+  font-weight: 400;
+}
+
+[data-zuno-template="restaurant"]
+  [data-zuno-section-type="product_grid"] article,
+[data-zuno-template="restaurant"]
+  [data-zuno-section-type="featured_products"] article {
+  border: 0 !important;
+  border-bottom: 1px solid var(--zuno-border) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+[data-zuno-template="restaurant"]
+  [data-zuno-section-type="product_grid"] article img,
+[data-zuno-template="restaurant"]
+  [data-zuno-section-type="featured_products"] article img {
+  aspect-ratio: 4 / 3;
+  border-radius: 12px !important;
+}
+
+/* Bakery */
+
+[data-zuno-template="bakery"] {
+  --zuno-section-space: 68px;
+}
+
+[data-zuno-template="bakery"] h2 {
+  font-family: var(--zuno-heading-font);
+  font-weight: 500;
+}
+
+[data-zuno-template="bakery"] article {
+  border-radius: 20px !important;
+  border-color: #e8d9c7 !important;
+  background: #fffdf8 !important;
+}
+
+[data-zuno-template="bakery"] article img {
+  aspect-ratio: 4 / 3;
+  border-radius: 16px !important;
+}
+
+/* Professional services */
+
+[data-zuno-template="professional-services"] {
+  --zuno-section-space: 72px;
+}
+
+[data-zuno-template="professional-services"] h2 {
+  font-family: var(--zuno-heading-font);
+  font-weight: 700;
+}
+
+[data-zuno-template="professional-services"] article {
+  border-radius: 14px !important;
+  border-color: #dce5ea !important;
+  background: #fff !important;
+  box-shadow: 0 8px 30px rgba(23, 43, 58, 0.04);
+}
+
+/* Freelancer */
+
+[data-zuno-template="freelancer"] {
+  --zuno-section-space: 84px;
+}
+
+[data-zuno-template="freelancer"] h2 {
+  font-family: var(--zuno-heading-font);
+  font-weight: 700;
+}
+
+[data-zuno-template="freelancer"]
+  [data-zuno-section-type="portfolio_grid"] a {
+  border-radius: 4px !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+/* Salon and barber */
+
+[data-zuno-template="salon-barber"] {
+  --zuno-section-space: 70px;
+}
+
+[data-zuno-template="salon-barber"] h2 {
+  font-family: var(--zuno-heading-font);
+  font-weight: 400;
+}
+
+[data-zuno-template="salon-barber"] article {
+  border-radius: 14px !important;
+  background: #fff !important;
+}
+
+/* Spa and wellness */
+
+[data-zuno-template="spa-wellness"] {
+  --zuno-section-space: 90px;
+}
+
+[data-zuno-template="spa-wellness"] h2 {
+  font-family: var(--zuno-heading-font);
+  font-weight: 400;
+}
+
+[data-zuno-template="spa-wellness"] article {
+  border-radius: 24px !important;
+  border-color: #dde2d8 !important;
+  background: #f8f8f3 !important;
+}
+
+/* Creative portfolio */
+
+[data-zuno-template="creative-portfolio"] {
+  --zuno-section-space: 88px;
+}
+
+[data-zuno-template="creative-portfolio"] h2 {
+  font-family: var(--zuno-heading-font);
+  font-weight: 700;
+}
+
+[data-zuno-template="creative-portfolio"]
+  [data-zuno-section-type="portfolio_grid"] a {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+[data-zuno-template="creative-portfolio"]
+  [data-zuno-section-type="portfolio_grid"] img {
+  aspect-ratio: 4 / 5;
+  border-radius: 0 !important;
+}
+
+/* Fitness */
+
+[data-zuno-template="fitness-coach"] {
+  --zuno-section-space: 64px;
+}
+
+[data-zuno-template="fitness-coach"] h2 {
+  font-family: var(--zuno-heading-font);
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+/* Property */
+
+[data-zuno-template="property-services"] {
+  --zuno-section-space: 76px;
+}
+
+[data-zuno-template="property-services"] article {
+  border-radius: 10px !important;
+  border-color: #e0e5e3 !important;
+  background: #fff !important;
+}
+
+[data-zuno-template="property-services"] article img {
+  aspect-ratio: 4 / 3;
+  border-radius: 8px !important;
+}
+
+/* Home services */
+
+[data-zuno-template="home-services"] {
+  --zuno-section-space: 68px;
+}
+
+[data-zuno-template="home-services"] article {
+  border-radius: 14px !important;
+  border-color: #dce5ea !important;
+  background: #fff !important;
+}
+
+/* Modern business */
+
+[data-zuno-template="modern-business"] {
+  --zuno-section-space: 72px;
+}
+
+[data-zuno-template="modern-business"] article {
+  border-radius: 18px !important;
+  border-color: #e0e9e4 !important;
+  background: #fff !important;
+}
+
+/* Reduced motion accessibility */
+
+@media (prefers-reduced-motion: reduce) {
+  .zuno-template-section,
+  [data-zuno-template] section.relative.mb-10 > div {
+    animation: none !important;
+  }
+
+  [data-zuno-template] *,
+  [data-zuno-template] *::before,
+  [data-zuno-template] *::after {
+    scroll-behavior: auto !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}
+
+
+/* =========================================================
+   GUIDED TEMPLATE MOTION
+   ========================================================= */
+
+[data-zuno-template] {
+  --zuno-motion-fast: 180ms;
+  --zuno-motion-medium: 360ms;
+  --zuno-motion-slow: 650ms;
+}
+
+[data-zuno-template] .zuno-template-section {
+  animation: zuno-section-enter 680ms cubic-bezier(.2,.7,.2,1) both;
+}
+
+[data-zuno-template] .zuno-template-section:nth-child(2) {
+  animation-delay: 45ms;
+}
+
+[data-zuno-template] .zuno-template-section:nth-child(3) {
+  animation-delay: 90ms;
+}
+
+[data-zuno-template] .zuno-template-section:nth-child(4) {
+  animation-delay: 135ms;
+}
+
+[data-zuno-template] .zuno-template-section:nth-child(5) {
+  animation-delay: 180ms;
+}
+
+[data-zuno-template] .zuno-template-section:nth-child(6) {
+  animation-delay: 225ms;
+}
+
+@keyframes zuno-section-enter {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Product, service and portfolio card motion */
+
+[data-zuno-template] article {
+  transition:
+    transform 520ms cubic-bezier(.2,.7,.2,1),
+    box-shadow 320ms ease;
+}
+
+@media (hover: hover) {
+  [data-zuno-template] article:hover {
+    transform: translateY(-3px);
+  }
+
+  [data-zuno-template] article img:hover {
+    transform: scale(1.035);
+  }
+}
+
+/* Actual storefront section types */
+
+[data-zuno-template]
+[data-zuno-section-type="featured_products"],
+[data-zuno-template]
+[data-zuno-section-type="product_grid"],
+[data-zuno-template]
+[data-zuno-section-type="service_list"],
+[data-zuno-template]
+[data-zuno-section-type="portfolio_grid"] {
+  padding-top: clamp(34px, 5vw, 76px);
+  padding-bottom: clamp(34px, 5vw, 76px);
+}
+
+/* Streetwear: high-contrast product sections */
+
+[data-zuno-template="fashion-streetwear"]
+[data-zuno-section-type="featured_products"],
+[data-zuno-template="fashion-streetwear"]
+[data-zuno-section-type="product_grid"] {
+  background: #171717;
+  color: #f4f4f1;
+  padding-left: clamp(18px, 5vw, 76px);
+  padding-right: clamp(18px, 5vw, 76px);
+}
+
+/* Luxury: refined divider */
+
+[data-zuno-template="fashion-luxury"]
+[data-zuno-section-type="featured_products"] {
+  border-top: 1px solid var(--zuno-border, #ded4c8);
+}
+
+/* Restaurant: warm section surface */
+
+[data-zuno-template="restaurant"]
+[data-zuno-section-type="featured_products"],
+[data-zuno-template="restaurant"]
+[data-zuno-section-type="product_grid"] {
+  background: var(--zuno-surface, #f2eadf);
+}
+
+/* Creative portfolio: wider visual canvas */
+
+[data-zuno-template="creative-portfolio"]
+[data-zuno-section-type="portfolio_grid"] {
+  padding-left: clamp(18px, 5vw, 76px);
+  padding-right: clamp(18px, 5vw, 76px);
+}
+
+/* Natural wellness templates */
+
+[data-zuno-template="skincare"]
+[data-zuno-section-type="image_text"],
+[data-zuno-template="spa-wellness"]
+[data-zuno-section-type="image_text"] {
+  background: var(--zuno-surface, #eef0e8);
+  border-radius: var(--zuno-radius, 28px);
+  padding: clamp(24px, 5vw, 64px);
+}
+
+/* Accessible motion preference */
+
+@media (prefers-reduced-motion: reduce) {
+  [data-zuno-template] *,
+  [data-zuno-template] *::before,
+  [data-zuno-template] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  [data-zuno-template] .zuno-template-section {
+    opacity: 1;
+    transform: none;
+  }
+}

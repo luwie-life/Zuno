@@ -1007,7 +1007,7 @@ function LegacySection({ section, context }) {
         </nav>
       );
     }
-    
+
     case 'categories':
       return (
         <section className="py-8">
@@ -1230,14 +1230,17 @@ function SectionRenderer({
 
   if (!editorMode) {
     return (
-      <div
-        className="relative"
-        style={{
-          minHeight: sectionMinHeight,
-        }}
-      >
-        {content}
-      </div>
+      
+<div
+  className="zuno-template-section relative"
+  data-zuno-section-type={section.type}
+  style={{
+    minHeight: sectionMinHeight,
+  }}
+>
+  {content}
+</div>
+
     );
   }
 
