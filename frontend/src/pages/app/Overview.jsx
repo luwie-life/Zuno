@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   Globe2,
   AlertCircle,
+  UtensilsCrossed,
 } from 'lucide-react';
 
 import { api } from '../../lib/api.js';
@@ -66,7 +67,14 @@ const BUSINESS_TYPES = [
     tag: 'Services',
   },
   {
-    key: 'both',
+    key: 'restaurant',
+    title: 'Restaurant',
+    description: 'Manage your food menu and give customers a dedicated online restaurant experience.',
+    icon: UtensilsCrossed,
+    tag: 'Food & hospitality',
+  },
+  {
+    key: 'hybrid',
     title: 'Products and services',
     description: 'Bring your products and service operations together in one workspace.',
     icon: Layers3,

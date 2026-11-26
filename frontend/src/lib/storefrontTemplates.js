@@ -270,7 +270,7 @@ export const STOREFRONT_TEMPLATES = Object.freeze([
     name: 'Minimal Fashion',
     category: 'Fashion',
     description: 'An editorial storefront for modern clothing labels and everyday essentials.',
-    businessTypes: ['product', 'hybrid'],
+   businessTypes: ['product', 'restaurant', 'hybrid'],
     tags: ['minimal', 'editorial', 'clothing', 'fashion'],
     theme: themes.fashion,
     sections: [
@@ -1057,6 +1057,10 @@ const CATEGORY_ORDER = [
 
 function normalizeBusinessType(value = 'product') {
   const type = String(value || 'product').toLowerCase();
+
+  if (type === 'restaurant') {
+    return 'restaurant';
+  }
 
   if (
     ['service', 'services', 'freelancer', 'freelance'].includes(type)

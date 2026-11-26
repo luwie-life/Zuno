@@ -782,6 +782,8 @@ export function getBusinessCapabilities(businessType = 'product') {
     'service', 'services', 'freelancer', 'freelance',
   ].includes(type);
 
+  const isRestaurant = type === 'restaurant';
+
   if (isHybrid) {
     return {
       products: true,
@@ -789,6 +791,7 @@ export function getBusinessCapabilities(businessType = 'product') {
       bookings: true,
       portfolio: true,
       commerce: true,
+      menu: true,
     };
   }
 
@@ -799,6 +802,18 @@ export function getBusinessCapabilities(businessType = 'product') {
       bookings: true,
       portfolio: true,
       commerce: false,
+      menu: false,
+    };
+  }
+
+  if (isRestaurant) {
+    return {
+      products: true,
+      services: false,
+      bookings: false,
+      portfolio: false,
+      commerce: false,
+      menu: true,
     };
   }
 
@@ -808,6 +823,7 @@ export function getBusinessCapabilities(businessType = 'product') {
     bookings: false,
     portfolio: false,
     commerce: true,
+    menu: false,
   };
 }
 

@@ -1928,3 +1928,334 @@
     animation: none !important;
   }
 }
+
+
+/* =========================================================
+   GUIDED STORE FRONT: PRODUCT, SERVICE & PORTFOLIO CARDS
+   ========================================================= */
+
+[data-zuno-template] .zuno-template-products,
+[data-zuno-template] .zuno-template-services,
+[data-zuno-template] .zuno-template-portfolio {
+  width: 100%;
+}
+
+[data-zuno-template] .zuno-template-products__content,
+[data-zuno-template] .zuno-template-services__content {
+  width: 100%;
+}
+
+[data-zuno-template] .zuno-template-products article,
+[data-zuno-template] .zuno-template-services article {
+  overflow: hidden;
+  border-radius: var(--zuno-card-radius, 18px);
+  border-color: var(--zuno-border, #e5e7eb);
+  background: var(--zuno-card-background, #fff);
+  color: var(--zuno-card-text, inherit);
+  transition:
+    transform 280ms cubic-bezier(.2,.7,.2,1),
+    box-shadow 280ms ease,
+    border-color 280ms ease;
+}
+
+[data-zuno-template] .zuno-template-products article img {
+  transition: transform 650ms cubic-bezier(.2,.7,.2,1);
+}
+
+@media (hover: hover) {
+  [data-zuno-template] .zuno-template-products article:hover,
+  [data-zuno-template] .zuno-template-services article:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 18px 42px rgba(0, 0, 0, 0.08);
+  }
+
+  [data-zuno-template] .zuno-template-products article:hover img {
+    transform: scale(1.045);
+  }
+}
+
+/* Fashion minimal: clean product catalogue */
+
+[data-zuno-template="fashion-minimal"] {
+  --zuno-card-radius: 0px;
+  --zuno-card-background: #faf9f6;
+  --zuno-card-text: #242424;
+  --zuno-border: #e6e1d9;
+}
+
+[data-zuno-template="fashion-minimal"]
+.zuno-template-products article {
+  border: 0;
+  background: transparent;
+}
+
+[data-zuno-template="fashion-minimal"]
+.zuno-template-products article > div {
+  padding: 14px 0;
+}
+
+[data-zuno-template="fashion-minimal"]
+.zuno-template-products article button {
+  border-radius: 0;
+  background: #242424;
+}
+
+/* Luxury fashion: restrained product cards */
+
+[data-zuno-template="fashion-luxury"] {
+  --zuno-card-radius: 2px;
+  --zuno-card-background: #f8f5f0;
+  --zuno-card-text: #2b2622;
+  --zuno-border: #ded4c8;
+}
+
+[data-zuno-template="fashion-luxury"]
+.zuno-template-products article {
+  border: 0;
+  background: transparent;
+}
+
+[data-zuno-template="fashion-luxury"]
+.zuno-template-products article > div {
+  padding: 18px 0;
+}
+
+[data-zuno-template="fashion-luxury"]
+.zuno-template-products article button {
+  border-radius: 2px;
+  background: #2b2622;
+}
+
+/* Streetwear: dark catalogue, high contrast */
+
+[data-zuno-template="fashion-streetwear"] {
+  --zuno-card-radius: 0px;
+  --zuno-card-background: #202020;
+  --zuno-card-text: #f4f4f1;
+  --zuno-border: #343434;
+}
+
+[data-zuno-template="fashion-streetwear"]
+.zuno-template-products article {
+  border: 0;
+}
+
+[data-zuno-template="fashion-streetwear"]
+.zuno-template-products article > div {
+  padding: 14px;
+}
+
+[data-zuno-template="fashion-streetwear"]
+.zuno-template-products article button {
+  border-radius: 0;
+  background: #d9ff36;
+  color: #171717;
+}
+
+/* Restaurant: menu-style product cards */
+
+[data-zuno-template="restaurant"] {
+  --zuno-card-radius: 12px;
+  --zuno-card-background: #fffaf3;
+  --zuno-card-text: #33251e;
+  --zuno-border: #e8d8c5;
+}
+
+[data-zuno-template="restaurant"]
+.zuno-template-products article {
+  border: 1px solid #e8d8c5;
+  box-shadow: none;
+}
+
+[data-zuno-template="restaurant"]
+.zuno-template-products article button {
+  border-radius: 8px;
+}
+
+/* Beauty and skincare: soft premium cards */
+
+[data-zuno-template="beauty-studio"],
+[data-zuno-template="skincare"] {
+  --zuno-card-radius: 22px;
+  --zuno-card-background: #fffdfb;
+  --zuno-border: #eee2e4;
+}
+
+[data-zuno-template="beauty-studio"]
+.zuno-template-products article,
+[data-zuno-template="skincare"]
+.zuno-template-products article {
+  border: 1px solid #eee2e4;
+  box-shadow: 0 8px 28px rgba(80, 48, 60, 0.035);
+}
+
+/* Services: clear price and booking hierarchy */
+
+[data-zuno-template] .zuno-template-services article {
+  display: flex;
+  flex-direction: column;
+  min-height: 220px;
+}
+
+[data-zuno-template] .zuno-template-services article > div:last-child {
+  margin-top: auto;
+  padding-top: 20px;
+}
+
+/* Professional services: sharp, structured */
+
+[data-zuno-template="professional-services"],
+[data-zuno-template="home-services"],
+[data-zuno-template="property-services"] {
+  --zuno-card-radius: 12px;
+  --zuno-card-background: #fff;
+}
+
+[data-zuno-template="professional-services"]
+.zuno-template-services article,
+[data-zuno-template="home-services"]
+.zuno-template-services article,
+[data-zuno-template="property-services"]
+.zuno-template-services article {
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(20, 40, 35, 0.045);
+}
+
+/* Portfolio: shared base */
+
+[data-zuno-template] .zuno-template-portfolio__grid {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 22px;
+}
+
+[data-zuno-template] .zuno-template-portfolio__card {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: var(--zuno-card-radius, 18px);
+  border: 1px solid var(--zuno-border, #e5e7eb);
+  background: var(--zuno-card-background, #fff);
+  color: var(--zuno-card-text, inherit);
+  text-decoration: none;
+  transition:
+    transform 350ms cubic-bezier(.2,.7,.2,1),
+    box-shadow 350ms ease;
+}
+
+[data-zuno-template] .zuno-template-portfolio__image-wrap {
+  overflow: hidden;
+  background: #f1f1f1;
+}
+
+[data-zuno-template] .zuno-template-portfolio__image {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  transition: transform 700ms cubic-bezier(.2,.7,.2,1);
+}
+
+[data-zuno-template] .zuno-template-portfolio__details {
+  padding: 18px;
+}
+
+[data-zuno-template] .zuno-template-portfolio__title {
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+[data-zuno-template] .zuno-template-portfolio__summary {
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--zuno-muted, #6b7280);
+}
+
+@media (hover: hover) {
+  [data-zuno-template] .zuno-template-portfolio__card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 18px 42px rgba(0, 0, 0, 0.08);
+  }
+
+  [data-zuno-template] .zuno-template-portfolio__card:hover
+  .zuno-template-portfolio__image {
+    transform: scale(1.045);
+  }
+}
+
+@media (min-width: 640px) {
+  [data-zuno-template] .zuno-template-portfolio__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  [data-zuno-template] .zuno-template-portfolio__grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Creative portfolio: editorial image gallery */
+
+[data-zuno-template="creative-portfolio"] {
+  --zuno-card-radius: 0px;
+  --zuno-card-background: transparent;
+  --zuno-card-text: #171717;
+  --zuno-border: transparent;
+}
+
+[data-zuno-template="creative-portfolio"]
+.zuno-template-portfolio__grid {
+  gap: 28px 20px;
+}
+
+[data-zuno-template="creative-portfolio"]
+.zuno-template-portfolio__card {
+  border: 0;
+  background: transparent;
+}
+
+[data-zuno-template="creative-portfolio"]
+.zuno-template-portfolio__image {
+  aspect-ratio: 3 / 4;
+}
+
+[data-zuno-template="creative-portfolio"]
+.zuno-template-portfolio__details {
+  padding: 16px 0;
+}
+
+[data-zuno-template="creative-portfolio"]
+.zuno-template-portfolio__title {
+  font-size: 17px;
+  letter-spacing: -0.025em;
+}
+
+/* Freelancer: case-study cards */
+
+[data-zuno-template="freelancer"] {
+  --zuno-card-radius: 16px;
+  --zuno-card-background: #fff;
+  --zuno-card-text: #25213a;
+  --zuno-border: #e8e5f0;
+}
+
+[data-zuno-template="freelancer"]
+.zuno-template-portfolio__image {
+  aspect-ratio: 16 / 10;
+}
+
+/* Reduced motion */
+
+@media (prefers-reduced-motion: reduce) {
+  [data-zuno-template] .zuno-template-products article,
+  [data-zuno-template] .zuno-template-products article img,
+  [data-zuno-template] .zuno-template-services article,
+  [data-zuno-template] .zuno-template-portfolio__card,
+  [data-zuno-template] .zuno-template-portfolio__image {
+    transition: none !important;
+    transform: none !important;
+  }
+}

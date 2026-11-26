@@ -31,6 +31,7 @@ import services from './routes/services.js';
 import bookings from './routes/bookings.js';
 import portfolio from './routes/portfolio.js';
 import menu from './routes/menu.js';
+import media from './routes/media.js';
 
 export function createApp() {
   const app = express();
@@ -149,6 +150,7 @@ export function createApp() {
   app.use('/api/admin/mobile-apps', adminApps);
   app.use('/api/admin/recovery', adminRecovery);
   app.use('/api/admin', adminCore);
+  app.use('/api/media', media);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

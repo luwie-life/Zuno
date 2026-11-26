@@ -38,6 +38,12 @@ export const env = {
   trustProxy: process.env.TRUST_PROXY === 'true',
   runJobs: process.env.RUN_JOBS !== 'false',
   cronSecret: process.env.CRON_SECRET || '',
+
+  cloudinary: {
+  cloudName: process.env.CLOUDINARY_CLOUD_NAME || '',
+  apiKey: process.env.CLOUDINARY_API_KEY || '',
+  apiSecret: process.env.CLOUDINARY_API_SECRET || '',
+},
 };
 
 export function assertEnv() {

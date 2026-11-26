@@ -1,5 +1,5 @@
-
 import React from 'react';
+import ImageUploader from './ImageUploader.jsx';
 
 const SECTION_LABELS = {
   announcement: 'Announcement bar',
@@ -25,8 +25,6 @@ const SECTION_LABELS = {
   footer: 'Footer',
 };
 
-// The same section type can appear more than once in a template.
-// Its occurrence number gives it a stable key across template filtering.
 export function getGuidedSectionKey(section, counts = {}) {
   const type = section?.type || 'section';
   counts[type] = (counts[type] || 0) + 1;
@@ -81,7 +79,6 @@ function getFields(type) {
         ['subtitle', 'Supporting text', 'A short description'],
         ['buttonText', 'Button label', 'Shop now'],
         ['buttonLink', 'Button destination', '/products'],
-        ['backgroundImage', 'Background image URL', 'https://...'],
       ];
 
     case 'about':
@@ -90,7 +87,6 @@ function getFields(type) {
         ['title', 'Section heading', 'About our business'],
         ['subtitle', 'Supporting text', 'A short introduction'],
         ['description', 'Description', 'Tell customers about your business'],
-        ['image', 'Image URL', 'https://...'],
       ];
 
     case 'rich_text':
@@ -123,6 +119,14 @@ function getFields(type) {
         ['subtitle', 'Supporting text', 'Add a short introduction'],
       ];
   }
+}
+
+function normalizeImages(images) {
+  if (!Array.isArray(images)) return [];
+
+  return images
+    .map((item) => (typeof item === 'string' ? item : item?.url || ''))
+    .filter(Boolean);
 }
 
 export default function GuidedSectionContent({
@@ -165,7 +169,7 @@ export default function GuidedSectionContent({
           Make the design yours
         </h2>
         <p className="mt-1 text-sm leading-6 text-slate-500">
-          Update the words and image links in your selected design.
+          Edit your section content and upload your own images.
           Your products, services and other business records remain separate.
         </p>
       </div>
@@ -177,6 +181,12 @@ export default function GuidedSectionContent({
         };
 
         const fields = getFields(section.type);
+        const imageField =
+          section.type === 'hero'
+            ? 'backgroundImage'
+            : ['about', 'image_text'].includes(section.type)
+              ? 'image'
+              : null;
 
         return (
           <section
@@ -192,6 +202,7 @@ export default function GuidedSectionContent({
                   {SECTION_LABELS[section.type] || 'Content section'}
                 </h3>
               </div>
+
               <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-medium text-slate-500">
                 {section.type.replaceAll('_', ' ')}
               </span>
@@ -205,11 +216,6 @@ export default function GuidedSectionContent({
                   'text',
                 ].includes(field);
 
-                const isImage = [
-                  'image',
-                  'backgroundImage',
-                ].includes(field);
-
                 return isLongText ? (
                   <TextAreaField
                     key={field}
@@ -217,9 +223,7 @@ export default function GuidedSectionContent({
                     value={settings[field]}
                     placeholder={placeholder}
                     rows={field === 'content' ? 5 : 3}
-                    onChange={(value) =>
-                      updateField(key, field, value)
-                    }
+                    onChange={(value) => updateField(key, field, value)}
                   />
                 ) : (
                   <TextField
@@ -227,33 +231,34 @@ export default function GuidedSectionContent({
                     label={label}
                     value={settings[field]}
                     placeholder={placeholder}
-                    onChange={(value) =>
-                      updateField(key, field, value)
-                    }
+                    onChange={(value) => updateField(key, field, value)}
                   />
                 );
               })}
 
-              {section.type === 'gallery' && (
-                <TextAreaField
-                  label="Gallery image URLs"
-                  value={(settings.images || [])
-                    .map((item) =>
-                      typeof item === 'string' ? item : item?.url || ''
-                    )
-                    .join('\n')}
-                  placeholder={'https://image-one.jpg\nhttps://image-two.jpg'}
-                  rows={4}
-                  onChange={(value) =>
-                    updateField(
-                      key,
-                      'images',
-                      value
-                        .split('\n')
-                        .map((url) => url.trim())
-                        .filter(Boolean)
-                    )
+              {imageField && (
+                <ImageUploader
+                  label={
+                    imageField === 'backgroundImage'
+                      ? 'Hero background image'
+                      : 'Section image'
                   }
+                  value={settings[imageField] ? [settings[imageField]] : []}
+                  onChange={(images) =>
+                    updateField(key, imageField, images[0] || '')
+                  }
+                  maxFiles={1}
+                  helperText="Upload one image. JPG, PNG or WebP, maximum 5 MB."
+                />
+              )}
+
+              {section.type === 'gallery' && (
+                <ImageUploader
+                  label="Gallery images"
+                  value={normalizeImages(settings.images)}
+                  onChange={(images) => updateField(key, 'images', images)}
+                  maxFiles={8}
+                  helperText="Upload up to 8 gallery images. JPG, PNG or WebP, maximum 5 MB each."
                 />
               )}
             </div>
@@ -262,8 +267,9 @@ export default function GuidedSectionContent({
       })}
 
       <p className="rounded-xl bg-slate-50 p-3 text-xs leading-5 text-slate-500">
-        Image fields currently accept image URLs. Permanent image uploads
-        will be connected through a proper media-storage service.
+        Uploaded images are stored in your media account and their permanent
+        URLs are saved with your storefront. You can remove an image here
+        before saving your setup.
       </p>
     </div>
   );

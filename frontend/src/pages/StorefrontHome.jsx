@@ -688,32 +688,60 @@ function HeroSection({ settings, context, children }) {
 }
 
 
+
 function ProductSection({ settings, context }) {
+  const templateId = context.storefront?.templateId || 'modern-business';
+
   return (
-    <section className="py-10">
-      <SectionHeading
-        title={settings.title || 'Our products'}
-        subtitle={settings.subtitle}
-      />
-      <ElementProducts element={{ settings }} context={context} />
+    <section
+      className="zuno-template-products py-10"
+      data-zuno-section-type="featured_products"
+      data-zuno-products-template={templateId}
+    >
+      <div className="zuno-template-products__heading">
+        <SectionHeading
+          title={settings.title || 'Our products'}
+          subtitle={settings.subtitle}
+        />
+      </div>
+
+      <div className="zuno-template-products__content">
+        <ElementProducts element={{ settings }} context={context} />
+      </div>
     </section>
   );
 }
 
+
+
 function ServicesSection({ settings, context }) {
+  const templateId = context.storefront?.templateId || 'modern-business';
+
   return (
-    <section className="py-10">
-      <SectionHeading
-        title={settings.title || 'Our services'}
-        subtitle={settings.subtitle}
-      />
-      <ElementServices element={{ settings }} context={context} />
+    <section
+      className="zuno-template-services py-10"
+      data-zuno-section-type="services"
+      data-zuno-services-template={templateId}
+    >
+      <div className="zuno-template-services__heading">
+        <SectionHeading
+          title={settings.title || 'Our services'}
+          subtitle={settings.subtitle}
+        />
+      </div>
+
+      <div className="zuno-template-services__content">
+        <ElementServices element={{ settings }} context={context} />
+      </div>
     </section>
   );
 }
+
+
 
 function PortfolioSection({ settings, context }) {
   const limit = Number(settings.limit) || 6;
+  const templateId = context.storefront?.templateId || 'modern-business';
 
   const { data, loading } = useApi(
     () => api(`/store/${context.slug}/portfolio`, { auth: false }),
@@ -723,40 +751,51 @@ function PortfolioSection({ settings, context }) {
   const projects = (data?.items || []).slice(0, limit);
 
   return (
-    <section className="py-10">
-      <SectionHeading
-        title={settings.title || 'Selected projects'}
-        subtitle={settings.subtitle}
-      />
+    <section
+      className="zuno-template-portfolio py-10"
+      data-zuno-section-type="portfolio_grid"
+      data-zuno-portfolio-template={templateId}
+    >
+      <div className="zuno-template-portfolio__heading">
+        <SectionHeading
+          title={settings.title || 'Selected projects'}
+          subtitle={settings.subtitle}
+        />
+      </div>
 
       {loading ? (
-        <p className="text-sm text-muted">Loading projects…</p>
+        <p className="py-5 text-sm text-muted">Loading projects…</p>
       ) : projects.length === 0 ? (
-        <p className="text-sm text-muted">
+        <p className="py-5 text-sm text-muted">
           Projects will appear here when available.
         </p>
       ) : (
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {projects.map((project) => (
+        <div className="zuno-template-portfolio__grid">
+          {projects.map((project, index) => (
             <Link
               key={project._id || project.slug}
               to={`${context.storeBase}/portfolio/${project.slug}`}
-              className="group overflow-hidden rounded-2xl border border-line bg-white"
+              className="zuno-template-portfolio__card group"
+              data-project-index={index}
             >
               {project.coverImage && (
-                <img
-                  src={project.coverImage}
-                  alt={project.title}
-                  className="aspect-[4/3] w-full object-cover"
-                  loading="lazy"
-                />
+                <div className="zuno-template-portfolio__image-wrap">
+                  <img
+                    src={project.coverImage}
+                    alt={project.title}
+                    className="zuno-template-portfolio__image"
+                    loading="lazy"
+                  />
+                </div>
               )}
 
-              <div className="p-4">
-                <h3 className="font-semibold">{project.title}</h3>
+              <div className="zuno-template-portfolio__details">
+                <h3 className="zuno-template-portfolio__title">
+                  {project.title}
+                </h3>
 
                 {project.summary && (
-                  <p className="mt-2 line-clamp-3 text-sm text-muted">
+                  <p className="zuno-template-portfolio__summary">
                     {project.summary}
                   </p>
                 )}
@@ -768,6 +807,7 @@ function PortfolioSection({ settings, context }) {
     </section>
   );
 }
+
 
 function ContactSection({ settings, context }) {
   const phone = String(context.biz.phone || '').replace(/\D/g, '');
