@@ -83,11 +83,13 @@ const publicBiz = (b, accepting, acceptingServices, acceptingMenu) => ({
   weeklyHours: b.weeklyHours,
   storePolicies: b.storePolicies,
   faqs: b.faqs,
-  storefront: {
-    templateId: b.storefront?.templateId || '',
-    appearance: b.storefront?.appearance || {},
-    status: b.storefront?.status || 'draft',
-  },
+storefront: {
+  templateId: b.storefront?.templateId || '',
+  appearance: b.storefront?.appearance || {},
+  config: b.storefront?.config || {},
+  guided: b.storefront?.guided || {},
+  status: b.storefront?.status || 'draft',
+},
   deliveryFee: b.deliveryFee,
   timezone: b.timezone || 'Africa/Lagos',
   acceptingOrders: accepting,

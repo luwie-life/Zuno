@@ -544,9 +544,24 @@ r.put(
       z.object({
         templateId: templateId.optional(),
         appearance: storefrontAppearance.optional(),
+        config: z.record(z.string(), z.unknown()).optional(),
+        guided: z.record(z.string(), z.unknown()).optional(),
       }).strict(),
       req.body,
     );
+
+    // Keep the payload bounded. This is presentation data,
+    // not a place to upload raw image files.
+    const payloadSize = Buffer.byteLength(
+      JSON.stringify(body),
+      'utf8',
+    );
+
+    if (payloadSize > 150_000) {
+      throw bad(
+        'Your storefront content is too large. Reduce the amount of content and try again.',
+      );
+    }
 
     const existing =
       req.business.storefront?.toObject?.()
@@ -556,15 +571,26 @@ r.put(
     req.business.storefront = {
       ...existing,
       ...body,
+
       appearance: {
         ...(existing.appearance || {}),
         ...(body.appearance || {}),
       },
+
+      config: body.config !== undefined
+        ? body.config
+        : existing.config || {},
+
+      guided: body.guided !== undefined
+        ? body.guided
+        : existing.guided || {},
     };
 
     await req.business.save();
 
-    res.json({ storefront: req.business.storefront });
+    res.json({
+      storefront: req.business.storefront,
+    });
   }),
 );
 

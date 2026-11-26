@@ -172,6 +172,74 @@ test('restaurant menu is tenant-isolated and public storefront data is allowlist
   assert.equal(menu.body.categories[0].items[0].price, 250000);
 });
 
+test('guided storefront configuration persists and is publicly available', { skip }, async () => {
+  const merchantAccount = await merchant();
+
+  await publishStore(merchantAccount);
+
+  const config = {
+    version: 1,
+    theme: {
+      primaryColor: '#0B3D2E',
+      accentColor: '#E9A23B',
+    },
+    pages: [
+      {
+        title: 'Home',
+        slug: 'home',
+        isHome: true,
+        visible: true,
+        sections: [],
+      },
+    ],
+  };
+
+  const guided = {
+    category: 'fashion',
+    details: {
+      brandName: 'Test Fashion',
+      tagline: 'Everyday style.',
+    },
+    announcement: 'New collection available.',
+  };
+
+  const saved = await api('/api/businesses/current/storefront', {
+    method: 'PUT',
+    token: merchantAccount.token,
+    biz: merchantAccount.biz,
+    body: {
+      templateId: 'fashion-editorial',
+      config,
+      guided,
+      appearance: {
+        primaryColor: '#0B3D2E',
+        accentColor: '#E9A23B',
+      },
+    },
+  });
+
+  assert.equal(saved.status, 200, JSON.stringify(saved.body));
+  assert.deepEqual(saved.body.storefront.config, config);
+  assert.deepEqual(saved.body.storefront.guided, guided);
+
+  const published = await api('/api/store/' + merchantAccount.slug);
+
+  assert.equal(published.status, 200);
+  assert.deepEqual(
+    published.body.business.storefront.config,
+    config,
+  );
+  assert.deepEqual(
+    published.body.business.storefront.guided,
+    guided,
+  );
+
+  assert.equal(
+    Object.hasOwn(published.body.business, 'owner'),
+    false,
+  );
+});
+
 test('booking requests stay pending until merchant action and rejection releases the slot', { skip }, async () => {
   const m = await merchant('store_business', 'service');
   const hours = Array.from({ length: 7 }, (_, dayOfWeek) => ({ dayOfWeek, open: '09:00', close: '17:00', closed: false }));

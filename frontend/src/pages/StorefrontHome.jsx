@@ -1281,7 +1281,11 @@ export function StorefrontRenderer({
   const storeBase =
     suppliedStoreBase ?? outletContext.storeBase ?? `/store/${slug}`;
 
-  const storefrontSource = suppliedStorefront || biz.storefront || {};
+  const storefrontSource =
+  suppliedStorefront ||
+  biz.storefront?.config ||
+  biz.storefront ||
+  {};
 
   const storefront = useMemo(
     () => normalizeStorefrontConfig(storefrontSource, biz.name),

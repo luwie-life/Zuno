@@ -124,9 +124,37 @@ const storefrontAppearanceSchema = new Schema({
 }, { _id: false });
 
 const storefrontSchema = new Schema({
-  templateId: { type: String, trim: true, maxlength: 64, default: '' },
-  appearance: { type: storefrontAppearanceSchema, default: () => ({}) },
-  status: { type: String, enum: ['draft', 'published'], default: 'draft' },
+  templateId: {
+    type: String,
+    trim: true,
+    maxlength: 64,
+    default: '',
+  },
+
+  appearance: {
+    type: storefrontAppearanceSchema,
+    default: () => ({}),
+  },
+
+  // Full presentation configuration consumed by StorefrontRenderer.
+  // Kept separate from business records such as products and services.
+  config: {
+    type: Schema.Types.Mixed,
+    default: () => ({}),
+  },
+
+  // Guided setup information: category, business details,
+  // brand identity and section-specific merchant content.
+  guided: {
+    type: Schema.Types.Mixed,
+    default: () => ({}),
+  },
+
+  status: {
+    type: String,
+    enum: ['draft', 'published'],
+    default: 'draft',
+  },
 }, { _id: false });
 
 // Closed days do not need opening or closing times.
