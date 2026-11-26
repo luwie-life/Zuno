@@ -28,6 +28,10 @@ import {
 import {
   getGuidedSectionKey,
 } from '../../components/storefront/GuidedSectionContent.jsx';
+import {
+  getGuidedSectionKey,
+} from '../../components/storefront/GuidedSectionContent.jsx';
+import { StorefrontRenderer } from '../StorefrontHome.jsx';
 
 const palettes = [
   { name: 'Zuno Forest', colors: ['#0B3D2E', '#1C6F52', '#D7F36A'] },
@@ -257,6 +261,72 @@ export default function GuidedStorefrontSetup() {
 
   const selectedTemplate = templates.find((item) => item.id === templateId);
 
+    const previewConfig = useMemo(() => {
+    if (!selectedTemplate) return null;
+
+    const config = applyStorefrontTemplate({}, selectedTemplate.id, {
+      businessType,
+      businessName: details.name,
+    });
+
+    config.pages = (config.pages || []).map((page, pageIndex) => {
+      if (pageIndex !== 0) return page;
+
+      const counts = {};
+
+      return {
+        ...page,
+        sections: (page.sections || []).map((section) => {
+          const sectionKey = getGuidedSectionKey(section, counts);
+          const overrides = sectionOverrides[sectionKey] || {};
+
+          return createEditableTemplateSection({
+            ...section,
+            settings: {
+              ...(section.settings || {}),
+              ...overrides,
+            },
+          });
+        }),
+      };
+    });
+
+    config.identity = {
+      ...(config.identity || {}),
+      displayName: details.name.trim(),
+      tagline: details.tagline.trim(),
+      description: details.description.trim(),
+      announcement: announcement.trim(),
+    };
+
+    config.contact = {
+      ...(config.contact || {}),
+      phone: details.phone.trim(),
+      whatsapp: details.whatsapp.trim(),
+      address: details.address.trim(),
+    };
+
+    config.theme = {
+      ...config.theme,
+      primaryColor: colors.primary,
+      secondaryColor: colors.secondary,
+      accentColor: colors.accent,
+    };
+
+    config.primaryColor = colors.primary;
+    config.templateId = selectedTemplate.id;
+    config.templateName = selectedTemplate.name;
+
+    return config;
+  }, [
+    selectedTemplate,
+    businessType,
+    details,
+    colors,
+    announcement,
+    sectionOverrides,
+  ]);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -367,12 +437,13 @@ export default function GuidedStorefrontSetup() {
       config.pages = (config.pages || []).map((page, pageIndex) => {
         if (pageIndex !== 0) return page;
 
-        const sections = page.sections || [];
+const sections = page.sections || [];
+const counts = {};
 
-        return {
-          ...page,
-          sections: sections.map((section, index) => {
-            const sectionKey = getGuidedSectionKey(section, index, sections);
+return {
+  ...page,
+  sections: sections.map((section) => {
+    const sectionKey = getGuidedSectionKey(section, counts);
             const overrides = sectionOverrides[sectionKey] || {};
 
             const updatedSection = {
@@ -809,7 +880,53 @@ export default function GuidedStorefrontSetup() {
                   Check your details before saving your setup.
                 </p>
               </div>
+                              <div className="mt-8 overflow-hidden rounded-2xl border border-[#DCE2DD]">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#DCE2DD] bg-[#F6F7F5] px-4 py-3">
+                  <div>
+                    <p className="text-sm font-bold text-[#12201A]">
+                      Live storefront preview
+                    </p>
+                    <p className="mt-1 text-xs text-[#68756D]">
+                      This is how your selected design will appear to customers.
+                    </p>
+                  </div>
 
+                  <span className="rounded-full bg-[#EAF1EC] px-3 py-1 text-xs font-semibold text-[#0B3D2E]">
+                    Preview
+                  </span>
+                </div>
+
+                <div className="max-h-[850px] overflow-auto bg-[#E9EDE9] p-3 sm:p-5">
+                  <div
+                    className="mx-auto overflow-hidden rounded-xl bg-white shadow-xl transition-all"
+                    style={{ maxWidth: '1100px' }}
+                  >
+                    {previewConfig && (
+                      <StorefrontRenderer
+                        pageSlug="home"
+                        biz={{
+                          ...business,
+                          name: details.name,
+                          category: details.category,
+                          about: details.description,
+                          description: details.description,
+                          tagline: details.tagline,
+                          phone: details.phone,
+                          whatsapp: details.whatsapp,
+                          address: details.address,
+                          brandColor: colors.primary,
+                        }}
+                        categories={[]}
+                        cart={null}
+                        slug={business.slug || 'preview'}
+                        color={colors.primary}
+                        storeBase="/store/preview"
+                        storefront={previewConfig}
+                      />
+                    )}
+                  </div>
+                </div>
+              </div>
               <div className="grid gap-5 md:grid-cols-2">
                 <div className="rounded-2xl border border-[#DCE2DD] p-5">
                   <div className="flex items-center gap-2 text-sm font-bold text-[#12201A]">
