@@ -32,42 +32,233 @@ function useSeo(title, description) {
   }, [title, description]);
 }
 
+
 export function StoreLayout({ merchantSlug }) {
-  const { slug: pathSlug } = useParams(); const slug = merchantSlug || pathSlug; const storeBase = merchantSlug ? '' : `/store/${slug}`; const nav = useNavigate();
-  const { data, error, loading } = useApi(() => api(`/store/${slug}`, { auth: false }), [slug]);
+  const { slug: pathSlug } = useParams();
+  const slug = merchantSlug || pathSlug;
+  const storeBase = merchantSlug ? '' : `/store/${slug}`;
+  const nav = useNavigate();
+
+  const { data, error, loading } = useApi(
+    () => api(`/store/${slug}`, { auth: false }),
+    [slug]
+  );
+
   const cart = useCart(slug);
   const [open, setOpen] = useState(false);
-  useSeo(data ? `${data.business.name} | Online store` : 'Online store', data?.business.description || (data && `Shop ${data.business.name} online.`));
+
+  useSeo(
+    data ? `${data.business.name} | Online store` : 'Online store',
+    data?.business.description || (data && `Shop ${data.business.name} online.`)
+  );
+
   if (loading) return <Loading />;
-  if (error) return <div className="mx-auto max-w-md p-10 text-center"><Empty title="Store not available" hint="This store may be unpublished or the address may be wrong." action={<Link className="btn-secondary" to="/">Go to Zuno</Link>} /></div>;
-  const b = data.business; const color = b.brandColor || '#0B3D2E';
+
+  if (error) {
+    return (
+      <div className="mx-auto max-w-md p-10 text-center">
+        <Empty
+          title="Store not available"
+          hint="This store may be unpublished or the address may be wrong."
+          action={<Link className="btn-secondary" to="/">Go to Zuno</Link>}
+        />
+      </div>
+    );
+  }
+
+  const b = data.business;
+  const color = b.brandColor || '#0B3D2E';
+
+  const storefrontConfig = normalizeStorefrontConfig(
+    b.storefront?.config || b.storefront || {}
+  );
+
+  const hasPublishedPages = Boolean(
+    storefrontConfig.published &&
+    storefrontConfig.pages?.some((page) => page.sections?.length)
+  );
+
+  const hasCustomNavigation = Boolean(
+    hasPublishedPages &&
+    storefrontConfig.pages?.some((page) =>
+      page.sections?.some(
+        (section) => section.type === 'navigation' && section.visible !== false
+      )
+    )
+  );
+
   return (
-    <div className="min-h-screen" style={{ '--brand': color }}>
-      <header className="sticky top-0 z-30 border-b border-line bg-white/95 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-4">
-          <Link to={storeBase || '/'} className="flex items-center gap-2 font-display text-xl font-bold">{b.logoUrl && <img src={b.logoUrl} alt="" className="h-8 w-8 rounded object-cover" />}{b.name}</Link>
+    <div
+      className="min-h-screen w-full overflow-x-clip"
+      style={{ '--brand': color }}
+    >
+      <header className="sticky top-0 z-40 border-b border-line bg-white/95 backdrop-blur">
+        <div className="mx-auto flex h-14 w-full max-w-[1600px] items-center justify-between px-4 md:px-8">
+          {!hasCustomNavigation ? (
+            <Link
+              to={storeBase || '/'}
+              className="flex min-w-0 items-center gap-2 font-display text-lg font-bold"
+            >
+              {b.logoUrl && (
+                <img
+                  src={b.logoUrl}
+                  alt=""
+                  className="h-8 w-8 rounded-lg object-cover"
+                />
+              )}
+              <span className="truncate">{b.name}</span>
+            </Link>
+          ) : (
+            <span className="text-xs font-medium text-muted">
+              {b.name}
+            </span>
+          )}
+
           <div className="flex items-center gap-3">
-            {b.acceptingServices && <Link to={storeBase ? `${storeBase}/services` : '/services'} className="hidden text-sm font-medium text-muted hover:text-ink sm:block">Services</Link>}
-            <button onClick={() => setOpen(true)} className="relative rounded-lg p-2.5 hover:bg-paper" aria-label={`Cart, ${cart.count} items`}><ShoppingBag className="h-6 w-6" />{cart.count > 0 && <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-bold text-white" style={{ background: color }}>{cart.count}</span>}</button>
+            {!hasCustomNavigation && b.acceptingServices && (
+              <Link
+                to={`${storeBase}/services`}
+                className="hidden text-sm font-medium text-muted hover:text-ink sm:block"
+              >
+                Services
+              </Link>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setOpen(true)}
+              className="relative flex h-10 w-10 items-center justify-center rounded-full transition hover:bg-paper"
+              aria-label={`Cart, ${cart.count} items`}
+            >
+              <ShoppingBag className="h-5 w-5" />
+
+              {cart.count > 0 && (
+                <span
+                  className="absolute right-0 top-0 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white"
+                  style={{ background: color }}
+                >
+                  {cart.count}
+                </span>
+              )}
+            </button>
           </div>
         </div>
       </header>
-      {!b.acceptingOrders && <div className="bg-mango-100 px-4 py-2 text-center text-sm">This store is not taking new orders right now.</div>}
-      <main className="mx-auto max-w-5xl px-4 py-6"><Outlet context={{ biz: b, categories: data.categories, cart, slug, color, storeBase }} /></main>
-      <footer className="mx-auto max-w-5xl px-4 pb-10 pt-4 text-sm text-muted">
-        <div className="flex flex-wrap gap-x-6 gap-y-1 border-t border-line pt-4">{b.phone && <span className="flex items-center gap-1"><Phone className="h-4 w-4" />{b.phone}</span>}{b.address?.city && <span className="flex items-center gap-1"><MapPin className="h-4 w-4" />{[b.address.line, b.address.city, b.address.state].filter(Boolean).join(', ')}</span>}</div>
-        <p className="mt-3 text-xs">Store powered by <Link to="/" className="underline">Zuno</Link></p>
+
+      {!b.acceptingOrders && (
+        <div className="bg-mango-100 px-4 py-2 text-center text-sm">
+          This store is not taking new orders right now.
+        </div>
+      )}
+
+      <main
+        className={
+          hasPublishedPages
+            ? 'w-full min-w-0'
+            : 'mx-auto w-full max-w-6xl px-4 py-6 md:px-8'
+        }
+      >
+        <Outlet
+          context={{
+            biz: b,
+            categories: data.categories || [],
+            cart,
+            slug,
+            color,
+            storeBase,
+            openCart: () => setOpen(true),
+          }}
+        />
+      </main>
+
+      <footer className="w-full px-4 pb-8 pt-6 text-sm text-muted md:px-8">
+        <div className="mx-auto max-w-[1440px] border-t border-line pt-5">
+          <div className="flex flex-wrap gap-x-6 gap-y-2">
+            {b.phone && (
+              <span className="flex items-center gap-1">
+                <Phone className="h-4 w-4" />
+                {b.phone}
+              </span>
+            )}
+
+            {b.address?.city && (
+              <span className="flex items-center gap-1">
+                <MapPin className="h-4 w-4" />
+                {[b.address.line, b.address.city, b.address.state]
+                  .filter(Boolean)
+                  .join(', ')}
+              </span>
+            )}
+          </div>
+
+          <p className="mt-4 text-xs">
+            Store powered by <Link to="/" className="underline">Zuno</Link>
+          </p>
+        </div>
       </footer>
+
       <Modal open={open} onClose={() => setOpen(false)} title="Your cart">
-        {cart.items.length === 0 ? <Empty title="Your cart is empty" icon={ShoppingBag} /> : (
+        {cart.items.length === 0 ? (
+          <Empty title="Your cart is empty" icon={ShoppingBag} />
+        ) : (
           <div>
-            <ul className="divide-y divide-line">{cart.items.map((i) => (
-              <li key={i.id} className="flex items-center gap-3 py-3"><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{i.name}</p><p className="text-sm text-muted">{naira(i.price)}</p></div>
-                <div className="flex items-center gap-1"><button className="rounded border border-line p-2" aria-label="Decrease" onClick={() => cart.setQty(i.id, i.qty - 1)}><Minus className="h-4 w-4" /></button><span className="w-7 text-center text-sm">{i.qty}</span><button className="rounded border border-line p-2" aria-label="Increase" onClick={() => cart.setQty(i.id, i.qty + 1)}><Plus className="h-4 w-4" /></button></div>
-                <button className="p-2 text-muted" aria-label={`Remove ${i.name}`} onClick={() => cart.setQty(i.id, 0)}><Trash2 className="h-4 w-4" /></button></li>))}</ul>
-            <div className="mt-3 flex justify-between font-semibold"><span>Subtotal</span><span>{naira(cart.subtotal)}</span></div>
-            <button className="btn-primary mt-4 w-full" style={{ background: color }} disabled={!b.acceptingOrders} onClick={() => { setOpen(false); nav(`/store/${slug}/checkout`); }}>Checkout</button>
-          </div>)}
+            <ul className="divide-y divide-line">
+              {cart.items.map((item) => (
+                <li key={item.id} className="flex items-center gap-3 py-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{item.name}</p>
+                    <p className="text-sm text-muted">{naira(item.price)}</p>
+                  </div>
+
+                  <div className="flex items-center gap-1">
+                    <button
+                      className="rounded border border-line p-2"
+                      aria-label="Decrease"
+                      onClick={() => cart.setQty(item.id, item.qty - 1)}
+                    >
+                      <Minus className="h-4 w-4" />
+                    </button>
+
+                    <span className="w-7 text-center text-sm">{item.qty}</span>
+
+                    <button
+                      className="rounded border border-line p-2"
+                      aria-label="Increase"
+                      onClick={() => cart.setQty(item.id, item.qty + 1)}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  <button
+                    className="p-2 text-muted"
+                    aria-label={`Remove ${item.name}`}
+                    onClick={() => cart.setQty(item.id, 0)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+
+            <div className="mt-3 flex justify-between font-semibold">
+              <span>Subtotal</span>
+              <span>{naira(cart.subtotal)}</span>
+            </div>
+
+            <button
+              className="btn-primary mt-4 w-full"
+              style={{ background: color }}
+              disabled={!b.acceptingOrders}
+              onClick={() => {
+                setOpen(false);
+                nav(`/store/${slug}/checkout`);
+              }}
+            >
+              Checkout
+            </button>
+          </div>
+        )}
       </Modal>
     </div>
   );

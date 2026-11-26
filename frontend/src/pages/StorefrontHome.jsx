@@ -1,4 +1,5 @@
 import { Link, useOutletContext } from 'react-router-dom';
+import { ShoppingBag } from 'lucide-react';
 import { useApi } from '../components/ui.jsx';
 import { api } from '../lib/api.js';
 import { naira } from '../lib/format.js';
@@ -1021,58 +1022,76 @@ function LegacySection({ section, context }) {
         </div>
       ) : null;
 
-        case 'navigation': {
-      const pages = (context.storefront.pages || []).filter(
-        (page) => page.visible
-      );
+        
+case 'navigation': {
+  const pages = (context.storefront.pages || []).filter(
+    (page) => page.visible
+  );
 
-      const whatsapp = String(
-        context.biz.whatsapp || context.biz.phone || ''
-      ).replace(/\D/g, '');
+  const whatsapp = String(
+    context.biz.whatsapp || context.biz.phone || ''
+  ).replace(/\D/g, '');
 
-      const navStyle = settings.style || 'modern';
+  const navStyle = settings.style || 'modern';
 
-      return (
-        <nav
-          className={`zuno-store-nav zuno-store-nav--${navStyle}`}
-          data-zuno-nav={navStyle}
-        >
+  return (
+    <nav
+      className={`zuno-store-nav zuno-store-nav--${navStyle}`}
+      data-zuno-nav={navStyle}
+      aria-label="Store navigation"
+    >
+      <Link
+        to={context.storeBase || '/'}
+        className="zuno-store-nav__brand"
+      >
+        {context.biz.name || 'Your Business'}
+      </Link>
+
+      <div className="zuno-store-nav__links">
+        {pages.map((page) => (
           <Link
-            to={context.storeBase || '/'}
-            className="zuno-store-nav__brand"
+            key={page.id}
+            to={
+              page.isHome
+                ? context.storeBase || '/'
+                : `${context.storeBase}/${page.slug}`
+            }
+            className="zuno-store-nav__link"
           >
-            {context.biz.name || 'Your Business'}
+            {page.title}
           </Link>
+        ))}
+      </div>
 
-          <div className="zuno-store-nav__links">
-            {pages.map((page) => (
-              <Link
-                key={page.id}
-                to={
-                  page.isHome
-                    ? context.storeBase || '/'
-                    : `${context.storeBase}/${page.slug}`
-                }
-                className="zuno-store-nav__link"
-              >
-                {page.title}
-              </Link>
-            ))}
-          </div>
+      <div className="zuno-store-nav__actions">
+        {whatsapp && (
+          <a
+            href={`https://wa.me/${whatsapp}`}
+            target="_blank"
+            rel="noreferrer"
+            className="zuno-store-nav__action"
+          >
+            Let's talk
+          </a>
+        )}
 
-          {whatsapp && (
-            <a
-              href={`https://wa.me/${whatsapp}`}
-              target="_blank"
-              rel="noreferrer"
-              className="zuno-store-nav__action"
-            >
-              Let's talk
-            </a>
-          )}
-        </nav>
-      );
-    }
+        {context.cart && (
+          <button
+            type="button"
+            onClick={context.openCart}
+            className="zuno-store-nav__cart"
+            aria-label={`Open cart, ${context.cart.count} items`}
+          >
+            <ShoppingBag className="h-5 w-5" />
+            {context.cart.count > 0 && (
+              <span>{context.cart.count}</span>
+            )}
+          </button>
+        )}
+      </div>
+    </nav>
+  );
+}
 
     case 'categories':
       return (

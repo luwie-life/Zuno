@@ -2259,3 +2259,200 @@
     transform: none !important;
   }
 }
+
+
+/* =========================================================
+   PUBLISHED STOREFRONT — RESPONSIVE LAYOUT UPGRADE
+   ========================================================= */
+
+[data-zuno-template] {
+  width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+[data-zuno-template] .zuno-template-section {
+  width: 100%;
+  min-width: 0;
+}
+
+[data-zuno-template] img {
+  max-width: 100%;
+}
+
+/* Responsive custom navigation */
+
+[data-zuno-template] .zuno-store-nav {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 18px clamp(18px, 4vw, 64px);
+}
+
+[data-zuno-template] .zuno-store-nav__brand {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-zuno-template] .zuno-store-nav__links {
+  flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px clamp(14px, 2.5vw, 32px);
+}
+
+[data-zuno-template] .zuno-store-nav__actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+[data-zuno-template] .zuno-store-nav__cart {
+  position: relative;
+  display: inline-flex;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--zuno-border, #e5e7eb);
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  transition: background 180ms ease, transform 180ms ease;
+}
+
+[data-zuno-template] .zuno-store-nav__cart:hover {
+  background: var(--zuno-surface, #f4f7f5);
+  transform: translateY(-1px);
+}
+
+[data-zuno-template] .zuno-store-nav__cart span {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  display: flex;
+  min-width: 19px;
+  height: 19px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--zuno-primary, #0b3d2e);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+@media (max-width: 760px) {
+  [data-zuno-template] .zuno-store-nav {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 14px 12px;
+    padding: 16px 18px;
+  }
+
+  [data-zuno-template] .zuno-store-nav__brand {
+    grid-column: 1;
+    grid-row: 1;
+    font-size: 20px;
+  }
+
+  [data-zuno-template] .zuno-store-nav__actions {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  [data-zuno-template] .zuno-store-nav__links {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    width: 100%;
+    overflow-x: auto;
+    gap: 20px;
+    padding: 5px 0 7px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  [data-zuno-template] .zuno-store-nav__links::-webkit-scrollbar {
+    display: none;
+  }
+
+  [data-zuno-template] .zuno-store-nav__link {
+    flex-shrink: 0;
+    white-space: nowrap;
+    font-size: 11px;
+  }
+
+  [data-zuno-template] .zuno-store-nav__action {
+    min-height: 38px;
+    padding: 0 13px;
+    white-space: nowrap;
+  }
+}
+
+/* Better catalogue layouts */
+
+[data-zuno-template] .zuno-template-products,
+[data-zuno-template] .zuno-template-services,
+[data-zuno-template] .zuno-template-portfolio {
+  width: 100%;
+  min-width: 0;
+}
+
+[data-zuno-template] .zuno-template-products__content,
+[data-zuno-template] .zuno-template-services__content {
+  width: 100%;
+  min-width: 0;
+}
+
+@media (max-width: 480px) {
+  [data-zuno-template] .zuno-template-products__content {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  [data-zuno-template] .zuno-template-services__content {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  [data-zuno-template] .zuno-template-portfolio__grid {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: 16px;
+  }
+
+  [data-zuno-template] .zuno-template-hero__content {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+}
+
+/* Prevent long content from breaking mobile layouts */
+
+[data-zuno-template] section,
+[data-zuno-template] article,
+[data-zuno-template] nav {
+  min-width: 0;
+}
+
+[data-zuno-template] button,
+[data-zuno-template] a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-zuno-template] .zuno-store-nav__cart {
+    transition: none;
+  }
+}
