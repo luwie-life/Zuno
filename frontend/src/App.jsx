@@ -142,6 +142,7 @@ const GuidedStorefrontSetup = lazy(() =>
   import('./pages/app/GuidedStorefrontSetup.jsx')
 );
 const Products = lazy(() => import('./pages/app/Products.jsx'));
+const Menu = lazy(() => import('./pages/app/Menu.jsx'));
 const Orders = lazy(() => import('./pages/app/Orders.jsx'));
 const POS = lazy(() => import('./pages/app/POS.jsx'));
 const Inventory = lazy(() => import('./pages/app/Inventory.jsx'));
@@ -321,6 +322,7 @@ export default function App() {
             <Route index element={<Overview />} />
             <Route path="storefront" element={<GuidedStorefrontSetup />} />
             <Route path="products" element={<Products />} />
+            <Route path="menu" element={<Menu />} />
             <Route path="orders" element={<Orders />} />
             <Route path="pos" element={<POS />} />
             <Route path="pos/sales" element={<Sales />} />

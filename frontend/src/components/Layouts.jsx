@@ -2,7 +2,7 @@ import { BrandIcon, BrandWordmark } from './BrandMark.jsx';
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Menu, X, LayoutDashboard, Package, ShoppingBag, Store, Boxes, Users, BarChart3, CreditCard, LifeBuoy, Smartphone, UserCog, Settings, LogOut, Lock, MoreHorizontal, ShieldCheck, Building2, KeyRound, Receipt, ScrollText, Truck, ChevronDown } from 'lucide-react';
+import { Menu, X, LayoutDashboard, Package, ShoppingBag, Store, Boxes, Users, BarChart3, CreditCard, LifeBuoy, Smartphone, UserCog, Settings, LogOut, Lock, MoreHorizontal, ShieldCheck, Building2, KeyRound, Receipt, ScrollText, Truck, ChevronDown, UtensilsCrossed } from 'lucide-react';
 import { useAuth } from '../lib/auth.jsx';
 import { api, getToken } from '../lib/api.js';
 import { Loading, useApi, cx } from './ui.jsx';
@@ -285,6 +285,7 @@ const NAV = [
   { to: '/app', label: 'Overview', icon: LayoutDashboard, end: true },
   { to: '/app/products', label: 'Products', icon: Package, module: 'commerce', perm: 'products.write', alsoRead: true },
   { to: '/app/orders', label: 'Orders', icon: ShoppingBag, module: 'commerce', perm: 'orders.write' },
+    { to: '/app/menu', label: 'Menu', icon: UtensilsCrossed, module: 'menu', perm: 'menu.read' },
   { to: '/app/pos', label: 'POS', icon: Store, module: 'commerce', feature: 'pos', perm: 'pos.sell', cashier: true },
   { to: '/app/inventory', label: 'Inventory', icon: Boxes, module: 'commerce', feature: 'shared_inventory', cashier: true },
   { to: '/app/customers', label: 'Customers', icon: Users, feature: 'customers', cashier: true },
