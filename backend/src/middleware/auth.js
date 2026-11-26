@@ -29,6 +29,15 @@ const authenticate = ({ allowUnverified = false } = {}) => asyncH(async (req, re
 export const requireAuth = authenticate();
 export const requireAuthAllowUnverified = authenticate({ allowUnverified: true });
 
+// Only use after requireAuthAllowUnverified on narrowly scoped routes.
+export const requireVerifiedEmail = (req, res, next) => {
+  if (!req.user?.emailVerified) {
+    return next(forbidden('Verify your email before using the merchant dashboard.'));
+  }
+
+  next();
+};
+
 /** Resolves the business from X-Business-Id and verifies the caller's active membership. Never trusts the id alone. */
 export const requireBusiness = (perm, { allowSuspended = false } = {}) => asyncH(async (req, res, next) => {
   const id = req.headers['x-business-id'];

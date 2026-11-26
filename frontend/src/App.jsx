@@ -300,7 +300,7 @@ export default function App() {
           <Route
             path="/app/new"
             element={
-              <RequireAuth>
+              <RequireAuth allowUnverified>
                 <div className="px-4 py-10">
                   <NewBusiness />
                 </div>

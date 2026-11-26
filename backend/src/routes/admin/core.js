@@ -37,8 +37,42 @@ import { getSettings } from '../../services/settings.js';
 import { audit } from '../../services/audit.js';
 import { releaseExpiredReservations } from '../../services/orders.js';
 import { reconcilePayments } from '../../services/payments.js';
+import { timingSafeEqual } from 'node:crypto';
+import { env } from '../../config/env.js';
 
 const r = Router();
+
+function validCronSecret(provided) {
+  const expected = Buffer.from(env.cronSecret || '');
+  const received = Buffer.from(String(provided || ''));
+
+  return (
+    expected.length >= 32 &&
+    expected.length === received.length &&
+    timingSafeEqual(expected, received)
+  );
+}
+
+// Service-to-service endpoint for an external scheduled job.
+// Registered before requireAuth so a cron service does not need a
+// temporary platform administrator session.
+r.post('/jobs/cron', asyncH(async (req, res) => {
+  if (!validCronSecret(req.get('x-zuno-cron-secret'))) {
+    throw forbidden('Invalid cron credentials.');
+  }
+
+  const released = await releaseExpiredReservations();
+  const subscriptionMaintenance = await runSubscriptionMaintenance();
+  const reconciled = await reconcilePayments();
+
+  res.json({
+    released,
+    subscriptionMaintenance,
+    renewals: subscriptionMaintenance,
+    reconciled,
+  });
+}));
+
 r.use(requireAuth);
 
 r.get('/me', requirePlatform(), (req, res) => res.json({

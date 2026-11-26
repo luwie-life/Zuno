@@ -37,6 +37,7 @@ export const env = {
   devLogEmails: process.env.DEV_LOG_EMAILS === 'true',
   trustProxy: process.env.TRUST_PROXY === 'true',
   runJobs: process.env.RUN_JOBS !== 'false',
+  cronSecret: process.env.CRON_SECRET || '',
 };
 
 export function assertEnv() {
@@ -61,6 +62,26 @@ export function assertEnv() {
     if (!env.platformPaystackSecret) missing.push('PLATFORM_PAYSTACK_SECRET_KEY (Zuno subscriptions and setup fees)');
     if (!process.env.FRONTEND_URL) missing.push('FRONTEND_URL');
     if (env.allowNoTxn) missing.push('ALLOW_NO_TXN must not be true in production');
+        if (!env.smtp.host) missing.push('SMTP_HOST');
+    if (!env.smtp.user) missing.push('SMTP_USER');
+    if (!env.smtp.pass) missing.push('SMTP_PASS');
+
+    if (!env.smtp.from || /example\.com/i.test(env.smtp.from)) {
+      missing.push('EMAIL_FROM (must be a real sender address)');
+    }
+
+    const gatewayKey = env.gatewayEncryptionKey;
+    const validGatewayKey =
+      /^[a-f\d]{64}$/i.test(gatewayKey) ||
+      Buffer.from(gatewayKey, 'base64').length === 32;
+
+    if (!validGatewayKey) {
+      missing.push('GATEWAY_ENCRYPTION_KEY (32-byte base64 or 64-character hex key)');
+    }
+
+    if (env.cronSecret.length < 32) {
+      missing.push('CRON_SECRET (minimum 32 characters)');
+    }
   }
   if (missing.length) throw new Error('Invalid environment configuration: ' + missing.join(', '));
 }

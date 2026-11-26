@@ -31,9 +31,20 @@ export function computeSubscriptionState(
     return 'active';
   }
 
+  // A scheduled cancellation ends access at the paid-through date.
+  // The grace period applies only to subscriptions intended to renew.
+  if (
+    sub.cancelAtPeriodEnd &&
+    (!sub.currentPeriodEnd || sub.currentPeriodEnd <= now)
+  ) {
+    return 'cancelled';
+  }
+
   if (!sub.currentPeriodEnd) return 'pending_payment';
 
   if (sub.currentPeriodEnd > now) return 'active';
+
+  if (sub.cancelAtPeriodEnd) return 'cancelled';
 
   const graceEnd = new Date(
     sub.currentPeriodEnd.getTime() + graceDays * DAY,
