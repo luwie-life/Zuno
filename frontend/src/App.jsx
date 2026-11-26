@@ -138,7 +138,9 @@ const Overview = lazy(() => import('./pages/app/Overview.jsx'));
 const NewBusiness = lazy(() =>
   import('./pages/app/Overview.jsx').then((m) => ({ default: m.NewBusiness }))
 );
-const StorefrontEditor = lazy(() => import('./pages/app/StorefrontEditor.jsx'));
+const GuidedStorefrontSetup = lazy(() =>
+  import('./pages/app/GuidedStorefrontSetup.jsx')
+);
 const Products = lazy(() => import('./pages/app/Products.jsx'));
 const Orders = lazy(() => import('./pages/app/Orders.jsx'));
 const POS = lazy(() => import('./pages/app/POS.jsx'));
@@ -317,7 +319,7 @@ export default function App() {
             }
           >
             <Route index element={<Overview />} />
-            <Route path="storefront" element={<StorefrontEditor />} />
+            <Route path="storefront" element={<GuidedStorefrontSetup />} />
             <Route path="products" element={<Products />} />
             <Route path="orders" element={<Orders />} />
             <Route path="pos" element={<POS />} />
