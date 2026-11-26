@@ -10,6 +10,7 @@ import {
   ExternalLink,
   Check,
 } from 'lucide-react';
+import { getMerchantStoreUrl } from '../../lib/merchantDomain.js';
 
 const TABS = [
   { id: 'identity', label: 'Identity', icon: Store },
@@ -134,9 +135,7 @@ export default function StorefrontSettingsPanel({
   const displayName =
     identity.displayName || business.name || 'Your business';
 
-  const hostname = useMemo(() => {
-    return domain.hostname || '';
-  }, [domain.hostname]);
+const zunoUrl = getMerchantStoreUrl(business.slug);
 
   const updateGroup = (group, key, value) => {
     if (!onUpdate) return;
@@ -373,49 +372,60 @@ export default function StorefrontSettingsPanel({
   );
 
   const renderDomain = () => (
-    <div className="space-y-5">
-      <SectionHeading
-        title="Store domain"
-        description="Manage the address customers use to visit your storefront."
-      />
+  <div className="space-y-5">
+    <SectionHeading
+      title="Store domain"
+      description="Your Zuno storefront has its own public business address."
+    />
 
-      <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
-        <div className="flex items-center gap-2">
-          <Globe size={18} className="text-emerald-700" />
-          <p className="text-sm font-bold text-emerald-900">
-            Zuno storefront address
+    <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
+      <div className="flex items-center gap-2">
+        <Globe size={18} className="text-emerald-700" />
+        <p className="text-sm font-bold text-emerald-900">
+          Your Zuno storefront address
+        </p>
+      </div>
+
+      {zunoUrl ? (
+        <>
+          <a
+            href={zunoUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-3 block break-all text-sm font-semibold text-emerald-800 underline"
+          >
+            {zunoUrl}
+          </a>
+
+          <p className="mt-2 text-xs text-emerald-700">
+            Customers can visit this address after your storefront is published
+            and your domain routing is configured.
           </p>
-        </div>
-
-        <p className="mt-2 break-all text-sm text-emerald-800">
-          {domain.zunoUrl || business.storefrontUrl || 'Your Zuno store URL will appear here.'}
+        </>
+      ) : (
+        <p className="mt-3 text-sm text-emerald-800">
+          Your storefront address will appear once Zuno domain configuration
+          is enabled.
         </p>
-      </div>
-
-      <TextField
-        label="Custom domain"
-        value={hostname}
-        placeholder="www.yourbusiness.com"
-        onChange={(value) => updateDomain('hostname', value)}
-        hint="Saving a hostname here does not connect or verify the domain."
-      />
-
-      <div className="rounded-xl border border-slate-200 p-4">
-        <p className="text-sm font-bold text-slate-800">
-          Domain connection
-        </p>
-
-        <p className="mt-1 text-xs leading-5 text-slate-500">
-          Custom-domain connection, DNS instructions, SSL verification and
-          domain status will be implemented in the backend domain phase.
-        </p>
-
-        <span className="mt-3 inline-flex rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
-          Connection not verified
-        </span>
-      </div>
+      )}
     </div>
-  );
+
+    <div className="rounded-xl border border-slate-200 p-4">
+      <p className="text-sm font-bold text-slate-800">
+        Custom domains
+      </p>
+
+      <p className="mt-1 text-xs leading-5 text-slate-500">
+        Connecting your own domain, DNS verification and SSL configuration
+        will be available in a future release.
+      </p>
+
+      <span className="mt-3 inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+        Coming later
+      </span>
+    </div>
+  </div>
+);
 
   const content = {
     identity: renderIdentity,
