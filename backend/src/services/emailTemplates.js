@@ -1,7 +1,20 @@
 
 import { env } from '../config/env.js';
 
-const TITLES = Object.freeze({
+const BRAND = {
+  forest: '#0B3D2E',
+  green: '#1C6F52',
+  mango: '#E9A23B',
+  lime: '#D7F36A',
+  dark: '#0B2118',
+  ink: '#12201A',
+  muted: '#68756D',
+  paper: '#F6F7F5',
+  white: '#FFFFFF',
+  line: '#DCE2DD',
+};
+
+const TITLES = {
   verify_email: 'Verify your email address',
   password_reset: 'Reset your password',
   admin_reset: 'Reset your password',
@@ -23,23 +36,24 @@ const TITLES = Object.freeze({
   payment_receipt: 'Your payment receipt',
   subscription_reminder: 'Your subscription renewal is approaching',
   subscription_expired: 'Your subscription has expired',
-});
+};
 
-const ACTIONS = Object.freeze({
+const ACTIONS = {
   verify_email: {
-    label: 'Verify email address',
-    fallback: 'Complete your email verification using the button below.',
+    label: 'Verify my email',
+    path: null,
   },
   password_reset: {
     label: 'Reset my password',
-    fallback: 'Use the button below to securely reset your password.',
+    path: null,
   },
   admin_reset: {
     label: 'Reset my password',
-    fallback: 'Use the button below to securely reset your password.',
+    path: null,
   },
   welcome: {
     label: 'Open my workspace',
+    path: '/app',
   },
   subscription_payment: {
     label: 'View my subscription',
@@ -50,39 +64,34 @@ const ACTIONS = Object.freeze({
     path: '/app/billing',
   },
   store_published: {
-    label: 'Open my workspace',
-    path: '/app',
+    label: 'View my storefront',
+    path: '/app/storefront',
   },
-});
-
-const COLORS = {
-  forest: '#0B3D2E',
-  dark: '#0B2118',
-  green: '#1C6F52',
-  mango: '#E9A23B',
-  paper: '#F6F7F5',
-  ink: '#12201A',
-  muted: '#68756D',
-  line: '#DCE2DD',
 };
 
+const baseUrl = String(
+  env.frontendUrl || 'https://www.zuno.com.ng',
+).replace(/\/+$/, '');
+
+// Public favicon URL. The original Zuno icon is preserved.
+const BRAND_ICON_URL = `${baseUrl}/favicon.svg`;
+
 const escapeHtml = (value) =>
-  String(value)
+  String(value ?? '')
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;');
 
-const baseUrl = String(env.frontendUrl || 'https://www.zuno.com.ng')
-  .replace(/\/+$/, '');
-
 function getActionUrl(template, discoveredUrl) {
   if (discoveredUrl) return discoveredUrl;
 
   const action = ACTIONS[template];
 
-  if (action?.path) return `${baseUrl}${action.path}`;
+  if (action?.path) {
+    return `${baseUrl}${action.path}`;
+  }
 
   return `${baseUrl}/app`;
 }
@@ -102,14 +111,18 @@ function renderMessage(text) {
 
       if (match && !actionUrl) {
         actionUrl = match[0].replace(/[.,)]$/, '');
-        return null;
+        return '';
       }
 
-      if (match) {
-        return `<p style="margin:0 0 12px;font-size:14px;line-height:1.7;color:${COLORS.muted};">${escapeHtml(line)}</p>`;
-      }
-
-      return `<p style="margin:0 0 14px;font-size:15px;line-height:1.8;color:${COLORS.ink};">${escapeHtml(line)}</p>`;
+      return `
+        <p style="
+          margin:0 0 15px;
+          color:${BRAND.ink};
+          font-size:15px;
+          line-height:1.85;
+          font-family:Arial,Helvetica,sans-serif;
+        ">${escapeHtml(line)}</p>
+      `;
     })
     .filter(Boolean)
     .join('');
@@ -117,15 +130,35 @@ function renderMessage(text) {
   return { paragraphs, actionUrl };
 }
 
-function button(label, url) {
+function renderButton(label, url) {
   return `
-    <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:28px 0 20px;">
+    <table
+      role="presentation"
+      cellspacing="0"
+      cellpadding="0"
+      border="0"
+      style="margin:28px 0 22px;"
+    >
       <tr>
-        <td align="center" bgcolor="${COLORS.forest}" style="border-radius:8px;">
+        <td
+          align="center"
+          bgcolor="${BRAND.mango}"
+          style="border-radius:9px;"
+        >
           <a
             href="${escapeHtml(url)}"
             target="_blank"
-            style="display:inline-block;padding:15px 25px;color:#ffffff;font-size:14px;font-weight:700;line-height:1;text-decoration:none;border-radius:8px;"
+            style="
+              display:inline-block;
+              padding:16px 28px;
+              color:${BRAND.dark};
+              font-family:Arial,Helvetica,sans-serif;
+              font-size:14px;
+              font-weight:700;
+              line-height:1;
+              text-decoration:none;
+              border-radius:9px;
+            "
           >${escapeHtml(label)}</a>
         </td>
       </tr>
@@ -133,109 +166,306 @@ function button(label, url) {
   `;
 }
 
-export function renderEmailTemplate({ template, text, html }) {
+function renderFallbackLink(url) {
+  return `
+    <div style="
+      margin-top:25px;
+      padding-top:20px;
+      border-top:1px solid ${BRAND.line};
+    ">
+      <p style="
+        margin:0 0 8px;
+        color:${BRAND.muted};
+        font-family:Arial,Helvetica,sans-serif;
+        font-size:12px;
+        line-height:1.7;
+      ">
+        Having trouble with the button? Copy and paste this link into your browser:
+      </p>
+
+      <a
+        href="${escapeHtml(url)}"
+        style="
+          color:${BRAND.green};
+          font-size:12px;
+          line-height:1.7;
+          word-break:break-all;
+        "
+      >${escapeHtml(url)}</a>
+    </div>
+  `;
+}
+
+export function renderEmailTemplate({
+  template,
+  text,
+  html,
+}) {
   const plainText = String(text || '').trim();
-  const title = TITLES[template] || 'A notification from Zuno';
+
+  const title =
+    TITLES[template] || 'A notification from Zuno';
+
   const action = ACTIONS[template];
+
   const rendered = renderMessage(plainText);
 
-  const actionUrl = getActionUrl(template, rendered.actionUrl);
-  const actionButton = action
-    ? button(action.label, actionUrl)
-    : '';
+  const actionUrl = getActionUrl(
+    template,
+    rendered.actionUrl,
+  );
 
-  const customContent = html
-    ? `<div style="font-size:15px;line-height:1.8;color:${COLORS.ink};">${html}</div>`
+  const content = html
+    ? `<div style="
+        color:${BRAND.ink};
+        font-family:Arial,Helvetica,sans-serif;
+        font-size:15px;
+        line-height:1.85;
+      ">${html}</div>`
     : rendered.paragraphs;
 
-  const fallbackLink = action
-    ? `
-      <p style="margin:22px 0 0;font-size:12px;line-height:1.7;color:${COLORS.muted};">
-        If the button doesn't work, copy this link into your browser:
-      </p>
-      <p style="margin:7px 0 0;word-break:break-all;font-size:12px;line-height:1.7;">
-        <a href="${escapeHtml(actionUrl)}" style="color:${COLORS.green};">${escapeHtml(actionUrl)}</a>
-      </p>
-    `
+  const actionButton = action
+    ? renderButton(action.label, actionUrl)
     : '';
 
+  const fallbackLink =
+    action && rendered.actionUrl
+      ? renderFallbackLink(actionUrl)
+      : '';
+
   const preheader = escapeHtml(
-    plainText.split(/\r?\n/).find((line) => line.trim()) || title,
+    plainText.split(/\r?\n/).find(Boolean) || title,
   );
 
   const emailHtml = `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="light">
+  <meta name="supported-color-schemes" content="light">
   <title>${escapeHtml(title)}</title>
 </head>
 
-<body style="margin:0;padding:0;background:${COLORS.paper};font-family:Arial,Helvetica,sans-serif;color:${COLORS.ink};">
+<body style="
+  margin:0;
+  padding:0;
+  background-color:${BRAND.paper};
+  font-family:Arial,Helvetica,sans-serif;
+  color:${BRAND.ink};
+">
 
-  <div style="display:none;max-height:0;overflow:hidden;opacity:0;">
-    ${preheader}
-  </div>
+  <div style="
+    display:none;
+    max-height:0;
+    overflow:hidden;
+    opacity:0;
+    color:transparent;
+  ">${preheader}</div>
 
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:${COLORS.paper};">
+  <table
+    role="presentation"
+    width="100%"
+    cellspacing="0"
+    cellpadding="0"
+    border="0"
+    bgcolor="${BRAND.paper}"
+    style="background-color:${BRAND.paper};"
+  >
     <tr>
       <td align="center" style="padding:38px 16px;">
 
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:600px;">
+        <table
+          role="presentation"
+          width="100%"
+          cellspacing="0"
+          cellpadding="0"
+          border="0"
+          style="max-width:620px;"
+        >
 
+          <!-- BRAND HEADER -->
           <tr>
-            <td style="padding:0 0 20px;">
-              <span style="font-size:25px;font-weight:800;letter-spacing:-1.2px;color:${COLORS.forest};">Zuno</span>
-              <span style="display:block;margin-top:5px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:${COLORS.muted};">
-                Business, moving forward.
-              </span>
+            <td
+              bgcolor="${BRAND.dark}"
+              style="
+                padding:27px 30px;
+                background-color:${BRAND.dark};
+                border-radius:14px 14px 0 0;
+              "
+            >
+              <table
+                role="presentation"
+                cellspacing="0"
+                cellpadding="0"
+                border="0"
+              >
+                <tr>
+                  <td valign="middle" style="padding-right:12px;">
+                    <img
+                      src="${BRAND_ICON_URL}"
+                      width="43"
+                      height="43"
+                      alt="Zuno"
+                      style="
+                        display:block;
+                        width:43px;
+                        height:43px;
+                        border:0;
+                        border-radius:50%;
+                      "
+                    >
+                  </td>
+
+                  <td valign="middle">
+                    <span style="
+                      display:block;
+                      color:${BRAND.white};
+                      font-size:27px;
+                      font-weight:800;
+                      letter-spacing:-1px;
+                      line-height:1.1;
+                    ">Zuno</span>
+
+                    <span style="
+                      display:block;
+                      margin-top:5px;
+                      color:${BRAND.lime};
+                      font-size:10px;
+                      font-weight:700;
+                      letter-spacing:1.8px;
+                      text-transform:uppercase;
+                    ">BUSINESS, MOVING FORWARD.</span>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
 
+          <!-- MANGO BRAND ACCENT -->
           <tr>
-            <td style="background:#ffffff;border:1px solid ${COLORS.line};border-radius:14px;overflow:hidden;">
-
-              <div style="height:5px;background:${COLORS.mango};font-size:0;line-height:0;">&nbsp;</div>
-
-              <div style="padding:38px 34px 34px;">
-
-                <p style="margin:0 0 13px;font-size:10px;font-weight:700;letter-spacing:1.8px;text-transform:uppercase;color:${COLORS.green};">
-                  ZUNO ACCOUNT UPDATE
-                </p>
-
-                <h1 style="margin:0 0 24px;font-size:27px;line-height:1.25;letter-spacing:-0.8px;color:${COLORS.dark};font-weight:750;">
-                  ${escapeHtml(title)}
-                </h1>
-
-                ${customContent}
-
-                ${actionButton}
-
-                ${fallbackLink}
-
-              </div>
-
-            </td>
+            <td
+              bgcolor="${BRAND.mango}"
+              height="5"
+              style="
+                height:5px;
+                background-color:${BRAND.mango};
+                font-size:0;
+                line-height:0;
+              "
+            >&nbsp;</td>
           </tr>
 
+          <!-- MAIN CONTENT -->
           <tr>
-            <td style="padding:25px 5px 0;">
+            <td
+              bgcolor="${BRAND.white}"
+              style="
+                padding:42px 38px 38px;
+                background-color:${BRAND.white};
+                border-left:1px solid ${BRAND.line};
+                border-right:1px solid ${BRAND.line};
+              "
+            >
 
-              <p style="margin:0 0 9px;font-size:12px;line-height:1.7;color:${COLORS.muted};">
-                This email was sent by Zuno because of activity on your account.
+              <p style="
+                margin:0 0 13px;
+                color:${BRAND.green};
+                font-size:10px;
+                font-weight:700;
+                letter-spacing:2px;
+                text-transform:uppercase;
+              ">
+                YOUR ZUNO UPDATE
               </p>
 
-              <p style="margin:0 0 9px;font-size:12px;line-height:1.7;color:${COLORS.muted};">
+              <h1 style="
+                margin:0 0 24px;
+                color:${BRAND.dark};
+                font-family:Arial,Helvetica,sans-serif;
+                font-size:29px;
+                font-weight:750;
+                letter-spacing:-1px;
+                line-height:1.25;
+              ">
+                ${escapeHtml(title)}
+              </h1>
+
+              ${content}
+
+              ${actionButton}
+
+              ${fallbackLink}
+
+            </td>
+          </tr>
+
+          <!-- FOOTER -->
+          <tr>
+            <td
+              bgcolor="${BRAND.paper}"
+              style="
+                padding:26px 30px 30px;
+                background-color:${BRAND.paper};
+                border:1px solid ${BRAND.line};
+                border-top:0;
+                border-radius:0 0 14px 14px;
+              "
+            >
+
+              <table
+                role="presentation"
+                width="100%"
+                cellspacing="0"
+                cellpadding="0"
+                border="0"
+              >
+                <tr>
+                  <td
+                    height="3"
+                    bgcolor="${BRAND.mango}"
+                    style="
+                      height:3px;
+                      background-color:${BRAND.mango};
+                      font-size:0;
+                      line-height:0;
+                    "
+                  >&nbsp;</td>
+                </tr>
+              </table>
+
+              <p style="
+                margin:19px 0 8px;
+                color:${BRAND.forest};
+                font-size:14px;
+                font-weight:700;
+              ">
+                Business, moving forward.
+              </p>
+
+              <p style="
+                margin:0 0 12px;
+                color:${BRAND.muted};
+                font-size:12px;
+                line-height:1.8;
+              ">
+                This email was sent because of activity on your Zuno account.
                 If you did not initiate this activity, please contact our support team.
               </p>
 
-              <p style="margin:18px 0 0;font-size:12px;font-weight:700;color:${COLORS.forest};">
-                Zuno · Business, moving forward.
-              </p>
-
-              <p style="margin:7px 0 0;font-size:11px;color:${COLORS.muted};">
-                © ${new Date().getFullYear()} Zuno. All rights reserved.
+              <p style="
+                margin:0;
+                color:${BRAND.muted};
+                font-size:11px;
+                line-height:1.7;
+              ">
+                <a
+                  href="${baseUrl}"
+                  style="color:${BRAND.green};text-decoration:none;font-weight:700;"
+                >www.zuno.com.ng</a>
+                &nbsp;·&nbsp;
+                © ${new Date().getFullYear()} Zuno.
+                All rights reserved.
               </p>
 
             </td>
