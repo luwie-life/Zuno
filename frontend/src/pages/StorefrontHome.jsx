@@ -592,8 +592,12 @@ function ElementRenderer({
   );
 }
 
+
 function HeroSection({ settings, context, children }) {
   const image = settings.backgroundImage || settings.image;
+  const templateId =
+    context.storefront?.templateId || 'modern-business';
+
   const buttonLink = settings.buttonLink || settings.ctaLink || '';
   const buttonText = settings.buttonText || settings.ctaText || '';
   const external = /^https?:\/\//i.test(buttonLink);
@@ -601,55 +605,58 @@ function HeroSection({ settings, context, children }) {
   const destination = external
     ? buttonLink
     : `${context.storeBase || ''}${
-        buttonLink.startsWith('/') ? buttonLink : `/${buttonLink}`
+        buttonLink.startsWith('/')
+          ? buttonLink
+          : `/${buttonLink}`
       }`;
+
+  const height =
+    settings.height === 'small'
+      ? 320
+      : settings.height === 'large'
+        ? 560
+        : 440;
 
   return (
     <section
-      className="relative mb-10 overflow-hidden rounded-3xl bg-gray-900 text-white"
+      className="zuno-template-hero relative mb-10 overflow-hidden rounded-3xl bg-gray-900 text-white"
+      data-zuno-template-hero={templateId}
       style={{
-        minHeight:
-          settings.height === 'small'
-            ? 280
-            : settings.height === 'large'
-              ? 480
-              : 360,
-
+        minHeight: height,
         backgroundColor: settings.backgroundColor || '#111827',
-
         backgroundImage: image
-          ? `linear-gradient(90deg, rgba(0,0,0,.45), rgba(0,0,0,.12)), url("${image}")`
+          ? `linear-gradient(90deg, rgba(0,0,0,.48), rgba(0,0,0,.12)), url("${image}")`
           : settings.backgroundColor
             ? 'none'
             : 'linear-gradient(120deg, #102f27, #111827)',
-
         backgroundPosition: 'center',
         backgroundSize: 'cover',
       }}
     >
       <div
-        className={`flex min-h-[280px] flex-col justify-center p-7 md:p-14 ${
+        className={`zuno-template-hero__content flex min-h-[320px] flex-col justify-center p-7 md:p-14 ${
           settings.alignment === 'center'
             ? 'items-center text-center'
             : 'items-start text-left'
         }`}
+        style={{ minHeight: height }}
       >
         {children !== undefined ? (
           children
         ) : (
           <>
             {settings.eyebrow && (
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/70">
+              <p className="zuno-template-hero__eyebrow text-xs font-semibold uppercase tracking-[0.24em] text-white/70">
                 {settings.eyebrow}
               </p>
             )}
 
-            <h1 className="mt-3 max-w-3xl text-3xl font-bold leading-tight md:text-5xl">
+            <h1 className="zuno-template-hero__title mt-3 max-w-3xl text-3xl font-bold leading-tight md:text-5xl">
               {settings.title || context.biz.name}
             </h1>
 
             {settings.subtitle && (
-              <p className="mt-4 max-w-2xl text-sm leading-relaxed text-white/80 md:text-lg">
+              <p className="zuno-template-hero__subtitle mt-4 max-w-2xl text-sm leading-relaxed text-white/80 md:text-lg">
                 {settings.subtitle}
               </p>
             )}
@@ -660,14 +667,14 @@ function HeroSection({ settings, context, children }) {
                   href={destination}
                   target="_blank"
                   rel="noreferrer"
-                  className="mt-7 inline-flex rounded-full bg-white px-6 py-3 text-sm font-semibold text-gray-900"
+                  className="zuno-template-hero__button mt-7 inline-flex rounded-full bg-white px-6 py-3 text-sm font-semibold text-gray-900"
                 >
                   {buttonText}
                 </a>
               ) : (
                 <Link
                   to={destination}
-                  className="mt-7 inline-flex rounded-full bg-white px-6 py-3 text-sm font-semibold text-gray-900"
+                  className="zuno-template-hero__button mt-7 inline-flex rounded-full bg-white px-6 py-3 text-sm font-semibold text-gray-900"
                 >
                   {buttonText}
                 </Link>
@@ -679,6 +686,7 @@ function HeroSection({ settings, context, children }) {
     </section>
   );
 }
+
 
 function ProductSection({ settings, context }) {
   return (
@@ -803,23 +811,30 @@ function LegacySection({ section, context }) {
     case 'hero':
       return <HeroSection settings={settings} context={context} />;
 
+    
     case 'about':
       return (
-        <section className="grid items-center gap-8 py-10 md:grid-cols-2">
+        <section
+          className={`zuno-template-about grid items-center gap-8 py-10 ${
+            settings.image ? 'md:grid-cols-2' : 'grid-cols-1'
+          }`}
+          data-zuno-section-type="about"
+        >
           {settings.image && (
             <img
               src={settings.image}
               alt={settings.title || 'About us'}
-              className="max-h-[440px] w-full rounded-3xl object-cover"
+              className="zuno-template-about__image max-h-[440px] w-full rounded-3xl object-cover"
               loading="lazy"
             />
           )}
 
-          <div>
+          <div className={!settings.image ? 'max-w-3xl' : ''}>
             <SectionHeading
               title={settings.title || 'About us'}
               subtitle={settings.subtitle}
             />
+
             <p className="whitespace-pre-line text-sm leading-7 text-muted md:text-base">
               {settings.description}
             </p>
@@ -827,27 +842,38 @@ function LegacySection({ section, context }) {
         </section>
       );
 
+
+    
     case 'image_text':
       return (
-        <section className="grid items-center gap-8 py-10 md:grid-cols-2">
-          <img
-            src={settings.image}
-            alt={settings.title || ''}
-            className="max-h-[440px] w-full rounded-3xl object-cover"
-            loading="lazy"
-          />
+        <section
+          className={`zuno-template-image-text grid items-center gap-8 py-10 ${
+            settings.image ? 'md:grid-cols-2' : 'grid-cols-1'
+          }`}
+          data-zuno-section-type="image_text"
+        >
+          {settings.image && (
+            <img
+              src={settings.image}
+              alt={settings.title || ''}
+              className="zuno-template-image-text__image max-h-[440px] w-full rounded-3xl object-cover"
+              loading="lazy"
+            />
+          )}
 
-          <div>
+          <div className={!settings.image ? 'max-w-3xl' : ''}>
             <SectionHeading
               title={settings.title}
               subtitle={settings.subtitle}
             />
+
             <p className="whitespace-pre-line text-sm leading-7 text-muted">
               {settings.description}
             </p>
           </div>
         </section>
       );
+
 
     case 'rich_text':
     case 'custom_content':
