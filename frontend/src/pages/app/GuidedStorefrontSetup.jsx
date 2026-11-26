@@ -28,9 +28,6 @@ import {
 import {
   getGuidedSectionKey,
 } from '../../components/storefront/GuidedSectionContent.jsx';
-import {
-  getGuidedSectionKey,
-} from '../../components/storefront/GuidedSectionContent.jsx';
 import { StorefrontRenderer } from '../StorefrontHome.jsx';
 
 const palettes = [
@@ -225,6 +222,7 @@ export default function GuidedStorefrontSetup() {
   const [notice, setNotice] = useState('');
   const [savedTemplateId, setSavedTemplateId] = useState('');
   const [sectionOverrides, setSectionOverrides] = useState({});
+  const [previewDevice, setPreviewDevice] = useState('desktop');
 
   const categories = useMemo(() => getTemplateCategories(), []);
   const [category, setCategory] = useState(
@@ -897,34 +895,65 @@ return {
                 </div>
 
                 <div className="max-h-[850px] overflow-auto bg-[#E9EDE9] p-3 sm:p-5">
-                  <div
-                    className="mx-auto overflow-hidden rounded-xl bg-white shadow-xl transition-all"
-                    style={{ maxWidth: '1100px' }}
-                  >
-                    {previewConfig && (
-                      <StorefrontRenderer
-                        pageSlug="home"
-                        biz={{
-                          ...business,
-                          name: details.name,
-                          category: details.category,
-                          about: details.description,
-                          description: details.description,
-                          tagline: details.tagline,
-                          phone: details.phone,
-                          whatsapp: details.whatsapp,
-                          address: details.address,
-                          brandColor: colors.primary,
-                        }}
-                        categories={[]}
-                        cart={null}
-                        slug={business.slug || 'preview'}
-                        color={colors.primary}
-                        storeBase="/store/preview"
-                        storefront={previewConfig}
-                      />
-                    )}
-                  </div>
+                  <div className="bg-[#E9EDE9] p-3 sm:p-5">
+  <div className="mb-4 flex items-center justify-center gap-2">
+    <button
+      type="button"
+      onClick={() => setPreviewDevice('desktop')}
+      className={`rounded-lg px-4 py-2 text-xs font-semibold transition ${
+        previewDevice === 'desktop'
+          ? 'bg-[#0B3D2E] text-white'
+          : 'border border-[#DCE2DD] bg-white text-[#68756D]'
+      }`}
+    >
+      Desktop
+    </button>
+
+    <button
+      type="button"
+      onClick={() => setPreviewDevice('mobile')}
+      className={`rounded-lg px-4 py-2 text-xs font-semibold transition ${
+        previewDevice === 'mobile'
+          ? 'bg-[#0B3D2E] text-white'
+          : 'border border-[#DCE2DD] bg-white text-[#68756D]'
+      }`}
+    >
+      Mobile
+    </button>
+  </div>
+
+  <div
+    className={`mx-auto overflow-hidden bg-white shadow-xl transition-all duration-300 ${
+      previewDevice === 'mobile'
+        ? 'max-w-[390px] rounded-[2rem] border-[6px] border-[#202923]'
+        : 'max-w-[1100px] rounded-xl'
+    }`}
+  >
+    {previewConfig && (
+      <StorefrontRenderer
+        pageSlug="home"
+        biz={{
+          ...business,
+          name: details.name,
+          category: details.category,
+          about: details.description,
+          description: details.description,
+          tagline: details.tagline,
+          phone: details.phone,
+          whatsapp: details.whatsapp,
+          address: details.address,
+          brandColor: colors.primary,
+        }}
+        categories={[]}
+        cart={null}
+        slug={business.slug || 'preview'}
+        color={colors.primary}
+        storeBase="/store/preview"
+        storefront={previewConfig}
+      />
+    )}
+  </div>
+</div>
                 </div>
               </div>
               <div className="grid gap-5 md:grid-cols-2">
