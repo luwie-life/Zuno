@@ -34,6 +34,7 @@ import menu from './routes/menu.js';
 
 export function createApp() {
   const app = express();
+  app.set('trust proxy', 1);
 
   if (env.trustProxy) {
     app.set('trust proxy', 1);
