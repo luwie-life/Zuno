@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
   Store,
   Contact,
@@ -130,7 +130,7 @@ export default function StorefrontSettingsPanel({
   const contact = config.contact || {};
   const seo = config.seo || {};
   const socialLinks = config.socialLinks || {};
-  const domain = config.domain || {};
+
 
   const displayName =
     identity.displayName || business.name || 'Your business';
@@ -161,8 +161,6 @@ const zunoUrl = getMerchantStoreUrl(business.slug);
   const updateSocial = (key, value) =>
     updateGroup('socialLinks', key, value);
 
-  const updateDomain = (key, value) =>
-    updateGroup('domain', key, value);
 
   const handleKeywords = (value) => {
     updateSEO(
