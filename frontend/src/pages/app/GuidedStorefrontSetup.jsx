@@ -946,9 +946,9 @@ return {
         }}
         categories={[]}
         cart={null}
-        slug={business.slug || 'preview'}
+        slug={business.slug || ''}
         color={colors.primary}
-        storeBase="/store/preview"
+        storeBase={business.slug ? `/store/${business.slug}` : '/store'}
         storefront={previewConfig}
       />
     )}

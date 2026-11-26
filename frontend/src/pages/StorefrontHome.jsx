@@ -955,12 +955,31 @@ function LegacySection({ section, context }) {
         </div>
       ) : null;
 
-    case 'navigation':
+        case 'navigation': {
+      const pages = (context.storefront.pages || []).filter(
+        (page) => page.visible
+      );
+
+      const whatsapp = String(
+        context.biz.whatsapp || context.biz.phone || ''
+      ).replace(/\D/g, '');
+
+      const navStyle = settings.style || 'modern';
+
       return (
-        <nav className="mb-6 flex flex-wrap gap-4 border-b border-line pb-4">
-          {(context.storefront.pages || [])
-            .filter((page) => page.visible)
-            .map((page) => (
+        <nav
+          className={`zuno-store-nav zuno-store-nav--${navStyle}`}
+          data-zuno-nav={navStyle}
+        >
+          <Link
+            to={context.storeBase || '/'}
+            className="zuno-store-nav__brand"
+          >
+            {context.biz.name || 'Your Business'}
+          </Link>
+
+          <div className="zuno-store-nav__links">
+            {pages.map((page) => (
               <Link
                 key={page.id}
                 to={
@@ -968,14 +987,27 @@ function LegacySection({ section, context }) {
                     ? context.storeBase || '/'
                     : `${context.storeBase}/${page.slug}`
                 }
-                className="text-sm font-medium hover:underline"
+                className="zuno-store-nav__link"
               >
                 {page.title}
               </Link>
             ))}
+          </div>
+
+          {whatsapp && (
+            <a
+              href={`https://wa.me/${whatsapp}`}
+              target="_blank"
+              rel="noreferrer"
+              className="zuno-store-nav__action"
+            >
+              Let's talk
+            </a>
+          )}
         </nav>
       );
-
+    }
+    
     case 'categories':
       return (
         <section className="py-8">
@@ -1316,6 +1348,16 @@ export function StorefrontRenderer({
 
   const theme = storefront.theme || {};
 
+    const radiusMap = {
+    none: '0px',
+    small: '8px',
+    medium: '16px',
+    large: '26px',
+  };
+
+  const templateRadius =
+    radiusMap[theme.borderRadius] || '18px';
+
   const context = {
     biz,
     categories,
@@ -1332,10 +1374,24 @@ export function StorefrontRenderer({
     <div
       data-zuno-template={storefront.templateId || 'modern-business'}
       className={editorMode ? 'storefront-editor-renderer' : ''}
-      style={{
+            style={{
         backgroundColor: theme.backgroundColor || '#FFFFFF',
         color: theme.textColor || '#111827',
-        fontFamily: theme.fontBody || 'Inter, sans-serif',
+        fontFamily: theme.fontBody
+          ? `${theme.fontBody}, sans-serif`
+          : 'Inter, sans-serif',
+
+        '--zuno-heading-font': theme.fontHeading
+          ? `"${theme.fontHeading}", Georgia, serif`
+          : 'inherit',
+
+        '--zuno-primary': theme.primaryColor || color,
+        '--zuno-secondary': theme.secondaryColor || '#172B27',
+        '--zuno-accent': theme.accentColor || '#D6A85F',
+        '--zuno-surface': theme.surfaceColor || '#F4F7F5',
+        '--zuno-border': theme.borderColor || '#E0E9E4',
+        '--zuno-radius': templateRadius,
+
         minHeight: `${pageCanvasMinHeight}px`,
         position: 'relative',
         transform: 'translateZ(0)',

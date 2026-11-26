@@ -812,3 +812,254 @@
     animation-duration: 0.01ms !important;
   }
 }
+
+/* =========================================================
+   ZUNO TEMPLATE NAVIGATION SYSTEM
+   ========================================================= */
+
+[data-zuno-template] .zuno-store-nav {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  width: 100%;
+  padding: 22px clamp(20px, 5vw, 76px);
+  border-bottom: 1px solid var(--zuno-border);
+  background: var(--zuno-surface);
+  color: var(--zuno-secondary);
+}
+
+.zuno-store-nav__brand {
+  flex-shrink: 0;
+  color: inherit;
+  font-family: var(--zuno-heading-font);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  text-decoration: none;
+}
+
+.zuno-store-nav__links {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(14px, 2.5vw, 34px);
+  min-width: 0;
+}
+
+.zuno-store-nav__link {
+  flex-shrink: 0;
+  color: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  opacity: 0.78;
+  transition: opacity 180ms ease;
+}
+
+.zuno-store-nav__link:hover {
+  opacity: 1;
+}
+
+.zuno-store-nav__action {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0 20px;
+  border-radius: var(--zuno-radius);
+  background: var(--zuno-primary);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+/* Minimal fashion */
+
+.zuno-store-nav--minimal {
+  background: #faf9f6;
+  border-bottom-color: #e6e1d9;
+}
+
+.zuno-store-nav--minimal .zuno-store-nav__brand {
+  font-size: 24px;
+  letter-spacing: -0.06em;
+}
+
+.zuno-store-nav--minimal .zuno-store-nav__link {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 10px;
+}
+
+.zuno-store-nav--minimal .zuno-store-nav__action {
+  background: #242424;
+  border-radius: 0;
+}
+
+/* Luxury */
+
+.zuno-store-nav--luxury {
+  background: #f8f5f0;
+  border-bottom-color: #ded4c8;
+  padding-top: 28px;
+  padding-bottom: 28px;
+}
+
+.zuno-store-nav--luxury .zuno-store-nav__brand {
+  font-family: var(--zuno-heading-font);
+  font-size: 27px;
+  font-weight: 400;
+}
+
+.zuno-store-nav--luxury .zuno-store-nav__link {
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 9px;
+}
+
+.zuno-store-nav--luxury .zuno-store-nav__action {
+  background: #2b2622;
+  border-radius: 2px;
+}
+
+/* Streetwear / bold */
+
+.zuno-store-nav--bold {
+  background: #171717;
+  color: #fff;
+  border-bottom: 0;
+}
+
+.zuno-store-nav--bold .zuno-store-nav__brand {
+  font-family: var(--zuno-heading-font);
+  font-size: 26px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.zuno-store-nav--bold .zuno-store-nav__link {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 10px;
+  opacity: 0.85;
+}
+
+.zuno-store-nav--bold .zuno-store-nav__action {
+  background: var(--zuno-accent);
+  color: #171717;
+  border-radius: 0;
+  text-transform: uppercase;
+}
+
+/* Beauty / soft */
+
+.zuno-store-nav--soft {
+  background: #fff9f7;
+  color: #49363b;
+  border-bottom-color: #eadad6;
+}
+
+.zuno-store-nav--soft .zuno-store-nav__brand {
+  font-family: var(--zuno-heading-font);
+  font-size: 25px;
+  font-weight: 400;
+}
+
+.zuno-store-nav--soft .zuno-store-nav__action {
+  background: #a66d78;
+  border-radius: 999px;
+}
+
+/* Natural */
+
+.zuno-store-nav--natural {
+  background: #f8f8f2;
+  color: #293a30;
+  border-bottom-color: #dde2d8;
+}
+
+.zuno-store-nav--natural .zuno-store-nav__action {
+  background: #667d68;
+  border-radius: 999px;
+}
+
+/* Restaurant / warm */
+
+.zuno-store-nav--warm {
+  background: #fbf7f0;
+  color: #2c211c;
+  border-bottom-color: #e5d9c9;
+}
+
+.zuno-store-nav--warm .zuno-store-nav__brand {
+  font-family: var(--zuno-heading-font);
+  font-size: 25px;
+}
+
+.zuno-store-nav--warm .zuno-store-nav__action {
+  background: #8a3d2b;
+  border-radius: 4px;
+}
+
+/* Professional */
+
+.zuno-store-nav--professional {
+  background: #fff;
+  color: #172b3a;
+  border-bottom-color: #dce5ea;
+}
+
+.zuno-store-nav--professional .zuno-store-nav__action {
+  background: #244d68;
+  border-radius: 8px;
+}
+
+/* Modern */
+
+.zuno-store-nav--modern {
+  background: #fff;
+  color: #172b27;
+  border-bottom-color: #e0e9e4;
+}
+
+.zuno-store-nav--modern .zuno-store-nav__action {
+  background: var(--zuno-primary);
+  border-radius: 999px;
+}
+
+/* Responsive navigation */
+
+@media (max-width: 700px) {
+  [data-zuno-template] .zuno-store-nav {
+    flex-wrap: wrap;
+    gap: 14px;
+    padding: 18px 20px;
+  }
+
+  .zuno-store-nav__brand {
+    font-size: 19px;
+  }
+
+  .zuno-store-nav__links {
+    order: 3;
+    width: 100%;
+    justify-content: flex-start;
+    overflow-x: auto;
+    padding: 4px 0 8px;
+    scrollbar-width: none;
+  }
+
+  .zuno-store-nav__links::-webkit-scrollbar {
+    display: none;
+  }
+
+  .zuno-store-nav__action {
+    min-height: 36px;
+    padding: 0 14px;
+  }
+}
