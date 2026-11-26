@@ -926,13 +926,13 @@ export default function GuidedStorefrontSetup() {
               Back
             </button>
 
-            {step < 3 ? (
+            {step < 4 ? (
               <button
                 type="button"
                 onClick={() => {
                   if (canContinue()) {
                     setNotice('');
-                    setStep((current) => Math.min(3, current + 1));
+                    setStep((current) => Math.min(4, current + 1));
                   }
                 }}
                 className="inline-flex items-center gap-2 rounded-xl bg-[#0B3D2E] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#1C6F52]"
