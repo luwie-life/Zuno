@@ -4,6 +4,7 @@ const RESERVED = new Set([
   'api',
   'app',
   'store',
+  's',
   'login',
   'register',
   'pricing',
@@ -48,7 +49,6 @@ export function merchantSlugFromHost(
 
   const slug = host.slice(0, -suffix.length);
 
-  // Only one merchant subdomain level is supported.
   if (!isValidMerchantSlug(slug)) return null;
 
   return slug;
@@ -56,7 +56,7 @@ export function merchantSlugFromHost(
 
 export function getMerchantStoreUrl(
   slug,
-  domain = import.meta.env.VITE_MERCHANT_DOMAIN
+  domain = import.meta.env.VITE_MERCHANT_DOMAIN || 'zuno.com.ng'
 ) {
   const safeSlug = String(slug || '').trim().toLowerCase();
   const safeDomain = normalizeDomain(domain || '');
@@ -65,5 +65,5 @@ export function getMerchantStoreUrl(
     return '';
   }
 
-  return `https://${safeSlug}.${safeDomain}`;
+  return `https://${safeDomain}/s/${safeSlug}`;
 }

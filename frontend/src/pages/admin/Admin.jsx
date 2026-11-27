@@ -234,7 +234,7 @@ export function Businesses() {
               {data.items.map((b) => (
                 <tr key={b._id}>
                   <td className="px-4 py-3"><Link className="font-medium text-forest underline" to={`/admin/businesses/${b._id}`}>{b.name}</Link></td>
-                  <td className="px-4 py-3 text-muted">/store/{b.slug}</td>
+                  <td className="px-4 py-3 text-muted">/s/{b.slug}</td>
                   <td className="px-4 py-3">{b.owner?.name}</td>
                   <td className="px-4 py-3"><Badge>{b.status}</Badge></td>
                   <td className="px-4 py-3">{b.storePublished ? 'Yes' : 'No'}</td>
@@ -269,7 +269,7 @@ export function BusinessDetail() {
 
   return (
     <>
-      <PageHeader title={b.name} sub={`/store/${b.slug}`} actions={
+      <PageHeader title={b.name} sub={`/s/${b.slug}`} actions={
         b.status === 'active'
           ? <button className="btn-danger" onClick={() => act('suspend', 'Business suspended', 'Reason for suspension (documented, min 5 chars). Data is kept.')}>Suspend</button>
           : <button className="btn-primary" onClick={() => act('restore', 'Business restored', 'Reason for restoring (min 5 chars)')}>Restore</button>

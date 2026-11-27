@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, Outlet, useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Minus, Plus, Search, ShoppingBag, Trash2, MapPin, Phone, CheckCircle2, Clock, XCircle } from 'lucide-react';
 import { api, qs } from '../lib/api.js';
@@ -35,8 +35,12 @@ function useSeo(title, description) {
 
 export function StoreLayout({ merchantSlug }) {
   const { slug: pathSlug } = useParams();
+  const { pathname } = useLocation();
   const slug = merchantSlug || pathSlug;
-  const storeBase = merchantSlug ? '' : `/store/${slug}`;
+
+  const storeBase = merchantSlug
+    ? ''
+    : `${pathname.startsWith('/s/') ? '/s' : '/store'}/${slug}`;
   const nav = useNavigate();
 
   const { data, error, loading } = useApi(
@@ -252,7 +256,7 @@ export function StoreLayout({ merchantSlug }) {
               disabled={!b.acceptingOrders}
               onClick={() => {
                 setOpen(false);
-                nav(`/store/${slug}/checkout`);
+                nav(`${storeBase}/checkout`);
               }}
             >
               Checkout
