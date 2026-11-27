@@ -218,6 +218,8 @@ export default function GuidedStorefrontSetup() {
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [publishError, setPublishError] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [savedTemplateId, setSavedTemplateId] = useState('');
@@ -411,6 +413,36 @@ export default function GuidedStorefrontSetup() {
     return true;
   };
 
+  const togglePublishing = async () => {
+  setPublishing(true);
+  setPublishError('');
+  setNotice('');
+
+  try {
+    const publish = !business.storePublished;
+
+    await api('/businesses/current/publish', {
+      method: 'POST',
+      biz: true,
+      body: { publish },
+    });
+
+    await refresh();
+
+    setNotice(
+      publish
+        ? 'Your storefront is now live.'
+        : 'Your storefront has been unpublished.'
+    );
+  } catch (err) {
+    setPublishError(
+      err.message || 'Could not update your storefront publishing status.'
+    );
+  } finally {
+    setPublishing(false);
+  }
+};
+
   const save = async () => {
     if (!selectedTemplate) {
       setError('Choose a valid template before saving.');
@@ -553,6 +585,72 @@ return {
             </p>
           </div>
         </header>
+
+        <div className="mb-7 rounded-2xl border border-[#DCE2DD] bg-white p-5">
+  <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+    <div className="min-w-0">
+      <div className="flex flex-wrap items-center gap-2">
+        <h2 className="text-sm font-bold text-[#12201A]">
+          Storefront status
+        </h2>
+
+        <span
+          className={`rounded-full px-3 py-1 text-xs font-semibold ${
+            business.storePublished
+              ? 'bg-[#EAF1EC] text-[#0B3D2E]'
+              : 'bg-[#F1F2F0] text-[#68756D]'
+          }`}
+        >
+          {business.storePublished ? 'Published' : 'Draft'}
+        </span>
+      </div>
+
+      <p className="mt-2 break-all text-sm text-[#68756D]">
+        {business.slug
+          ? `https://www.zuno.com.ng/s/${business.slug}`
+          : 'Your storefront address will appear here.'}
+      </p>
+
+      {business.storePublished && business.slug && (
+        <a
+          href={`/s/${business.slug}`}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-2 inline-flex text-xs font-semibold text-[#1C6F52] hover:underline"
+        >
+          Open live storefront ↗
+        </a>
+      )}
+    </div>
+
+    <button
+      type="button"
+      onClick={togglePublishing}
+      disabled={publishing || !savedTemplateId || !business.slug}
+      className={`shrink-0 rounded-xl px-5 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
+        business.storePublished
+          ? 'border border-[#DCE2DD] bg-white text-[#68756D] hover:bg-[#F6F7F5]'
+          : 'bg-[#0B3D2E] text-white hover:bg-[#1C6F52]'
+      }`}
+    >
+      {publishing
+        ? 'Updating…'
+        : business.storePublished
+          ? 'Unpublish storefront'
+          : 'Publish storefront'}
+    </button>
+  </div>
+
+  {!savedTemplateId && (
+    <p className="mt-3 text-xs text-[#87928A]">
+      Save your storefront design before publishing.
+    </p>
+  )}
+
+  {publishError && (
+    <p className="mt-3 text-sm text-red-600">{publishError}</p>
+  )}
+</div>
 
         <div className="mb-8 grid grid-cols-4 gap-2">
           {steps.map((item, index) => {
@@ -948,7 +1046,7 @@ return {
         cart={null}
         slug={business.slug || ''}
         color={colors.primary}
-        storeBase={business.slug ? `/store/${business.slug}` : '/store'}
+        storeBase={business.slug ? `/s/${business.slug}` : '/s'}
         storefront={previewConfig}
       />
     )}

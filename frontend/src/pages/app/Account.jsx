@@ -146,7 +146,9 @@ export function SettingsPage() {
         <Input id="ba" label="Street address" value={f.line} onChange={on('line')} /><div className="grid gap-4 sm:grid-cols-2"><Input id="bci" label="City" value={f.city} onChange={on('city')} /><Input id="bs" label="State" value={f.state} onChange={on('state')} /></div>
         <Input id="bl" label="Logo link (https)" value={f.logoUrl} onChange={on('logoUrl')} />
         <div className="grid gap-4 sm:grid-cols-2"><div><label className="label" htmlFor="bcol">Brand colour</label><input id="bcol" type="color" className="h-11 w-full rounded-lg border border-line bg-white p-1" value={f.brandColor} onChange={on('brandColor')} /></div><Input id="bdf" label="Delivery fee (₦)" inputMode="decimal" value={f.deliveryFee} onChange={on('deliveryFee')} /></div>
-        <p className="text-xs text-muted">Store address: /store/{b?.slug || 'your-store'}</p><button className="btn-primary" disabled={busy}>Save changes</button>
+       <p className="text-xs text-muted">
+  Store address: /s/{b?.slug || 'your-store'}
+</p>
       </form>
 
       <div className="space-y-5">

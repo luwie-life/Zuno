@@ -654,7 +654,7 @@ nav(
                         <div className="flex min-w-0 items-center gap-2">
                           <Globe2 className="h-4 w-4 shrink-0" style={{ color: COLORS.green }} />
                           <p className="break-all text-xs font-medium" style={{ color: COLORS.ink }}>
-                            {window.location.origin}/store/{form.slug || 'your-business'}
+                            {window.location.origin}/s/{form.slug || 'your-business'}
                           </p>
                         </div>
                         {addressStatus === 'available' && (
