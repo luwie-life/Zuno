@@ -344,74 +344,319 @@ export function RequireAuth({ children, allowUnverified = false }) {
 }
 
 
+
 const NAV = [
-  { to: '/app', label: 'Overview', icon: LayoutDashboard, end: true },
-  { to: '/app/storefront', label: 'Storefront', icon: Globe2, perm: 'business.update' },
-  { to: '/app/products', label: 'Products', icon: Package, module: 'commerce', perm: 'products.write', alsoRead: true },
-  { to: '/app/orders', label: 'Orders', icon: ShoppingBag, module: 'commerce', perm: 'orders.write' },
-  { to: '/app/menu', label: 'Menu', icon: UtensilsCrossed, module: 'menu', perm: 'menu.read' },
-  { to: '/app/services', label: 'Services', icon: Wrench, module: 'services', perm: 'services.read', feature: 'services' },
-  { to: '/app/bookings', label: 'Bookings', icon: CalendarDays, module: 'services', perm: 'bookings.read', feature: 'bookings' },
-    { to: '/app/pos', label: 'POS', icon: Store, module: 'commerce', feature: 'pos', perm: 'pos.sell', cashier: true },
-  { to: '/app/inventory', label: 'Inventory', icon: Boxes, module: 'commerce', feature: 'shared_inventory', cashier: true },
-  { to: '/app/customers', label: 'Customers', icon: Users, feature: 'customers', cashier: true },
-  { to: '/app/reports', label: 'Reports', icon: BarChart3, module: 'commerce', perm: 'reports.read' },
-  { to: '/app/billing', label: 'Billing', icon: CreditCard, perm: 'billing.manage' },
-  { to: '/app/mobile-app', label: 'Mobile app', icon: Smartphone, perm: 'apps.read' },
-  { to: '/app/team', label: 'Team', icon: UserCog, perm: 'staff.manage' },
-  { to: '/app/support', label: 'Support', icon: LifeBuoy },
-  { to: '/app/settings', label: 'Settings', icon: Settings, perm: 'business.update' },
-  { to: '/app/settings/payments', label: 'Payments', icon: CreditCard, perm: 'business.update' },
+  { to: '/app', label: 'Overview', icon: LayoutDashboard, end: true, group: 'Workspace' },
+  { to: '/app/storefront', label: 'Storefront', icon: Globe2, perm: 'business.update', group: 'Workspace' },
+  { to: '/app/products', label: 'Products', icon: Package, module: 'commerce', perm: 'products.write', alsoRead: true, group: 'Manage' },
+  { to: '/app/orders', label: 'Orders', icon: ShoppingBag, module: 'commerce', perm: 'orders.write', group: 'Manage' },
+  { to: '/app/menu', label: 'Menu', icon: UtensilsCrossed, module: 'menu', perm: 'menu.read', group: 'Manage' },
+  { to: '/app/services', label: 'Services', icon: Wrench, module: 'services', perm: 'services.read', feature: 'services', group: 'Manage' },
+  { to: '/app/bookings', label: 'Bookings', icon: CalendarDays, module: 'services', perm: 'bookings.read', feature: 'bookings', group: 'Manage' },
+  { to: '/app/pos', label: 'POS', icon: Store, module: 'commerce', feature: 'pos', perm: 'pos.sell', cashier: true, group: 'Operations' },
+  { to: '/app/inventory', label: 'Inventory', icon: Boxes, module: 'commerce', feature: 'shared_inventory', cashier: true, group: 'Operations' },
+  { to: '/app/customers', label: 'Customers', icon: Users, feature: 'customers', cashier: true, group: 'Operations' },
+  { to: '/app/reports', label: 'Reports', icon: BarChart3, module: 'commerce', perm: 'reports.read', group: 'Insights' },
+  { to: '/app/billing', label: 'Billing', icon: CreditCard, perm: 'billing.manage', group: 'Account' },
+  { to: '/app/mobile-app', label: 'Mobile app', icon: Smartphone, perm: 'apps.read', group: 'Account' },
+  { to: '/app/team', label: 'Team', icon: UserCog, perm: 'staff.manage', group: 'Account' },
+  { to: '/app/support', label: 'Support', icon: LifeBuoy, group: 'Account' },
+  { to: '/app/settings', label: 'Settings', icon: Settings, perm: 'business.update', group: 'Account' },
+  { to: '/app/settings/payments', label: 'Payments', icon: CreditCard, perm: 'business.update', group: 'Account' },
 ];
 
 export function AppLayout() {
-  const { user, ctx, businesses, can, hasFeature, logout, switchBusiness, loading } = useAuth();
+  const { user, ctx, businesses, can, hasFeature, logout, loading } = useAuth();
   const nav = useNavigate();
   const [more, setMore] = useState(false);
   const { pathname } = useLocation();
+
   useEffect(() => setMore(false), [pathname]);
+
   if (loading) return <Loading />;
 
-  const items = NAV.filter((n) => (!n.module || ctx?.modules?.includes(n.module)) && (!n.perm || can(n.perm) || n.cashier || (n.alsoRead && can('products.read'))));
-  const mobileMain = ['/app', '/app/products', '/app/pos', '/app/orders'].map((to) => items.find((i) => i.to === to)).filter(Boolean);
-  const Item = ({ n, mobile }) => {
+  const items = NAV.filter(
+    (n) =>
+      (!n.module || ctx?.modules?.includes(n.module)) &&
+      (!n.perm || can(n.perm) || n.cashier || (n.alsoRead && can('products.read')))
+  );
+
+  const mobileMain = ['/app', '/app/storefront', '/app/products', '/app/orders']
+    .map((to) => items.find((item) => item.to === to))
+    .filter(Boolean);
+
+  const groups = ['Workspace', 'Manage', 'Operations', 'Insights', 'Account'];
+
+  const Item = ({ n, mobile = false }) => {
     const locked = n.feature && !hasFeature(n.feature);
+
     return (
-      <NavLink to={n.to} end={n.end} className={({ isActive }) => cx(mobile ? 'flex flex-col items-center gap-0.5 px-2 py-1.5 text-[11px]' : 'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium', isActive ? 'bg-forest-50 text-forest' : 'text-muted hover:bg-forest-50/60 hover:text-ink', mobile && 'rounded-lg')}>
-        <n.icon className="h-5 w-5" aria-hidden />{n.label}{locked && <Lock className="ml-auto h-3.5 w-3.5 opacity-60" aria-label="Not in your plan" />}
+      <NavLink
+        to={n.to}
+        end={n.end}
+        className={({ isActive }) =>
+          cx(
+            'group relative flex transition-all duration-200',
+            mobile
+              ? 'min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[10px] font-semibold'
+              : 'items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium',
+            isActive
+              ? mobile
+                ? 'bg-[#E7F2EA] text-[#174D35]'
+                : 'bg-white/12 text-white shadow-sm'
+              : mobile
+                ? 'text-[#718078] hover:bg-[#F1F5F1] hover:text-[#174D35]'
+                : 'text-white/65 hover:bg-white/[0.08] hover:text-white'
+          )
+        }
+      >
+        {({ isActive }) => (
+          <>
+            {!mobile && isActive && (
+              <span className="absolute bottom-2 left-0 top-2 w-[3px] rounded-r-full bg-[#D9F078]" />
+            )}
+            <n.icon
+              className={cx(
+                'h-[19px] w-[19px] shrink-0 transition-transform duration-200 group-hover:scale-105',
+                mobile && 'h-5 w-5'
+              )}
+              aria-hidden
+            />
+            <span className={cx('truncate', mobile && 'max-w-full')}>
+              {n.label}
+            </span>
+            {locked && (
+              <Lock
+                className={cx('h-3.5 w-3.5 opacity-60', mobile ? 'absolute right-1 top-1' : 'ml-auto')}
+                aria-label="Not in your plan"
+              />
+            )}
+          </>
+        )}
       </NavLink>
     );
   };
 
+  const signOut = async () => {
+    await logout();
+    nav('/');
+  };
+
   return (
-    <div className="min-h-screen md:flex">
-      <aside className="hidden w-60 shrink-0 flex-col border-r border-line bg-white p-3 md:flex">
-        <div className="px-3 py-3"><Wordmark /></div>
-        {businesses.length > 1 && <BizSwitch />}
-        <nav className="mt-2 flex-1 space-y-0.5" aria-label="Dashboard">{items.map((n) => <Item key={n.to} n={n} />)}</nav>
-        <div className="border-t border-line pt-3"><p className="truncate px-3 text-xs text-muted">{user?.email}</p><button onClick={async () => { await logout(); nav('/'); }} className="mt-1 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted hover:bg-paper"><LogOut className="h-5 w-5" />Sign out</button></div>
+    <div className="min-h-screen bg-[#F5F7F3] text-[#17231C] md:flex">
+      {/* Desktop sidebar */}
+      <aside className="sticky top-0 hidden h-screen w-[264px] shrink-0 flex-col bg-[#103B2B] px-4 py-5 text-white md:flex">
+        <Link to="/app" className="mb-7 flex items-center px-3 py-2">
+          <Wordmark light />
+        </Link>
+
+        {businesses.length > 1 && (
+          <div className="mb-5 rounded-2xl border border-white/10 bg-white/[0.07] p-2">
+            <p className="mb-2 px-2 text-[9px] font-bold uppercase tracking-[0.18em] text-white/40">
+              Your business
+            </p>
+            <BizSwitch />
+          </div>
+        )}
+
+        {businesses.length === 1 && (
+          <div className="mb-5 flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.07] p-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#D9F078] text-[#173A29]">
+              <Store className="h-[18px] w-[18px]" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-white/45">
+                Workspace
+              </p>
+              <p className="truncate text-sm font-semibold text-white">
+                {ctx?.business?.name || 'My business'}
+              </p>
+            </div>
+          </div>
+        )}
+
+        <nav className="min-h-0 flex-1 space-y-5 overflow-y-auto pb-4" aria-label="Dashboard">
+          {groups.map((group) => {
+            const groupItems = items.filter((item) => item.group === group);
+            if (!groupItems.length) return null;
+
+            return (
+              <div key={group}>
+                <p className="mb-2 px-3 text-[9px] font-bold uppercase tracking-[0.2em] text-white/35">
+                  {group}
+                </p>
+                <div className="space-y-1">
+                  {groupItems.map((n) => (
+                    <Item key={n.to} n={n} />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </nav>
+
+        <div className="mt-4 border-t border-white/10 pt-4">
+          <div className="mb-3 flex items-center gap-3 rounded-xl bg-white/[0.07] p-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#D9F078] text-xs font-bold text-[#173A29]">
+              {(user?.name || user?.email || 'U').slice(0, 1).toUpperCase()}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-semibold text-white">
+                {user?.name || 'Your account'}
+              </p>
+              <p className="truncate text-[10px] text-white/45">
+                {user?.email}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={signOut}
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white/60 transition hover:bg-white/[0.08] hover:text-white"
+          >
+            <LogOut className="h-[18px] w-[18px]" />
+            Sign out
+          </button>
+        </div>
       </aside>
-      <div className="min-w-0 flex-1 pb-20 md:pb-0">
-        <div className="flex h-14 items-center justify-between border-b border-line bg-white px-4 md:hidden"><Wordmark /><span className="max-w-[55%] truncate text-sm text-muted">{ctx?.business?.name}</span></div>
-        {ctx?.business?.status === 'suspended' && <div className="bg-danger px-4 py-2 text-center text-sm text-white">This business is suspended: {ctx.business.suspensionReason || 'contact support'}. Your data is safe.</div>}
+
+      {/* Main workspace */}
+      <div className="min-w-0 flex-1 pb-24 md:pb-0">
+        <header className="sticky top-0 z-30 flex h-[68px] items-center justify-between border-b border-[#E5EAE3] bg-[#F9FAF7]/90 px-4 backdrop-blur-xl sm:px-6 lg:px-9">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="md:hidden">
+              <Wordmark />
+            </div>
+            <div className="hidden min-w-0 md:block">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#829087]">
+                Business workspace
+              </p>
+              <p className="truncate text-sm font-semibold text-[#24352B]">
+                {ctx?.business?.name || 'Your business'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <span className="hidden rounded-full border border-[#DCE8DE] bg-white px-3 py-1.5 text-[11px] font-medium text-[#52705D] sm:inline-flex">
+              {ctx?.role || 'Workspace member'}
+            </span>
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#E4EDE3] text-xs font-bold text-[#174D35]">
+              {(user?.name || user?.email || 'U').slice(0, 1).toUpperCase()}
+            </div>
+          </div>
+        </header>
+
+        {ctx?.business?.status === 'suspended' && (
+          <div className="bg-[#B3261E] px-4 py-2 text-center text-sm text-white">
+            This business is suspended: {ctx.business.suspensionReason || 'contact support'}. Your data is safe.
+          </div>
+        )}
+
         {user && !user.emailVerified && <VerifyBanner />}
-        <div className="mx-auto max-w-6xl p-4 md:p-8"><Outlet /></div>
+
+        <main className="mx-auto w-full max-w-[1480px] p-4 sm:p-6 lg:px-9 lg:py-8">
+          <Outlet />
+        </main>
       </div>
-      <nav className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-around border-t border-line bg-white px-1 pb-[env(safe-area-inset-bottom)] pt-1 md:hidden" aria-label="Primary">
-        {mobileMain.map((n) => <Item key={n.to} n={n} mobile />)}
-        <button onClick={() => setMore(true)} className="flex flex-col items-center gap-0.5 px-2 py-1.5 text-[11px] text-muted"><MoreHorizontal className="h-5 w-5" />More</button>
+
+      {/* Mobile bottom navigation */}
+      <nav
+        className="fixed inset-x-0 bottom-0 z-40 flex items-stretch justify-around border-t border-[#E5EAE3] bg-white/95 px-2 pb-[env(safe-area-inset-bottom)] pt-1 shadow-[0_-8px_30px_rgba(25,55,37,0.06)] backdrop-blur-xl md:hidden"
+        aria-label="Primary"
+      >
+        {mobileMain.map((n) => (
+          <Item key={n.to} n={n} mobile />
+        ))}
+        <button
+          onClick={() => setMore(true)}
+          className={cx(
+            'flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[10px] font-semibold transition',
+            more ? 'bg-[#E7F2EA] text-[#174D35]' : 'text-[#718078] hover:bg-[#F1F5F1]'
+          )}
+        >
+          <MoreHorizontal className="h-5 w-5" />
+          More
+        </button>
       </nav>
-      <AnimatePresence>{more && (
-        <motion.div className="fixed inset-0 z-50 bg-ink/40 md:hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setMore(false)}>
-          <motion.div initial={{ y: 40 }} animate={{ y: 0 }} exit={{ y: 40 }} className="absolute inset-x-0 bottom-0 rounded-t-2xl bg-white p-4 pb-8" onClick={(e) => e.stopPropagation()}>
-            <div className="grid grid-cols-3 gap-2">{items.filter((i) => !mobileMain.includes(i)).map((n) => <Item key={n.to} n={n} mobile />)}</div>
-            {businesses.length > 1 && <div className="mt-3"><BizSwitch /></div>}
-            <button onClick={async () => { await logout(); nav('/'); }} className="btn-secondary mt-4 w-full"><LogOut className="h-4 w-4" />Sign out</button>
+
+      {/* Mobile navigation drawer */}
+      <AnimatePresence>
+        {more && (
+          <motion.div
+            className="fixed inset-0 z-50 bg-[#102D22]/45 backdrop-blur-[2px] md:hidden"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setMore(false)}
+          >
+            <motion.div
+              initial={{ y: 36, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 36, opacity: 0 }}
+              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+              className="absolute inset-x-0 bottom-0 max-h-[82dvh] overflow-y-auto rounded-t-[28px] bg-[#F8FAF6] px-5 pb-8 pt-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-[#D6DED5]" />
+              <div className="mb-5 flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#819087]">
+                    Navigation
+                  </p>
+                  <h2 className="mt-1 text-xl font-bold text-[#173A29]">
+                    Your workspace
+                  </h2>
+                </div>
+                <button
+                  onClick={() => setMore(false)}
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[#526258]"
+                  aria-label="Close navigation"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {groups.map((group) => {
+                const groupItems = items.filter(
+                  (item) => item.group === group && !mobileMain.some((main) => main.to === item.to)
+                );
+                if (!groupItems.length) return null;
+
+                return (
+                  <section key={group} className="mb-5">
+                    <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.18em] text-[#89968D]">
+                      {group}
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {groupItems.map((n) => (
+                        <Item key={n.to} n={n} />
+                      ))}
+                    </div>
+                  </section>
+                );
+              })}
+
+              {businesses.length > 1 && (
+                <div className="mb-4 rounded-2xl bg-white p-3">
+                  <BizSwitch />
+                </div>
+              )}
+
+              <button
+                onClick={signOut}
+                className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-[#E2E8E0] bg-white text-sm font-semibold text-[#526258]"
+              >
+                <LogOut className="h-4 w-4" />
+                Sign out
+              </button>
+            </motion.div>
           </motion.div>
-        </motion.div>)}</AnimatePresence>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
+
 
 function BizSwitch() {
   const { businesses, ctx, switchBusiness } = useAuth();

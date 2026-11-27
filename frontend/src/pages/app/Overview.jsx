@@ -947,6 +947,7 @@ nav(
   );
 }
 
+
 export default function Overview() {
   const { ctx, businesses, loading, refresh, can } = useAuth();
   const toast = useToast();
@@ -979,14 +980,45 @@ export default function Overview() {
   if (!ctx) return <Loading />;
 
   const b = ctx.business || {};
-  const url = `${window.location.origin}/s/${b.slug || ''}`;
   const sub = ctx.subscription || {};
+  const url = `${window.location.origin}/s/${b.slug || ''}`;
+  const setup = ctx.setup || { complete: true, steps: [] };
+  const completedSteps = (setup.steps || []).filter((step) => step.done).length;
+  const totalSteps = (setup.steps || []).length;
+  const setupProgress = totalSteps
+    ? Math.round((completedSteps / totalSteps) * 100)
+    : 100;
 
   const quickActions = [
-    { label: 'Products', href: '/app/products', detail: 'Add or refine your catalogue' },
-    { label: 'Billing', href: '/app/billing', detail: 'Check subscription and setup status' },
-    { label: 'Settings', href: '/app/settings', detail: 'Update profile and store details' },
-  ];
+    {
+      label: 'Manage products',
+      detail: 'Update your catalogue',
+      href: '/app/products',
+      icon: Store,
+      show: commerceEnabled,
+    },
+    {
+      label: 'Manage orders',
+      detail: 'Keep up with customer orders',
+      href: '/app/orders',
+      icon: ArrowRight,
+      show: commerceEnabled,
+    },
+    {
+      label: 'Bookings',
+      detail: 'Manage appointments',
+      href: '/app/bookings',
+      icon: Globe2,
+      show: ctx?.modules?.includes('services'),
+    },
+    {
+      label: 'Business settings',
+      detail: 'Update your business profile',
+      href: '/app/settings',
+      icon: ShieldCheck,
+      show: true,
+    },
+  ].filter((action) => action.show);
 
   const toggle = () => run(
     async () => {
@@ -1017,248 +1049,477 @@ export default function Overview() {
     }
   };
 
+  const copyStoreLink = async () => {
+    try {
+      await navigator.clipboard?.writeText(url);
+      toast('Store link copied');
+    } catch {
+      toast('Could not copy the store link.', 'bad');
+    }
+  };
+
   return (
-    <>
-      <PageHeader
-        title={b.name || 'Business overview'}
-        sub={`Signed in as ${ctx.role}`}
-        actions={
-          b.storePublished ? (
-            <a className="btn-secondary" href={url} target="_blank" rel="noreferrer">
-              View store <ExternalLink className="h-4 w-4" />
-            </a>
-          ) : null
-        }
-      />
+    <div className="space-y-6">
+      {/* Welcome area */}
+      <motion.section
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35 }}
+        className="relative overflow-hidden rounded-[26px] bg-[#103B2B] px-5 py-7 text-white shadow-[0_16px_40px_rgba(16,59,43,0.12)] sm:px-8 sm:py-9"
+      >
+        <div className="pointer-events-none absolute -right-12 -top-24 h-72 w-72 rounded-full border-[38px] border-white/[0.045]" />
+        <div className="pointer-events-none absolute -bottom-28 right-[20%] h-64 w-64 rounded-full bg-[#D9F078]/[0.07] blur-3xl" />
 
-      <div className="mb-5 grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-        <Card className="p-5">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm text-muted">Storefront</p>
-              <h2 className="mt-1 text-lg font-semibold">Banner editor</h2>
+        <div className="relative z-10 flex flex-col justify-between gap-7 lg:flex-row lg:items-end">
+          <div className="max-w-2xl">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.08] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/75">
+              <Sparkles className="h-3.5 w-3.5 text-[#D9F078]" />
+              Your business workspace
             </div>
-            <button
-              className="btn-secondary"
-              onClick={() => setStorefrontOpen((open) => !open)}
-            >
-              {storefrontOpen ? 'Close' : 'Edit banner'}
-            </button>
+
+            <h1 className="mt-5 text-3xl font-bold tracking-tight sm:text-4xl">
+              Welcome back.
+            </h1>
+            <p className="mt-2 text-lg font-semibold text-[#D9F078]">
+              {b.name || 'Your business'}
+            </p>
+            <p className="mt-3 max-w-xl text-sm leading-6 text-white/65">
+              Your business, your customers and your day-to-day operations—
+              everything starts here.
+            </p>
           </div>
 
-          {storefrontOpen && (
-            <div className="mt-4 space-y-4 rounded-2xl border border-line bg-paper p-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <Input
-                  id="hero-title"
-                  label="Headline"
-                  value={storefront.heroTitle || ''}
-                  onChange={(e) => setStorefront({ ...storefront, heroTitle: e.target.value })}
-                />
-                <Input
-                  id="cta-text"
-                  label="CTA label"
-                  value={storefront.ctaText || ''}
-                  onChange={(e) => setStorefront({ ...storefront, ctaText: e.target.value })}
-                />
-                <Input
-                  id="hero-subtitle"
-                  label="Subtitle"
-                  value={storefront.heroSubtitle || ''}
-                  onChange={(e) => setStorefront({ ...storefront, heroSubtitle: e.target.value })}
-                />
-                <Input
-                  id="cta-link"
-                  label="CTA link"
-                  value={storefront.ctaLink || ''}
-                  onChange={(e) => setStorefront({ ...storefront, ctaLink: e.target.value })}
-                />
-                <Input
-                  id="primary-color"
-                  label="Primary color"
-                  type="color"
-                  value={storefront.primaryColor || '#0B6B4F'}
-                  onChange={(e) => setStorefront({ ...storefront, primaryColor: e.target.value })}
-                />
-                <Input
-                  id="background-image"
-                  label="Background image URL"
-                  value={storefront.backgroundImage || ''}
-                  onChange={(e) => setStorefront({ ...storefront, backgroundImage: e.target.value })}
-                />
-              </div>
-
-              <label className="flex items-center gap-2 text-sm text-ink">
-                <input
-                  type="checkbox"
-                  checked={!!storefront.published}
-                  onChange={(e) => setStorefront({ ...storefront, published: e.target.checked })}
-                />
-                Show this banner on the public store
-              </label>
-
-              <div className="flex gap-3">
-                <button className="btn-primary" onClick={saveStorefront}>Save banner</button>
-                <button
-                  className="btn-secondary"
-                  onClick={() => setStorefront(normalizeStorefrontConfig(b.storefront || {}, b.name))}
-                >
-                  Reset
-                </button>
-              </div>
-            </div>
-          )}
-
-          <div className="mt-4 rounded-2xl border border-line bg-white p-4">
-            <p className="text-xs uppercase tracking-[0.2em] text-muted">Preview</p>
-            <motion.div
-              {...revealPreset(0, 14)}
-              className="mt-3 rounded-2xl p-5 text-white"
-              style={{
-                background: storefront.published
-                  ? `linear-gradient(135deg, ${storefront.primaryColor || '#0B6B4F'}, rgba(17,24,39,0.8))`
-                  : '#E7F0ED',
-              }}
+          <div className="flex flex-wrap gap-2">
+            <Link
+              to="/app/storefront"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-[#D9F078] px-5 text-xs font-bold text-[#173A29] transition hover:-translate-y-0.5 hover:bg-[#E5FA91]"
             >
-              <p className="text-xs uppercase tracking-[0.2em] text-white/70">Featured</p>
-              <h3 className="mt-2 text-2xl font-bold text-white">
-                {storefront.heroTitle || b.name || 'Your storefront'}
-              </h3>
-              {storefront.heroSubtitle && (
-                <p className="mt-2 text-sm text-white/80">{storefront.heroSubtitle}</p>
-              )}
-              {storefront.ctaText && (
-                <span className="mt-4 inline-block rounded-full bg-white px-4 py-2 text-sm font-semibold text-ink">
-                  {storefront.ctaText}
-                </span>
-              )}
-            </motion.div>
-          </div>
-        </Card>
-
-        <Card className="p-5">
-          <p className="text-sm text-muted">Quick actions</p>
-          <div className="mt-4 space-y-2">
-            {quickActions.map((action) => (
-              <Link
-                key={action.label}
-                to={action.href}
-                className="block rounded-xl border border-line bg-paper px-3 py-3 transition hover:bg-forest-50"
+              <Globe2 className="h-4 w-4" />
+              Open storefront studio
+            </Link>
+            {b.storePublished && (
+              <a
+                href={url}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-white/20 bg-white/[0.08] px-5 text-xs font-semibold text-white transition hover:bg-white/[0.15]"
               >
-                <p className="font-medium text-ink">{action.label}</p>
-                <p className="mt-1 text-xs text-muted">{action.detail}</p>
-              </Link>
+                View live store
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            )}
+          </div>
+        </div>
+
+        <div className="relative z-10 mt-8 flex flex-wrap items-center gap-x-6 gap-y-3 border-t border-white/10 pt-5 text-[11px] text-white/55">
+          <span className="flex items-center gap-2">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#D9F078]" />
+            {ctx.role || 'Workspace member'}
+          </span>
+          <span className="flex items-center gap-2">
+            <span className={`h-1.5 w-1.5 rounded-full ${b.storePublished ? 'bg-[#8FE0A5]' : 'bg-[#E9A23B]'}`} />
+            {b.storePublished ? 'Storefront published' : 'Storefront not published'}
+          </span>
+          <span>{sub.plan?.name || 'Free plan'}</span>
+        </div>
+      </motion.section>
+
+      {/* Setup progress */}
+      {!setup.complete && (
+        <motion.section
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-2xl border border-[#E5EAE3] bg-white p-5 shadow-[0_4px_18px_rgba(25,55,37,0.025)] sm:p-6"
+        >
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#688071]">
+                Getting started
+              </p>
+              <h2 className="mt-1 text-lg font-bold text-[#1B3024]">
+                Let's get your business ready.
+              </h2>
+              <p className="mt-1 text-xs text-[#819087]">
+                Complete these steps to get the most out of Zuno.
+              </p>
+            </div>
+            <span className="rounded-full bg-[#EAF3E9] px-3 py-1.5 text-xs font-bold text-[#245B3B]">
+              {setupProgress}% complete
+            </span>
+          </div>
+
+          <div className="mt-5 h-2 overflow-hidden rounded-full bg-[#EDF1EC]">
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${setupProgress}%` }}
+              transition={{ duration: 0.6, ease: 'easeOut' }}
+              className="h-full rounded-full bg-[#276B48]"
+            />
+          </div>
+
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {(setup.steps || []).map((step) => (
+              <div
+                key={step.key}
+                className={`flex items-start gap-3 rounded-xl border p-3 ${
+                  step.done
+                    ? 'border-[#E4ECE3] bg-[#F7FAF6]'
+                    : 'border-[#E8EAE2] bg-[#FCFCF9]'
+                }`}
+              >
+                {step.done ? (
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#34764B]" />
+                ) : (
+                  <Circle className="mt-0.5 h-4 w-4 shrink-0 text-[#A0AAA1]" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className={`text-xs font-semibold ${step.done ? 'text-[#718078]' : 'text-[#26392D]'}`}>
+                    {step.label}
+                  </p>
+                  {!step.done && (
+                    <Link
+                      className="mt-2 inline-flex text-[11px] font-bold text-[#276B48] hover:underline"
+                      to={{
+                        profile: '/app/settings',
+                        plan: '/app/billing',
+                        products: '/app/products',
+                        publish: '/app/storefront',
+                      }[step.key] || '/app'}
+                    >
+                      Complete step <ArrowRight className="ml-1 h-3 w-3" />
+                    </Link>
+                  )}
+                </div>
+              </div>
             ))}
           </div>
-        </Card>
-      </div>
-
-      {!ctx.setup.complete && (
-        <Card className="mb-5 p-5">
-          <h2 className="font-semibold">Finish setting up</h2>
-          <ul className="mt-3 space-y-2">
-            {ctx.setup.steps.map((s) => (
-              <li key={s.key} className="flex items-center gap-2 text-sm">
-                {s.done ? (
-                  <CheckCircle2 className="h-5 w-5 text-forest-500" />
-                ) : (
-                  <Circle className="h-5 w-5 text-muted" />
-                )}
-                <span className={s.done ? 'text-muted line-through' : ''}>{s.label}</span>
-                {!s.done && (
-                  <Link
-                    className="ml-auto font-semibold text-forest underline"
-                    to={{
-                      profile: '/app/settings',
-                      plan: '/app/billing',
-                      products: '/app/products',
-                      publish: '/app/settings',
-                    }[s.key]}
-                  >
-                    Go
-                  </Link>
-                )}
-              </li>
-            ))}
-          </ul>
-        </Card>
+        </motion.section>
       )}
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card className="p-5">
-          <p className="text-sm text-muted">Plan</p>
-          <p className="mt-1 font-display text-xl font-bold">{sub.plan?.name || 'None'}</p>
-          <div className="mt-2"><Badge>{sub.state || 'not active'}</Badge></div>
-          {sub.currentPeriodEnd && (
-            <p className="mt-2 text-xs text-muted">Paid until {date(sub.currentPeriodEnd)}</p>
-          )}
-          {!['active', 'grace'].includes(sub.state || '') && can('billing.manage') && (
-            <Link to="/app/billing" className="btn-primary mt-3 w-full">Activate in Billing</Link>
-          )}
-        </Card>
-
-        {commerceEnabled ? (
-          <Card className="p-5">
-            <p className="text-sm text-muted">Online store</p>
-            <p className="mt-1 font-display text-xl font-bold">
-              {b.storePublished ? 'Published' : 'Not published'}
+      {/* Business snapshot */}
+      <section>
+        <div className="mb-3 flex items-center justify-between">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#829087]">
+              Business snapshot
             </p>
-            {b.storePublished && (
-              <button
-                className="mt-2 flex items-center gap-1 break-all text-left text-xs text-forest underline"
-                onClick={() => {
-                  navigator.clipboard?.writeText(url);
-                  toast('Link copied');
-                }}
-              >
-                <Copy className="h-3 w-3 shrink-0" />
-                {url}
-              </button>
-            )}
-            {can('business.update') && (
-              <button className="btn-secondary mt-3 w-full" disabled={busy} onClick={toggle}>
-                {b.storePublished ? 'Unpublish' : 'Publish store'}
-              </button>
-            )}
-          </Card>
-        ) : (
-          <Card className="p-5">
-            <p className="text-sm text-muted">Business type</p>
-            <p className="mt-1 font-display text-xl font-bold">Service business</p>
-            <p className="mt-2 text-sm text-muted">
-              Service catalog and appointment workflows are not part of this foundation phase.
-            </p>
-          </Card>
-        )}
+            <h2 className="mt-1 text-lg font-bold text-[#1B3024]">
+              Your business at a glance
+            </h2>
+          </div>
+          {commerceEnabled && can('reports.read') && (
+            <Link to="/app/reports" className="text-xs font-semibold text-[#276B48] hover:underline">
+              View reports <ArrowRight className="ml-1 inline h-3.5 w-3.5" />
+            </Link>
+          )}
+        </div>
 
-        {commerceEnabled ? (
-          <Card className="p-5">
-            <p className="text-sm text-muted">Last 30 days (net sales)</p>
-            {rep ? (
-              <>
-                <p className="mt-1 font-display text-2xl font-bold">{naira(rep.summary.netSales)}</p>
-                <p className="mt-1 text-xs text-muted">
-                  {rep.summary.online.orders} online orders · {rep.summary.pos.transactions} POS sales
-                </p>
-              </>
-            ) : (
-              <p className="mt-2 text-sm text-muted">
-                {can('reports.read')
-                  ? 'Available once your plan is active.'
-                  : 'Reports are available to managers and owners.'}
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-2xl border border-[#E5EAE3] bg-white p-5 shadow-[0_4px_18px_rgba(25,55,37,0.025)]">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-[#829087]">Subscription</span>
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#EDF4E9] text-[#34764B]">
+                <ShieldCheck className="h-[18px] w-[18px]" />
+              </span>
+            </div>
+            <p className="mt-4 text-xl font-bold text-[#1B3024]">
+              {sub.plan?.name || 'No plan'}
+            </p>
+            <div className="mt-2 flex items-center gap-2">
+              <Badge>{sub.state || 'not active'}</Badge>
+            </div>
+            {sub.currentPeriodEnd && (
+              <p className="mt-3 text-[11px] text-[#829087]">
+                Paid until {date(sub.currentPeriodEnd)}
               </p>
             )}
-          </Card>
-        ) : (
-          <Card className="p-5">
-            <p className="text-sm text-muted">Enabled modules</p>
-            <p className="mt-1 font-display text-xl font-bold">Services</p>
-            <p className="mt-2 text-sm text-muted">
-              Your business profile, account, and subscription use the shared Zuno foundation.
+            {!['active', 'grace'].includes(sub.state || '') && can('billing.manage') && (
+              <Link to="/app/billing" className="mt-3 inline-flex text-xs font-semibold text-[#276B48] hover:underline">
+                Review your plan <ArrowRight className="ml-1 h-3.5 w-3.5" />
+              </Link>
+            )}
+          </div>
+
+          <div className="rounded-2xl border border-[#E5EAE3] bg-white p-5 shadow-[0_4px_18px_rgba(25,55,37,0.025)]">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-[#829087]">Storefront status</span>
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#F4F1E7] text-[#94702E]">
+                <Globe2 className="h-[18px] w-[18px]" />
+              </span>
+            </div>
+            <p className="mt-4 text-xl font-bold text-[#1B3024]">
+              {b.storePublished ? 'Published' : 'Draft'}
             </p>
-          </Card>
-        )}
-      </div>
-    </>
+            <p className="mt-2 text-[11px] text-[#829087]">
+              {b.storePublished ? 'Your public business page is live.' : 'Your business page is not public yet.'}
+            </p>
+            {b.storePublished ? (
+              <button onClick={copyStoreLink} className="mt-3 inline-flex items-center gap-1.5 break-all text-left text-[11px] font-semibold text-[#276B48] hover:underline">
+                <Copy className="h-3 w-3 shrink-0" /> Copy store link
+              </button>
+            ) : (
+              <Link to="/app/storefront" className="mt-3 inline-flex text-xs font-semibold text-[#276B48] hover:underline">
+                Finish your storefront <ArrowRight className="ml-1 h-3.5 w-3.5" />
+              </Link>
+            )}
+          </div>
+
+          {commerceEnabled ? (
+            <div className="rounded-2xl border border-[#E5EAE3] bg-white p-5 shadow-[0_4px_18px_rgba(25,55,37,0.025)]">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-[#829087]">Net sales · 30 days</span>
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#EAF3E9] text-[#34764B]">
+                  <Store className="h-[18px] w-[18px]" />
+                </span>
+              </div>
+              <p className="mt-4 text-xl font-bold text-[#1B3024]">
+                {rep?.summary ? naira(rep.summary.netSales) : '—'}
+              </p>
+              <p className="mt-2 text-[11px] text-[#829087]">
+                {rep?.summary
+                  ? `${rep.summary.online.orders} online orders · ${rep.summary.pos.transactions} POS sales`
+                  : can('reports.read')
+                    ? 'Available when reporting data is ready.'
+                    : 'Reports are available to managers and owners.'}
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-[#E5EAE3] bg-white p-5">
+              <p className="text-xs font-medium text-[#829087]">Business type</p>
+              <p className="mt-4 text-xl font-bold text-[#1B3024]">Services</p>
+              <p className="mt-2 text-[11px] text-[#829087]">Manage your services and customer appointments from this workspace.</p>
+            </div>
+          )}
+
+          <div className="rounded-2xl border border-[#E5EAE3] bg-white p-5 shadow-[0_4px_18px_rgba(25,55,37,0.025)]">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-[#829087]">Workspace access</span>
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#F0EDF7] text-[#6E5A9A]">
+                <ShieldCheck className="h-[18px] w-[18px]" />
+              </span>
+            </div>
+            <p className="mt-4 text-xl font-bold capitalize text-[#1B3024]">
+              {ctx.role || 'Member'}
+            </p>
+            <p className="mt-2 text-[11px] text-[#829087]">
+              Your current role and workspace permissions.
+            </p>
+            <Link to="/app/settings" className="mt-3 inline-flex text-xs font-semibold text-[#276B48] hover:underline">
+              Manage workspace <ArrowRight className="ml-1 h-3.5 w-3.5" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Storefront feature */}
+      <section className="grid gap-4 xl:grid-cols-[1.35fr_0.65fr]">
+        <div className="overflow-hidden rounded-2xl border border-[#E5EAE3] bg-white shadow-[0_4px_18px_rgba(25,55,37,0.025)]">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#EDF0EA] px-5 py-4 sm:px-6">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#829087]">
+                Your online presence
+              </p>
+              <h2 className="mt-1 text-lg font-bold text-[#1B3024]">
+                Storefront appearance
+              </h2>
+            </div>
+            <Link to="/app/storefront" className="inline-flex items-center gap-1 text-xs font-bold text-[#276B48] hover:underline">
+              Open studio <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+
+          <div className="p-5 sm:p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-[#26392D]">
+                  {b.storePublished ? 'Your storefront is live' : 'Your storefront is taking shape'}
+                </p>
+                <p className="mt-1 text-xs text-[#829087]">
+                  {b.storePublished
+                    ? 'Your customers can visit your public business page.'
+                    : 'Build your page and publish it when you are ready.'}
+                </p>
+              </div>
+              <Badge>{b.storePublished ? 'published' : 'draft'}</Badge>
+            </div>
+
+            <div className="mt-5 overflow-hidden rounded-2xl border border-[#E5EAE3] bg-[#F3F6F1] p-3 sm:p-4">
+              <p className="mb-3 text-[9px] font-bold uppercase tracking-[0.18em] text-[#89968D]">
+                Storefront preview
+              </p>
+              <motion.div
+                {...revealPreset(0, 12)}
+                className="relative min-h-[170px] overflow-hidden rounded-xl p-5 text-white sm:p-7"
+                style={{
+                  background: storefront.published
+                    ? `linear-gradient(125deg, ${storefront.primaryColor || '#0B6B4F'}, #102D22)`
+                    : 'linear-gradient(125deg, #1A5139, #102D22)',
+                }}
+              >
+                <div className="pointer-events-none absolute -right-8 -top-14 h-44 w-44 rounded-full border-[24px] border-white/[0.08]" />
+                <div className="relative max-w-lg">
+                  <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/60">
+                    {b.name || 'Your business'}
+                  </p>
+                  <h3 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
+                    {storefront.heroTitle || b.name || 'Your business, beautifully presented.'}
+                  </h3>
+                  {storefront.heroSubtitle && (
+                    <p className="mt-2 max-w-md text-xs leading-5 text-white/70">
+                      {storefront.heroSubtitle}
+                    </p>
+                  )}
+                  <span className="mt-5 inline-flex rounded-full bg-[#D9F078] px-4 py-2 text-[10px] font-bold text-[#173A29]">
+                    {storefront.ctaText || 'Explore business'}
+                  </span>
+                </div>
+              </motion.div>
+            </div>
+
+            {storefrontOpen && (
+              <div className="mt-5 space-y-4 rounded-2xl border border-[#E5EAE3] bg-[#F8FAF6] p-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Input
+                    id="hero-title"
+                    label="Headline"
+                    value={storefront.heroTitle || ''}
+                    onChange={(e) => setStorefront({ ...storefront, heroTitle: e.target.value })}
+                  />
+                  <Input
+                    id="cta-text"
+                    label="Button label"
+                    value={storefront.ctaText || ''}
+                    onChange={(e) => setStorefront({ ...storefront, ctaText: e.target.value })}
+                  />
+                  <Input
+                    id="hero-subtitle"
+                    label="Subtitle"
+                    value={storefront.heroSubtitle || ''}
+                    onChange={(e) => setStorefront({ ...storefront, heroSubtitle: e.target.value })}
+                  />
+                  <Input
+                    id="cta-link"
+                    label="Button link"
+                    value={storefront.ctaLink || ''}
+                    onChange={(e) => setStorefront({ ...storefront, ctaLink: e.target.value })}
+                  />
+                  <Input
+                    id="primary-color"
+                    label="Primary colour"
+                    type="color"
+                    value={storefront.primaryColor || '#0B6B4F'}
+                    onChange={(e) => setStorefront({ ...storefront, primaryColor: e.target.value })}
+                  />
+                  <Input
+                    id="background-image"
+                    label="Background image URL"
+                    value={storefront.backgroundImage || ''}
+                    onChange={(e) => setStorefront({ ...storefront, backgroundImage: e.target.value })}
+                  />
+                </div>
+
+                <label className="flex items-center gap-2 text-xs font-medium text-[#526258]">
+                  <input
+                    type="checkbox"
+                    checked={!!storefront.published}
+                    onChange={(e) => setStorefront({ ...storefront, published: e.target.checked })}
+                  />
+                  Show this banner on the public store
+                </label>
+
+                <div className="flex flex-wrap gap-2">
+                  <button className="btn-primary" onClick={saveStorefront}>
+                    Save changes
+                  </button>
+                  <button
+                    className="btn-secondary"
+                    onClick={() => setStorefront(normalizeStorefrontConfig(b.storefront || {}, b.name))}
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                className="btn-secondary"
+                onClick={() => setStorefrontOpen((open) => !open)}
+              >
+                {storefrontOpen ? 'Close editor' : 'Edit banner'}
+              </button>
+              {can('business.update') && (
+                <button className="btn-primary" disabled={busy} onClick={toggle}>
+                  {busy ? 'Please wait…' : b.storePublished ? 'Unpublish store' : 'Publish store'}
+                </button>
+              )}
+              {b.storePublished && (
+                <button className="btn-secondary" onClick={copyStoreLink}>
+                  <Copy className="h-4 w-4" /> Copy link
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Quick actions */}
+        <aside className="rounded-2xl border border-[#E5EAE3] bg-white p-5 shadow-[0_4px_18px_rgba(25,55,37,0.025)] sm:p-6">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#829087]">
+            Keep things moving
+          </p>
+          <h2 className="mt-1 text-lg font-bold text-[#1B3024]">
+            Quick actions
+          </h2>
+          <p className="mt-1 text-xs leading-5 text-[#829087]">
+            Jump straight into the tools you use most.
+          </p>
+
+          <div className="mt-5 space-y-2">
+            {quickActions.map((action, index) => {
+              const Icon = action.icon;
+              return (
+                <motion.div
+                  key={action.href}
+                  initial={{ opacity: 0, x: 8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.045 }}
+                >
+                  <Link
+                    to={action.href}
+                    className="group flex items-center gap-3 rounded-xl border border-[#E9EDE7] bg-[#FBFCF9] p-3 transition duration-200 hover:-translate-y-0.5 hover:border-[#C9DCCB] hover:bg-[#F1F7EF]"
+                  >
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EAF3E9] text-[#34764B] transition group-hover:bg-[#DCEBDD]">
+                      <Icon className="h-[18px] w-[18px]" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-xs font-bold text-[#26392D]">
+                        {action.label}
+                      </span>
+                      <span className="mt-1 block text-[10px] text-[#829087]">
+                        {action.detail}
+                      </span>
+                    </span>
+                    <ArrowRight className="h-4 w-4 shrink-0 text-[#9BA79D] transition group-hover:translate-x-1 group-hover:text-[#276B48]" />
+                  </Link>
+                </motion.div>
+              );
+            })}
+          </div>
+
+          <div className="mt-5 rounded-xl bg-[#103B2B] p-4 text-white">
+            <div className="flex items-center gap-2 text-[#D9F078]">
+              <Sparkles className="h-4 w-4" />
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em]">
+                A little reminder
+              </p>
+            </div>
+            <p className="mt-2 text-xs leading-5 text-white/75">
+              Keep your business details, products and storefront up to date.
+              A clear online presence makes it easier for customers to find you.
+            </p>
+          </div>
+        </aside>
+      </section>
+    </div>
   );
 }
