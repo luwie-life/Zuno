@@ -26,14 +26,28 @@ import { merchantOriginAllowed } from '../src/lib/merchantDomain.js';
 import { normalizeStorefrontConfig } from '../src/lib/storefront.js';
 import { renderEmailTemplate } from '../src/services/emailTemplates.js';
 
-test('merchant CORS accepts only HTTPS origins on one configured subdomain', () => {
+
+test('merchant CORS accepts only valid HTTPS merchant subdomains', () => {
   assert.equal(merchantOriginAllowed('https://shop.example.com', 'example.com'), true);
+  assert.equal(merchantOriginAllowed('https://a.example.com', 'example.com'), true);
+  assert.equal(merchantOriginAllowed('https://my-store.example.com', 'example.com'), true);
+
   assert.equal(merchantOriginAllowed('https://example.com', 'example.com'), false);
-  assert.equal(merchantOriginAllowed('https://shop.otherexample.com', 'example.com'), false);
-  assert.equal(merchantOriginAllowed('http://shop.example.com', 'example.com'), false);
+  assert.equal(merchantOriginAllowed('https://www.example.com', 'example.com'), false);
+  assert.equal(merchantOriginAllowed('https://api.example.com', 'example.com'), false);
+  assert.equal(merchantOriginAllowed('https://admin.example.com', 'example.com'), false);
   assert.equal(merchantOriginAllowed('https://nested.shop.example.com', 'example.com'), false);
+
+  assert.equal(merchantOriginAllowed('http://shop.example.com', 'example.com'), false);
+  assert.equal(merchantOriginAllowed('https://shop.example.com:8443', 'example.com'), false);
+  assert.equal(merchantOriginAllowed('https://user:pass@shop.example.com', 'example.com'), false);
+  assert.equal(merchantOriginAllowed('https://shop.otherexample.com', 'example.com'), false);
   assert.equal(merchantOriginAllowed('https://shop.example.com.evil.test', 'example.com'), false);
+  assert.equal(merchantOriginAllowed('https://-shop.example.com', 'example.com'), false);
+  assert.equal(merchantOriginAllowed('https://shop-.example.com', 'example.com'), false);
+  assert.equal(merchantOriginAllowed('https://shop.example.com/', 'example.com'), false);
 });
+
 
 test('storefront config keeps a safe draft default and cleans content before publishing', () => {
   const cfg = normalizeStorefrontConfig({ heroTitle: '   ', heroSubtitle: ' Welcome to my store ', ctaText: '', primaryColor: '#ff0000', published: true }, 'Acme');
