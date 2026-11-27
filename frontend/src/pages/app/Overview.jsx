@@ -979,7 +979,7 @@ export default function Overview() {
   if (!ctx) return <Loading />;
 
   const b = ctx.business || {};
-  const url = `${window.location.origin}/store/${b.slug || ''}`;
+  const url = `${window.location.origin}/s/${b.slug || ''}`;
   const sub = ctx.subscription || {};
 
   const quickActions = [
