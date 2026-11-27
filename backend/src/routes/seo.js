@@ -133,7 +133,14 @@ r.get('/sitemap.xml', async (req, res, next) => {
       .sort({ updatedAt: -1 })
       .lean();
 
-    const staticPaths = ['', '/pricing', '/mobile-app', '/support'];
+    const staticPaths = [
+  '',
+  '/pricing',
+  '/mobile-app',
+  '/support',
+  '/privacy',
+  '/terms',
+];
 
     const urls = staticPaths.map((path) => ({
       loc: `${siteUrl}${path}`,

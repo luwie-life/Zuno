@@ -1,8 +1,9 @@
+
 {
   "rewrites": [
     {
       "source": "/sitemap.xml",
-      "destination": "https://zuno-d47h.onrender.com/seo/sitemap.xml"
+      "destination": "https://zuno-d47h.onrender.com/api/seo/sitemap.xml"
     },
     {
       "source": "/s/:slug",
@@ -13,7 +14,7 @@
           "value": ".*([Gg]ooglebot|[Bb]ingbot|[Ss]lurp|[Ff]acebookexternalhit|[Ff]acebot|[Tt]witterbot|[Ll]inkedInBot|[Ww]hatsApp|[Tt]elegramBot|[Dd]iscordbot|[Ss]kypeUriPreview).*"
         }
       ],
-      "destination": "https://zuno-d47h.onrender.com/seo/store/:slug"
+      "destination": "https://zuno-d47h.onrender.com/api/seo/store/:slug"
     },
     {
       "source": "/store/:slug",
@@ -24,7 +25,7 @@
           "value": ".*([Gg]ooglebot|[Bb]ingbot|[Ss]lurp|[Ff]acebookexternalhit|[Ff]acebot|[Tt]witterbot|[Ll]inkedInBot|[Ww]hatsApp|[Tt]elegramBot|[Dd]iscordbot|[Ss]kypeUriPreview).*"
         }
       ],
-      "destination": "https://zuno-d47h.onrender.com/seo/store/:slug"
+      "destination": "https://zuno-d47h.onrender.com/api/seo/store/:slug"
     },
     {
       "source": "/(.*)",
