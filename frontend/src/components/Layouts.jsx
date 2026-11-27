@@ -26,6 +26,69 @@ export function MarketingLayout() {
   useEffect(() => {
     setOpen(false);
     window.scrollTo({ top: 0, behavior: 'instant' });
+
+    const pages = {
+      '/': {
+        title: 'Zuno | Business management, online stores, POS and bookings',
+        description: 'Build your business presence with Zuno. Create an online storefront, manage products and services, accept orders and bookings, and run daily business operations in one place.',
+      },
+      '/pricing': {
+        title: 'Zuno Pricing | Business tools and online storefront plans',
+        description: 'Explore Zuno plans for businesses selling products, offering services, managing bookings and running daily operations.',
+      },
+      '/mobile-app': {
+        title: 'Zuno Mobile App | Manage your business on the go',
+        description: 'Stay connected to your business with Zuno. Access important business activity and manage operations wherever you are.',
+      },
+      '/support': {
+        title: 'Zuno Support | Help with your business workspace',
+        description: 'Find help and support for setting up your Zuno business workspace, storefront, products, services and bookings.',
+      },
+      '/privacy': {
+        title: 'Privacy Policy | Zuno',
+        description: 'Read how Zuno handles personal information and protects user privacy.',
+      },
+      '/terms': {
+        title: 'Terms of Service | Zuno',
+        description: 'Read the terms that apply when using Zuno services and business tools.',
+      },
+    };
+
+    const page = pages[pathname] || pages['/'];
+    const canonical = `https://www.zuno.com.ng${pathname === '/' ? '/' : pathname}`;
+
+    document.title = page.title;
+
+    const setMeta = (attribute, key, content) => {
+      let element = document.head.querySelector(
+        `meta[${attribute}="${key}"]`
+      );
+
+      if (!element) {
+        element = document.createElement('meta');
+        element.setAttribute(attribute, key);
+        document.head.appendChild(element);
+      }
+
+      element.setAttribute('content', content);
+    };
+
+    setMeta('name', 'description', page.description);
+    setMeta('property', 'og:title', page.title);
+    setMeta('property', 'og:description', page.description);
+    setMeta('property', 'og:url', canonical);
+    setMeta('name', 'twitter:title', page.title);
+    setMeta('name', 'twitter:description', page.description);
+
+    let canonicalLink = document.head.querySelector('link[rel="canonical"]');
+
+    if (!canonicalLink) {
+      canonicalLink = document.createElement('link');
+      canonicalLink.rel = 'canonical';
+      document.head.appendChild(canonicalLink);
+    }
+
+    canonicalLink.href = canonical;
   }, [pathname]);
 
   const links = [

@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+Disallow: /app/
+Disallow: /admin/
+Disallow: /login
+Disallow: /register
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /recover
+Disallow: /api/
+
+Sitemap: https://www.zuno.com.ng/sitemap.xml

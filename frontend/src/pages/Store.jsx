@@ -23,13 +23,77 @@ function useCart(slug) {
   };
 }
 
-function useSeo(title, description) {
+function useSeo(business, pathname) {
   useEffect(() => {
+    if (!business) return;
+
+    const title = `${business.name} | ${business.category || 'Online store'}`;
+    const description = String(
+      business.description ||
+      `Explore ${business.name} on Zuno. View products, services and business information.`
+    ).slice(0, 160);
+
+    const canonicalPath = pathname.startsWith('/store/')
+      ? pathname.replace(/^\/store\//, '/s/')
+      : pathname.startsWith('/s/')
+        ? pathname
+        : `/s/${business.slug}`;
+
+    const canonical = `https://www.zuno.com.ng${canonicalPath}`;
+    const imageSource = business.logoUrl || business.images?.[0] || '';
+
+    let image = '';
+
+    try {
+      image = imageSource ? new URL(imageSource, 'https://www.zuno.com.ng').href : '';
+    } catch {
+      image = '';
+    }
+
     document.title = title;
-    let m = document.querySelector('meta[name="description"]');
-    if (!m) { m = document.createElement('meta'); m.name = 'description'; document.head.appendChild(m); }
-    if (description) m.content = description.slice(0, 160);
-  }, [title, description]);
+
+    const setMeta = (attribute, key, content) => {
+      let element = document.head.querySelector(
+        `meta[${attribute}="${key}"]`
+      );
+
+      if (!element) {
+        element = document.createElement('meta');
+        element.setAttribute(attribute, key);
+        document.head.appendChild(element);
+      }
+
+      element.setAttribute('content', content);
+    };
+
+    setMeta('name', 'description', description);
+    setMeta('name', 'robots', 'index,follow,max-image-preview:large');
+
+    setMeta('property', 'og:type', 'website');
+    setMeta('property', 'og:site_name', 'Zuno');
+    setMeta('property', 'og:title', title);
+    setMeta('property', 'og:description', description);
+    setMeta('property', 'og:url', canonical);
+
+    setMeta('name', 'twitter:card', image ? 'summary_large_image' : 'summary');
+    setMeta('name', 'twitter:title', title);
+    setMeta('name', 'twitter:description', description);
+
+    if (image) {
+      setMeta('property', 'og:image', image);
+      setMeta('name', 'twitter:image', image);
+    }
+
+    let canonicalLink = document.head.querySelector('link[rel="canonical"]');
+
+    if (!canonicalLink) {
+      canonicalLink = document.createElement('link');
+      canonicalLink.rel = 'canonical';
+      document.head.appendChild(canonicalLink);
+    }
+
+    canonicalLink.href = canonical;
+  }, [business, pathname]);
 }
 
 
@@ -51,10 +115,7 @@ export function StoreLayout({ merchantSlug }) {
   const cart = useCart(slug);
   const [open, setOpen] = useState(false);
 
-  useSeo(
-    data ? `${data.business.name} | Online store` : 'Online store',
-    data?.business.description || (data && `Shop ${data.business.name} online.`)
-  );
+  useSeo(data?.business, pathname);
 
   if (loading) return <Loading />;
 
