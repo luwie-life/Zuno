@@ -313,6 +313,20 @@ export default function App() {
             <Route path=":pageSlug" element={<StorefrontPage />} />
           </Route>
 
+
+          <Route path="/s/:slug" element={<StoreLayout />}>
+            <Route index element={<StorefrontHome />} />
+            <Route path="services" element={<StoreServices />} />
+            <Route path="services/:id" element={<StoreService />} />
+            <Route path="portfolio" element={<StorePortfolio />} />
+            <Route path="portfolio/:projectSlug" element={<StorePortfolioProject />} />
+            <Route path="p/:id" element={<StoreProduct />} />
+            <Route path="checkout" element={<StoreCheckout />} />
+            <Route path="order" element={<StoreOrder />} />
+            <Route path=":pageSlug" element={<StorefrontPage />} />
+          </Route>
+
+
           <Route
             path="/app/new"
             element={
